@@ -1,18 +1,19 @@
 "use client";
 
-/** HUD esquina: vitalidad verde (# integridad física), hambre roja silenciosa. Sin etiquetas. */
+/** Indicadores de integridad (verde) y hambre (rojo) para la cabecera del nexo. */
 type Props = {
   healthFilled: number;
   healthMax: number;
   hunger: number;
+  className?: string;
 };
 
-export function TechnicalHud({ healthFilled, healthMax, hunger }: Props) {
+export function TechnicalHud({ healthFilled, healthMax, hunger, className = "" }: Props) {
   const h = Math.max(0, Math.min(5, hunger));
   const hf = Math.max(0, Math.min(healthMax, healthFilled));
   return (
     <div
-      className="fixed right-4 top-4 z-[120] flex flex-col items-end gap-2 rounded border border-neutral-900/90 bg-black/40 px-2 py-2 backdrop-blur-[2px]"
+      className={`flex shrink-0 flex-col items-end gap-2 rounded border border-neutral-900/90 bg-black/40 px-2 py-2 backdrop-blur-[2px] sm:items-center${className ? ` ${className}` : ""}`}
       aria-label={`Integridad visual ${hf} de ${healthMax}; estrés hematófago ${h} de cinco`}
     >
       <div className="flex gap-1" title="Índice de integridad (verde)" aria-hidden>

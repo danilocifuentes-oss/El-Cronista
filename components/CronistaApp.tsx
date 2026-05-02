@@ -273,8 +273,6 @@ function CronistaAppInner() {
       className={`${mainFrameClass} techno-grid bg-[var(--void)] text-neutral-200`}
       style={{ ["--accent-clan"]: accent } as CSSProperties}
     >
-      <TechnicalHud healthFilled={healthHudFilled} healthMax={HEALTH_MAX_UI} hunger={sheet.hunger} />
-
       <ForcedDestinyOverlay
         forced={forcedRoll}
         sheet={sheet}
@@ -287,8 +285,8 @@ function CronistaAppInner() {
         }}
       />
 
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-[#161616] bg-black/55 px-4 py-4 pr-40 font-mono text-[10px] lg:px-6">
-        <div className="space-y-2 text-neutral-500">
+      <header className="flex shrink-0 flex-col gap-3 border-b border-[#161616] bg-black/55 px-4 py-4 font-mono text-[10px] sm:gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:px-6">
+        <div className="min-w-0 flex-1 space-y-2 text-neutral-500">
           <p className="text-[var(--terminal)]/90 tracking-[0.25em]">CANAL SCHRECK_NET · NEXO_LATAM</p>
           <p className="tracking-tight">
             RUNTIME:PROYECTO_SERENO ·{" "}
@@ -303,23 +301,26 @@ function CronistaAppInner() {
             [CLOCK]={famineIntervalMinutes}min · [MJ]={isNarrator ? "1" : "0"}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {(!sheetLocked || isNarrator) && (
+        <div className="flex w-full flex-wrap items-center justify-between gap-3 border-t border-[#161616]/60 pt-3 sm:gap-4 lg:w-auto lg:border-t-0 lg:pt-0">
+          <TechnicalHud healthFilled={healthHudFilled} healthMax={HEALTH_MAX_UI} hunger={sheet.hunger} />
+          <div className="flex flex-wrap gap-2 sm:ml-auto lg:ml-0">
+            {(!sheetLocked || isNarrator) && (
+              <button
+                type="button"
+                onClick={() => setPhase("chargen")}
+                className="border border-[#252525] px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-400 hover:border-[color:var(--accent-clan)] hover:text-neutral-300"
+              >
+                {sheetLocked ? "CODEX_MJ" : "CODEX"}
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => setPhase("chargen")}
-              className="border border-[#252525] px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-400 hover:border-[color:var(--accent-clan)] hover:text-neutral-300"
+              onClick={() => setPhase("login")}
+              className="border border-[var(--blood)]/45 px-3 py-2 text-[9px] uppercase tracking-widest text-[var(--blood)] hover:bg-[var(--blood)]/10"
             >
-              {sheetLocked ? "CODEX_MJ" : "CODEX"}
+              LOGOUT
             </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setPhase("login")}
-            className="border border-[var(--blood)]/45 px-3 py-2 text-[9px] uppercase tracking-widest text-[var(--blood)] hover:bg-[var(--blood)]/10"
-          >
-            LOGOUT
-          </button>
+          </div>
         </div>
       </header>
 

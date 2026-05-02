@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useCallback, useState } from "react";
-import { BLOOD_CIPHER } from "@/lib/sessionMeta";
+import { BLOOD_CIPHER, BLOOD_CIPHER_LENGTH } from "@/lib/sessionMeta";
 
 type Props = {
   onAuthenticate: () => void;
@@ -31,8 +31,13 @@ export function SchreckNetLogin({ onAuthenticate }: Props) {
     onAuthenticate();
   }, [onAuthenticate]);
 
+  function normalizedCipher(raw: string): string {
+    return raw.replace(/\D/g, "").slice(0, BLOOD_CIPHER_LENGTH);
+  }
+
   function submit() {
-    if (cipher.trim() !== BLOOD_CIPHER) {
+    const digits = normalizedCipher(cipher);
+    if (digits.length !== BLOOD_CIPHER_LENGTH || digits !== BLOOD_CIPHER) {
       setError(true);
       return;
     }
@@ -58,20 +63,25 @@ export function SchreckNetLogin({ onAuthenticate }: Props) {
             <label className="mt-5 block text-[9px] uppercase tracking-widest text-neutral-600">Autorización</label>
             <input
               type="password"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={BLOOD_CIPHER_LENGTH}
+              autoComplete="one-time-code"
               value={cipher}
               onChange={(e) => {
-                setCipher(e.target.value);
+                setCipher(normalizedCipher(e.target.value));
                 setError(false);
               }}
-              placeholder=""
-              aria-label="Autorización"
-              autoComplete="off"
-              className={`mt-2 w-full border bg-black/60 px-2 py-2.5 font-mono text-[11px] text-[var(--terminal)] sharp-border-inner focus:outline-none ${
+              placeholder={"·".repeat(BLOOD_CIPHER_LENGTH)}
+              aria-label="Código numérico de seis dígitos"
+              className={`mt-2 w-full tracking-[0.35em] border bg-black/60 px-2 py-2.5 font-mono text-[11px] text-[var(--terminal)] sharp-border-inner focus:outline-none ${
                 error ? "border-[var(--blood)]" : "border-neutral-800 focus:border-[var(--terminal)]/55"
               }`}
             />
 
-            <p className="mt-3 font-mono text-[10px] leading-relaxed opacity-30">1, 1, 2, 3...</p>
+            <p className="mt-3 font-mono text-[10px] leading-relaxed text-neutral-600">
+              Secuencia: {BLOOD_CIPHER_LENGTH} dígitos (1, 1, 2, 3…)
+            </p>
             {error ? <p className="mt-1 text-[10px] text-[var(--blood)]">DENEGADO</p> : null}
 
             <motion.button
