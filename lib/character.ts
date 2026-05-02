@@ -128,6 +128,9 @@ export const STORAGE_KEY = "cronista-sheet-v1";
 /** Humanidad de arranque estándar en creación (ajustable con la pista ANIMA). */
 export const CHARGEN_HUMANITY_BASE = 7;
 
+/** Punto base por atributo (● gris en CODEX); encima repartís con color de linaje. */
+export const CHARGEN_ATTRIBUTE_DOT_BASE = 1;
+
 export const ATTRIBUTE_KEYS = [
   { key: "str" as const, label: "Fuerza", tooltip: "Capacidad de fuerza física bruta." },
   { key: "dex" as const, label: "Destreza", tooltip: "Fineza motora y reflejos bajo estrés." },
@@ -140,9 +143,20 @@ export const ATTRIBUTE_KEYS = [
   { key: "res" as const, label: "Resolución", tooltip: "Voluntad de seguir hasta el fondo cuando duele." },
 ] as const;
 
-/** Matriz nueva: atributos en ○ hasta que el jugador reparta (sellado sigue las reglas del motor). */
-export function chargenBlankAttributes(): CharacterSheet["attributes"] {
-  return Object.fromEntries(ATTRIBUTE_KEYS.map(({ key }) => [key, 0])) as CharacterSheet["attributes"];
+/** Atributos con el mínimo de hoja CODEX antes de distribuir puntos jugables extra. */
+export function chargenBaseAttributes(): CharacterSheet["attributes"] {
+  const b = CHARGEN_ATTRIBUTE_DOT_BASE;
+  return {
+    str: b,
+    dex: b,
+    sta: b,
+    cha: b,
+    man: b,
+    com: b,
+    int: b,
+    wit: b,
+    res: b,
+  };
 }
 
 /** V5: tope de voluntad desde Compostura + Resolución (mínimo 1 hasta que distribuyas). */
@@ -211,7 +225,7 @@ export function migrateLegacyDisciplines(raw: Record<string, number>): Record<st
 
 export function emptySheet(): CharacterSheet {
   const gen: Generation = "neonato";
-  const attributes = chargenBlankAttributes();
+  const attributes = chargenBaseAttributes();
   const wpMax = willpowerMaxFromAttributes(attributes);
   return {
     name: "",

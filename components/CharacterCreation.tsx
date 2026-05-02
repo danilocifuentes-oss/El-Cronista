@@ -14,6 +14,7 @@ import {
   defaultSkills,
   defaultDisciplines,
   clanDefaultCaitiffPicks,
+  CHARGEN_ATTRIBUTE_DOT_BASE,
   CHARGEN_HUMANITY_BASE,
   willpowerMaxFromAttributes,
 } from "@/lib/character";
@@ -472,14 +473,14 @@ export function CharacterCreation({ initial, onSave }: Props) {
 
         <div className="grid gap-5 lg:grid-cols-3">
           <p className="font-mono text-[8px] leading-snug text-neutral-600 lg:col-span-3">
-            Leyenda CODEX creación·{" "}
-            <span className="text-neutral-500">
-              Atributos y habilidades inician en ○; repartís hasta cumplir el motor (V5 o Revised) al sellar.
-            </span>{" "}
-            ANIMA arranca en {CHARGEN_HUMANITY_BASE}:{" "}
-            <span className="text-neutral-500">● gris = base de hoja</span> ·{" "}
+            Leyenda CODEX creación· Atributos:{" "}
+            <span className="text-neutral-500">{CHARGEN_ATTRIBUTE_DOT_BASE} ● gris = base automática cada estadística.</span>{" "}
             <span style={{ color: accent }}>● color de linaje</span>
-            {" = "}ajustes por encima de esa base.
+            {" = "}puntos extra que vos asignás. Habilidades inician ○ hasta repartir. ANIMA:{" "}
+            <span className="text-neutral-500">{CHARGEN_HUMANITY_BASE} ● gris</span>
+            {" + "}
+            <span style={{ color: accent }}>color clan</span>
+            {" = "}por encima de esa base hasta sellar.
           </p>
 
           <section className={`border border-[#161616] bg-black/25 ${ring(attrOk)}`}>
@@ -502,10 +503,11 @@ export function CharacterCreation({ initial, onSave }: Props) {
                             {a.label}
                           </span>
                           <DotTrack
-                            min={0}
+                            min={1}
                             max={classicMode ? 5 : 4}
                             accent={accent}
                             minimal={false}
+                            baselineFilled={CHARGEN_ATTRIBUTE_DOT_BASE}
                             value={sheet.attributes[key]}
                             onChange={(v) => setAttr(key, v)}
                           />
