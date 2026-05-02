@@ -49,6 +49,11 @@ import {
   validateClassicSkillSpread,
 } from "@/lib/serenoClassic";
 import { fusionChargenProfile } from "@/lib/fusionTimeline";
+import {
+  codexAllowsAttributeDots,
+  codexAllowsDisciplineDots,
+  codexAllowsSkillDots,
+} from "@/lib/codexChargenGuards";
 import { CONCEPTOS_DATA, inferConceptPresetIdFromNombre } from "@/lib/conceptosCodex";
 import { ConceptCodexField } from "./ConceptCodexField";
 import { DotTrack } from "./DotTrack";
@@ -202,6 +207,7 @@ export function CharacterCreation({ initial, onSave }: Props) {
 
   function setAttr(key: keyof CharacterSheet["attributes"], v: number) {
     setSheet((s) => {
+      if (!codexAllowsAttributeDots(s, key, v)) return s;
       const nextAttrs = { ...s.attributes, [key]: v };
       const wpMax = willpowerMaxFromAttributes(nextAttrs);
       return {
@@ -214,11 +220,17 @@ export function CharacterCreation({ initial, onSave }: Props) {
   }
 
   function setSkill(key: string, v: number) {
-    setSheet((s) => ({ ...s, skills: { ...s.skills, [key]: v } }));
+    setSheet((s) => {
+      if (!codexAllowsSkillDots(s, key, v)) return s;
+      return { ...s, skills: { ...s.skills, [key]: v } };
+    });
   }
 
   function setDisc(key: DisciplineKey, v: number) {
-    setSheet((s) => ({ ...s, disciplines: { ...s.disciplines, [key]: v } }));
+    setSheet((s) => {
+      if (!codexAllowsDisciplineDots(s, key, v)) return s;
+      return { ...s, disciplines: { ...s.disciplines, [key]: v } };
+    });
   }
 
   function resetToBlankCodex() {
