@@ -7,6 +7,7 @@ import {
   CLAN_OPTIONS,
   type CharacterSheet,
   type ClanId,
+  defaultSkills,
   DISCIPLINE_KEYS,
   SKILL_KEYS,
 } from "@/lib/character";
@@ -33,7 +34,7 @@ export function CharacterCreation({ initial, onSave }: Props) {
   const [sheet, setSheet] = useState<CharacterSheet>(() => ({
     ...initial,
     attributes: { ...initial.attributes },
-    skills: { ...initial.skills },
+    skills: { ...defaultSkills(), ...initial.skills },
     disciplines: { ...initial.disciplines },
   }));
 

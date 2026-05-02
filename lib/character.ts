@@ -75,7 +75,20 @@ export const SKILL_KEYS = [
   "Intimidation",
   "Occult",
   "Awareness",
+  "Tecnología",
 ] as const;
+
+export const ATTRIBUTE_KEYS = [
+  { key: "str" as const, label: "Fuerza" },
+  { key: "dex" as const, label: "Destreza" },
+  { key: "sta" as const, label: "Resistencia" },
+  { key: "cha" as const, label: "Carisma" },
+  { key: "man" as const, label: "Manipulación" },
+  { key: "com" as const, label: "Compostura" },
+  { key: "int" as const, label: "Intelecto" },
+  { key: "wit" as const, label: "Astucia" },
+  { key: "res" as const, label: "Resolución" },
+];
 
 export const DISCIPLINE_KEYS = [
   "Potencia",

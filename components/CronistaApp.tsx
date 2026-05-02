@@ -1,17 +1,32 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { CLAN_ACCENTS, emptySheet, loadSheet, saveSheet, type CharacterSheet } from "@/lib/character";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  CLAN_ACCENTS,
+  defaultSkills,
+  emptySheet,
+  loadSheet,
+  saveSheet,
+  type CharacterSheet,
+} from "@/lib/character";
 import { askCronista } from "@/lib/narrativeApi";
+import {
+  appendXpLog,
+  loadMeta,
+  loadXpLog,
+  saveMeta,
+} from "@/lib/sessionMeta";
 import { CharacterCreation } from "./CharacterCreation";
 import { CharacterStatusPanel } from "./CharacterStatusPanel";
 import type { ConclaveMate } from "./ConclavePanel";
 import { ConclavePanel } from "./ConclavePanel";
-import { DiceWidget } from "./DiceWidget";
 import { AdminConsole } from "./AdminConsole";
 import type { LogEntry } from "./NarrativeFlow";
 import { NarrativeFlow } from "./NarrativeFlow";
 import { SchreckNetLogin } from "./SchreckNetLogin";
+import { GameSessionProvider, useGameSession } from "@/context/GameSessionContext";
+import { ManifestWill } from "./ManifestWill";
+import { ForcedDestinyOverlay } from "./ForcedDestinyOverlay";
 
 type Phase = "login" | "chargen" | "nexus";
 
@@ -25,9 +40,31 @@ function uid() {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function famineSealWallClock(): number {
+  return Date.now();
+}
+
+function mergeStoredSheet(raw: CharacterSheet): CharacterSheet {
+  return {
+    ...raw,
+    skills: { ...defaultSkills(), ...raw.skills },
+  };
+}
+
 export default function CronistaApp() {
+  return (
+    <GameSessionProvider>
+      <CronistaAppInner />
+    </GameSessionProvider>
+  );
+}
+
+function CronistaAppInner() {
   const [phase, setPhase] = useState<Phase>("login");
   const [sheet, setSheet] = useState<CharacterSheet>(() => emptySheet());
+  const [sheetLocked, setSheetLocked] = useState<boolean>(() =>
+    typeof window === "undefined" ? false : loadMeta().sheetLocked,
+  );
   const [logs, setLogs] = useState<LogEntry[]>([
     {
       id: "0",
@@ -40,17 +77,50 @@ export default function CronistaApp() {
   const [adminOpen, setAdminOpen] = useState(false);
   const [inquisitionThreat, setInquisitionThreat] = useState(2);
   const [mjCmd, setMjCmd] = useState("");
+  const [xpLog, setXpLog] = useState(() =>
+    typeof window === "undefined" ? [] : loadXpLog(),
+  );
+
+  const {
+    isNarrator,
+    setIsNarrator,
+    famineIntervalMinutes,
+    setFamineIntervalMinutes,
+    rollDifficulty,
+    setRollDifficulty,
+    forcedRoll,
+    requestForcedRoll,
+    clearForcedRoll,
+  } = useGameSession();
 
   const accent = useMemo(() => CLAN_ACCENTS[sheet.clan], [sheet.clan]);
 
+  const refreshXpLog = useCallback(() => setXpLog(loadXpLog()), []);
+
+  const handleSheetMutation = useCallback(
+    (next: CharacterSheet, logLine?: string) => {
+      saveSheet(next);
+      setSheet(next);
+      const lockedNow = typeof window !== "undefined" ? loadMeta().sheetLocked : false;
+      if (lockedNow && logLine) {
+        appendXpLog(logLine);
+        refreshXpLog();
+      }
+    },
+    [refreshXpLog],
+  );
+
   const applyLogin = () => {
     const stored = loadSheet();
+    const meta = loadMeta();
+    setSheetLocked(meta.sheetLocked);
     if (stored && stored.name) {
-      setSheet(stored);
+      setSheet(mergeStoredSheet(stored));
       setPhase("nexus");
+      refreshXpLog();
       pushLog({
         role: "sistema",
-        text: "> Sesión recuperada desde almacén local. El Ojo reanuda vigilancia bilateral.",
+        text: "> Sesión recuperada desde almacén local. El Reloj Mnemósine está sincronizado con el servidor fantasma.",
       });
     } else {
       setPhase("chargen");
@@ -58,14 +128,57 @@ export default function CronistaApp() {
   };
 
   const finishChargen = (w: CharacterSheet) => {
-    saveSheet(w);
-    setSheet(w);
+    const mergedSkills = { ...defaultSkills(), ...w.skills };
+    const finalized: CharacterSheet = { ...w, skills: mergedSkills };
+    saveSheet(finalized);
+    setSheet(finalized);
+    const meta = loadMeta();
+    const firstSeal = !meta.sheetLocked;
+    saveMeta({
+      ...meta,
+      sheetLocked: true,
+      lastFamineTickAt: firstSeal ? famineSealWallClock() : meta.lastFamineTickAt,
+    });
+    appendXpLog(
+      firstSeal
+        ? `Ficha archivada: ${finalized.name || "Sin nombre"} (registro inicial).`
+        : `Narrador re-selló ficha: ${finalized.name || "Sin nombre"}.`,
+    );
+    setSheetLocked(true);
+    refreshXpLog();
     setPhase("nexus");
     pushLog({
       role: "sistema",
-      text: "> Ficha cifrada en LocalStorage (`cronista-sheet-v1`). No hay pacto sabático sin papel.",
+      text: "> Ficha cifrada (`cronista-sheet-v1`). El candado Mnemósine sólo permite retoques auditados.",
     });
   };
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const meta = loadMeta();
+      const intervalMs = meta.famineIntervalMinutes * 60_000;
+      if (intervalMs <= 0) return;
+      if (Date.now() - meta.lastFamineTickAt < intervalMs) return;
+
+      const current = loadSheet();
+      if (!current) return;
+
+      if (current.hunger >= 5) {
+        saveMeta({ ...meta, lastFamineTickAt: Date.now() });
+        return;
+      }
+
+      const nextHunger = Math.min(5, current.hunger + 1);
+      const nextSheet = { ...current, hunger: nextHunger };
+      saveSheet(nextSheet);
+      setSheet(nextSheet);
+      saveMeta({ ...meta, lastFamineTickAt: Date.now() });
+      appendXpLog(`Reloj Mnemósine · Hambre +1 (${nextHunger}/5).`);
+      refreshXpLog();
+    }, 45000);
+
+    return () => window.clearInterval(id);
+  }, [refreshXpLog]);
 
   function pushLog(part: Omit<LogEntry, "id" | "ts"> & { ts?: number }) {
     const entry: LogEntry = {
@@ -95,40 +208,89 @@ export default function CronistaApp() {
   };
 
   const emitMj = () => {
-    if (!mjCmd.trim()) return;
+    if (!mjCmd.trim() || !isNarrator) return;
     pushLog({ role: "narrador", text: `[ORDEN MJ] ${mjCmd.trim()}` });
     setMjCmd("");
     setAdminOpen(false);
   };
 
   const tweakRemoteSimulation = () => {
-    setSheet((s) => {
-      const next = { ...s, hunger: Math.min(5, s.hunger + 1) };
-      saveSheet(next);
-      return next;
-    });
-    pushLog({
-      role: "sistema",
-      text: "[MJ] Sobrecarga simbólica: Hambre incrementada en el registro local (demo).",
-    });
+    if (!isNarrator) return;
+    handleSheetMutation({ ...sheet, hunger: Math.min(5, sheet.hunger + 1) }, "MJ: estrés inmediato—Hambre +1 (simulacro)");
   };
+
+  const persistFamine = (minutes: number) => {
+    const clamped = Math.max(5, Math.min(240, minutes));
+    saveMeta({
+      ...loadMeta(),
+      famineIntervalMinutes: clamped,
+    });
+    setFamineIntervalMinutes(clamped);
+    appendXpLog(`Reloj Mnemósine • intervalo ajustado a ${clamped} min.`);
+    refreshXpLog();
+  };
+
+  const mainFrameClass =
+    sheet.hunger >= 5 ? "flex min-h-screen flex-col crt-wrap ravenous-frame" : "flex min-h-screen flex-col crt-wrap";
 
   if (phase === "login") return <SchreckNetLogin onAuthenticate={applyLogin} />;
 
   if (phase === "chargen") {
+    const meta = loadMeta();
+    const stored = loadSheet();
+    const blocked = meta.sheetLocked && !isNarrator && Boolean(stored?.name);
+    if (blocked && stored) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-6 crt-wrap techno-grid px-8 text-center font-mono text-sm text-neutral-400">
+          <p className="max-w-md text-neutral-300">
+            El archivo civil está sellado por Mnemósine. Solicita al Narrador reabrir el editor o usa el Nexo habitual.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setSheet(mergeStoredSheet(stored));
+              setSheetLocked(true);
+              refreshXpLog();
+              setPhase("nexus");
+            }}
+            className="border border-[var(--blood)] px-8 py-3 text-[11px] font-bold uppercase tracking-[0.32em] text-[var(--blood)] sharp-border-inner hover:bg-[var(--blood)]/10"
+          >
+            Volver al Nexo
+          </button>
+        </div>
+      );
+    }
+
     return (
-      <CharacterCreation initial={loadSheet() ?? emptySheet()} onSave={(s) => finishChargen(s)} />
+      <CharacterCreation
+        initial={mergeStoredSheet(stored ?? emptySheet())}
+        onSave={(s) => finishChargen(s)}
+      />
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col crt-wrap">
+    <div className={mainFrameClass}>
+      <ForcedDestinyOverlay
+        forced={forcedRoll}
+        sheet={sheet}
+        hungerLevel={sheet.hunger}
+        onConsume={(line) => {
+          appendXpLog(line);
+          refreshXpLog();
+          pushLog({ role: "sistema", text: line });
+          clearForcedRoll();
+        }}
+      />
+
       <header
         className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-neutral-800 bg-neutral-950/95 px-4 py-4 font-mono text-xs lg:px-8"
         style={{ boxShadow: "inset 0 -2px 0 rgba(57,255,20,0.08)" }}
       >
         <div>
-          <p className="text-[10px] uppercase tracking-[0.5em] text-[var(--terminal)]">SchreckNet</p>
+          <p className="text-[10px] uppercase tracking-[0.5em] text-[var(--terminal)]">
+            SchreckNet · Nexo Mnemósine
+          </p>
           <h1 className="font-sans text-lg font-semibold tracking-tight text-neutral-100">
             El Cronista de las Sombras
           </h1>
@@ -137,16 +299,28 @@ export default function CronistaApp() {
             <span style={{ color: accent }} className="font-mono font-bold">
               σ = {inquisitionThreat}
             </span>
+            {sheet.hunger >= 5 ? (
+              <span className="ml-3 font-mono text-[10px] uppercase tracking-[0.4em] text-[var(--blood)]">
+                :: hambre rabiosa ::
+              </span>
+            ) : null}
+          </p>
+          <p className="mt-2 text-neutral-600">
+            Reloj Mnemósine configurado cada{" "}
+            <strong className="text-neutral-400">{famineIntervalMinutes}</strong> min · estado narrador{" "}
+            <strong className="text-neutral-400">{isNarrator ? "activo" : "suspendido"}</strong>
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setPhase("chargen")}
-            className="border border-neutral-700 px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-neutral-400 sharp-border-inner hover:border-[var(--terminal)] hover:text-[var(--terminal)]"
-          >
-            Reabrir editor de ficha
-          </button>
+          {(!sheetLocked || isNarrator) && (
+            <button
+              type="button"
+              onClick={() => setPhase("chargen")}
+              className="border border-neutral-700 px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-neutral-400 sharp-border-inner hover:border-[var(--terminal)] hover:text-[var(--terminal)]"
+            >
+              {sheetLocked ? "Reabrir ficha (MJ)" : "Abrir editor de ficha"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setPhase("login")}
@@ -160,10 +334,10 @@ export default function CronistaApp() {
       <div className="flex min-h-[calc(100vh-5rem)] flex-1 flex-col lg:flex-row">
         <CharacterStatusPanel
           sheet={sheet}
-          onChange={(s) => {
-            setSheet(s);
-            saveSheet(s);
-          }}
+          xpLog={xpLog}
+          sheetLocked={sheetLocked}
+          isNarrator={isNarrator}
+          onChange={(next, logLine) => handleSheetMutation(next, logLine)}
         />
 
         <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 lg:p-6">
@@ -174,10 +348,20 @@ export default function CronistaApp() {
             onSend={sendPlayer}
             accent={accent}
           />
-          <DiceWidget
-            key={sheet.hunger}
+          <ManifestWill
+            key={`${sheet.hunger}-${sheet.name}`}
+            sheet={sheet}
             hungerLevel={sheet.hunger}
-            onAnnounce={(m) => pushLog({ role: "sistema", text: m })}
+            onResolve={(narratorLine, playerLabel) => {
+              if (isNarrator) {
+                pushLog({ role: "sistema", text: narratorLine });
+              } else {
+                pushLog({
+                  role: "sistema",
+                  text: `Veredicto civil — ${playerLabel}. La dificultad permanece clasificada.`,
+                });
+              }
+            }}
           />
         </div>
 
@@ -187,13 +371,21 @@ export default function CronistaApp() {
       <AdminConsole
         open={adminOpen}
         onToggle={() => setAdminOpen((x) => !x)}
+        isNarrator={isNarrator}
+        onToggleNarrator={(v) => setIsNarrator(v)}
         inquisitionThreat={inquisitionThreat}
         onThreat={setInquisitionThreat}
+        famineIntervalMinutes={famineIntervalMinutes}
+        onFamineChange={persistFamine}
+        forcedDifficulty={rollDifficulty}
+        onForcedDifficulty={setRollDifficulty}
         command={mjCmd}
         onCommand={setMjCmd}
         onEmitCommand={emitMj}
-        remoteSheetHint="Las modificaciones remotas verdaderas vendrán con WebSockets + backend Camarilla Secure. Esta build escribe sólo tu LocalStorage."
-        onApplyRemoteAdjust={tweakRemoteSimulation}
+        remoteSheetHint="La persistencia remota llegará con WebSockets + servidor Camarilla Secure. Esta build escribe Nexo/Hambre en LocalStorage hasta la integración completa."
+        onStressHunger={tweakRemoteSimulation}
+        onForcedFrenesy={() => requestForcedRoll("frenesy", rollDifficulty)}
+        onForcedRage={() => requestForcedRoll("enardecimiento", rollDifficulty)}
       />
     </div>
   );
