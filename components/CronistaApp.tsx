@@ -255,7 +255,14 @@ function CronistaAppInner() {
       );
     }
 
-    return <CharacterCreation initial={mergeStoredSheet(stored ?? emptySheet())} onSave={(s) => finishChargen(s)} />;
+    const initialForChargen: CharacterSheet =
+      meta.sheetLocked && isNarrator && stored
+        ? mergeStoredSheet(stored)
+        : !meta.sheetLocked && stored && stored.name?.trim()
+          ? mergeStoredSheet(stored)
+          : emptySheet();
+
+    return <CharacterCreation initial={initialForChargen} onSave={(s) => finishChargen(s)} />;
   }
 
   const healthHudFilled =

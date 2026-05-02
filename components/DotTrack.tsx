@@ -9,6 +9,11 @@ type Props = {
   disabled?: boolean;
   /** true: gris monocromo; false: puntos acentados (vista CRT) */
   minimal?: boolean;
+  /**
+   * Primeros N puntos rellenos se pintan como “base” (gris/discretos).
+   * El resto rellenos usan accent (jugador / distribución).
+   */
+  baselineFilled?: number;
 };
 
 export function DotTrack({
@@ -19,14 +24,19 @@ export function DotTrack({
   disabled,
   accent = "var(--terminal)",
   minimal = true,
+  baselineFilled = 0,
 }: Props) {
   const n = Math.min(max, Math.max(min, value));
+  const baseSlots = Math.max(0, Math.min(baselineFilled, max));
+
   return (
     <div
       className={`flex items-center gap-px font-mono text-[11px] tracking-tight select-none ${minimal ? "text-neutral-300" : ""}`}
     >
       {Array.from({ length: max }, (_, i) => {
         const filled = i < n;
+        const isBaselineFill = filled && i < baseSlots;
+        const isAccentFill = filled && i >= baseSlots;
         return (
           <button
             key={i}
@@ -43,15 +53,19 @@ export function DotTrack({
             } ${
               minimal
                 ? filled
-                  ? "text-neutral-200"
+                  ? isBaselineFill
+                    ? "text-neutral-500"
+                    : "text-neutral-200"
                   : "text-neutral-700"
-                : filled
-                  ? ""
-                  : "text-neutral-600"
-            } ${!minimal && !disabled ? "hover:opacity-90" : ""}`}
-            style={
-              !minimal && filled ? { color: accent, textShadow: `0 0 8px ${accent}55` } : undefined
-            }
+                : isBaselineFill
+                  ? "text-neutral-500"
+                  : isAccentFill
+                    ? ""
+                    : "text-neutral-600"
+            } ${isAccentFill && !minimal && !disabled ? "hover:opacity-90" : ""} ${
+              isBaselineFill && !minimal && !disabled ? "hover:opacity-90" : ""
+            } ${!minimal && !filled ? "hover:opacity-90" : ""}`}
+            style={!minimal && isAccentFill ? { color: accent, textShadow: `0 0 8px ${accent}55` } : undefined}
           >
             {filled ? "●" : "○"}
           </button>

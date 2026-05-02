@@ -1,4 +1,5 @@
 import type { DisciplineKey } from "@/lib/sereno";
+import { CONCEPTOS_DATA, inferConceptPresetIdFromNombre } from "@/lib/conceptosCodex";
 import {
   CLAN_DISCIPLINE_TRIO,
   defaultSerenoSkills,
@@ -82,6 +83,10 @@ export interface CharacterSheet {
   /** Anomalía de linaje: prefijo táctico opcional / tachado UI. */
   antitribu: boolean;
   concept: string;
+  /**
+   * `CONCEPTOS_DATA.id` cuando el jugador usa plantilla CODEX (`null` = «OTRO…» texto en `concept`).
+   */
+  conceptPresetId: string | null;
   /** Años de no‑vida desde el Abrazo; la fusión CODEX estima Generación Mes y presupuestos derivados (no equivale automáticamente a la edad mortal). */
   yearsUnlife: number;
   /** Puntos libres (mesa Revised). El cliente no ejecuta tabla de compra; sólo persiste el contador. */
@@ -120,6 +125,9 @@ export interface CharacterSheet {
 
 export const STORAGE_KEY = "cronista-sheet-v1";
 
+/** Humanidad de arranque estándar en creación (ajustable con la pista ANIMA). */
+export const CHARGEN_HUMANITY_BASE = 7;
+
 export const ATTRIBUTE_KEYS = [
   { key: "str" as const, label: "Fuerza", tooltip: "Capacidad de fuerza física bruta." },
   { key: "dex" as const, label: "Destreza", tooltip: "Fineza motora y reflejos bajo estrés." },
@@ -131,6 +139,16 @@ export const ATTRIBUTE_KEYS = [
   { key: "wit" as const, label: "Astucia", tooltip: "Pensamiento táctico y síntesis bajo tiempo corto." },
   { key: "res" as const, label: "Resolución", tooltip: "Voluntad de seguir hasta el fondo cuando duele." },
 ] as const;
+
+/** Matriz nueva: atributos en ○ hasta que el jugador reparta (sellado sigue las reglas del motor). */
+export function chargenBlankAttributes(): CharacterSheet["attributes"] {
+  return Object.fromEntries(ATTRIBUTE_KEYS.map(({ key }) => [key, 0])) as CharacterSheet["attributes"];
+}
+
+/** V5: tope de voluntad desde Compostura + Resolución (mínimo 1 hasta que distribuyas). */
+export function willpowerMaxFromAttributes(attrs: CharacterSheet["attributes"]): number {
+  return Math.max(1, attrs.com + attrs.res);
+}
 
 /** @deprecated usar SERENO_SKILL_KEYS desde @/lib/sereno para listas nuevas */
 export const SKILL_KEYS = [
@@ -193,11 +211,14 @@ export function migrateLegacyDisciplines(raw: Record<string, number>): Record<st
 
 export function emptySheet(): CharacterSheet {
   const gen: Generation = "neonato";
+  const attributes = chargenBlankAttributes();
+  const wpMax = willpowerMaxFromAttributes(attributes);
   return {
     name: "",
     clan: "other",
     antitribu: false,
     concept: "",
+    conceptPresetId: null,
     yearsUnlife: 12,
     freebiePool: 21,
     chargenMotor: "v5_sereno",
@@ -206,25 +227,15 @@ export function emptySheet(): CharacterSheet {
     generation: gen,
     skillMode: "jack",
     caitiffDisciplinePicks: null,
-    attributes: {
-      str: 2,
-      dex: 2,
-      sta: 2,
-      cha: 1,
-      com: 3,
-      man: 3,
-      int: 3,
-      wit: 3,
-      res: 4,
-    },
+    attributes,
     skills: defaultSkills(),
     disciplines: defaultDisciplines(),
     healthDamage: 0,
-    willpowerCur: 3,
-    willpowerMax: 3,
+    willpowerCur: wpMax,
+    willpowerMax: wpMax,
     hunger: 1,
     bloodPotency: bloodPotencyForGeneration(gen),
-    humanity: 7,
+    humanity: CHARGEN_HUMANITY_BASE,
     resonance: "",
   };
 }
@@ -243,6 +254,16 @@ export function normalizeCharacterSheet(partial: Partial<CharacterSheet>): Chara
     antitribu: partial.antitribu ?? base.antitribu,
     clan: clanId,
     concept: partial.concept ?? base.concept,
+    conceptPresetId: ((): string | null => {
+      if (partial.conceptPresetId === null) return null;
+      if (
+        typeof partial.conceptPresetId === "string" &&
+        CONCEPTOS_DATA.some((r) => r.id === partial.conceptPresetId)
+      ) {
+        return partial.conceptPresetId;
+      }
+      return inferConceptPresetIdFromNombre((partial.concept ?? base.concept).trim());
+    })(),
     yearsUnlife:
       typeof partial.yearsUnlife === "number" &&
       partial.yearsUnlife >= 0 &&
