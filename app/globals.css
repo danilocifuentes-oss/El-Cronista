@@ -1,26 +1,97 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --void: #050505;
+  --terminal: #39ff14;
+  --blood: #8b0000;
+  --background: var(--void);
+  --foreground: #e0e0ff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 }
 
 body {
-  background: var(--background);
+  background: var(--void);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+.font-mono {
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+}
+
+/* Ruido + escaneo CRT */
+.crt-wrap {
+  position: relative;
+  isolation: isolate;
+}
+
+.crt-wrap::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+.crt-wrap::after {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 49;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.18) 2px,
+    rgba(0, 0, 0, 0.18) 4px
+  );
+  animation: crt-scan 9s linear infinite;
+  opacity: 0.35;
+}
+
+@keyframes crt-scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+.sharp-border-inner {
+  border: 1px solid rgba(57, 255, 20, 0.12);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.65),
+    inset 0 1px 22px rgba(57, 255, 20, 0.04);
+}
+
+.terminal-panel {
+  background: linear-gradient(160deg, rgba(10, 10, 12, 0.98), rgba(5, 5, 5, 0.99));
+  border: 1px solid rgba(57, 255, 20, 0.25);
+  box-shadow:
+    inset 0 0 40px rgba(0, 0, 0, 0.85),
+    0 0 30px rgba(139, 0, 0, 0.12);
+}
+
+.glow-terminal {
+  text-shadow: 0 0 12px rgba(57, 255, 20, 0.45);
+}
+
+.narrador-bubble {
+  border-left: 3px solid rgba(57, 255, 20, 0.35);
+  background: linear-gradient(90deg, rgba(24, 24, 28, 0.95), rgba(12, 12, 14, 0.98));
+  padding: 1rem 1.25rem;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  color: #d4d4e8;
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5);
 }
