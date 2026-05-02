@@ -1,10 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import {
   CLAN_ACCENTS,
   CLAN_OPTIONS,
+  ATTRIBUTE_BANDS,
+  ATTRIBUTE_KEYS,
   type CharacterSheet,
   type ClanId,
   type SkillDistributionMode,
@@ -12,11 +14,11 @@ import {
   defaultSkills,
   defaultDisciplines,
   clanDefaultCaitiffPicks,
-  ATTRIBUTE_KEYS,
 } from "@/lib/character";
 import type { DisciplineKey } from "@/lib/sereno";
 import {
   SERENO_SKILLS,
+  SKILL_LANE_LABEL,
   DISCIPLINE_POOL,
   validateAttributeSpread,
   validateSkillSpread,
@@ -28,7 +30,20 @@ import {
   RESONANCE_OPTIONS,
   TOOLTIP_HUMANITY,
   TOOLTIP_RESONANCE,
+  TOOLTIP_FREEBIE_POOL,
+  type SkillLane,
 } from "@/lib/sereno";
+import {
+  ATRIBUTOS_SCHEMA,
+  classicAttrPresetCaption,
+  classicSkillPresetCaption,
+  HABILIDADES_SCHEMA,
+  summarizeClassicTotals,
+  validateClassicAttributeSpread,
+  validateClassicDisciplineSpread,
+  validateClassicSkillSpread,
+} from "@/lib/serenoClassic";
+import { fusionChargenProfile } from "@/lib/fusionTimeline";
 import { DotTrack } from "./DotTrack";
 import { SerenoFooter } from "./SerenoFooter";
 
@@ -40,6 +55,12 @@ type Props = {
 export function CharacterCreation({ initial, onSave }: Props) {
   const [sheet, setSheet] = useState<CharacterSheet>(() => ({
     ...initial,
+    freebiePool: initial.freebiePool ?? 21,
+    chargenMotor: initial.chargenMotor ?? "v5_sereno",
+    classicAttrPreset: initial.classicAttrPreset ?? 0,
+    classicSkillPreset: initial.classicSkillPreset ?? 0,
+    yearsUnlife:
+      typeof initial.yearsUnlife === "number" && initial.yearsUnlife >= 0 ? Math.floor(initial.yearsUnlife) : 12,
     attributes: { ...initial.attributes },
     skills: { ...defaultSkills(), ...initial.skills },
     disciplines: { ...defaultDisciplines(), ...initial.disciplines },
@@ -59,9 +80,41 @@ export function CharacterCreation({ initial, onSave }: Props) {
     [sheet.clan, sheet.caitiffDisciplinePicks],
   );
 
-  const attrOk = !validateAttributeSpread(sheet.attributes);
-  const skillOk = !validateSkillSpread(sheet.skills, sheet.skillMode);
-  const discOk = !validateDisciplines(sheet.disciplines, sheet.clan, sheet.generation, sheet.caitiffDisciplinePicks);
+  const discDotsSum = useMemo(
+    () => activeDiscKeys.reduce((s, k) => s + ((sheet.disciplines[k] as number) ?? 0), 0),
+    [activeDiscKeys, sheet.disciplines],
+  );
+
+  const classicMode = sheet.chargenMotor === "classic_rev";
+  const timeline = useMemo(
+    () =>
+      fusionChargenProfile({
+        clan: sheet.clan,
+        yearsUnlife: sheet.yearsUnlife,
+        generation: sheet.generation,
+      }),
+    [sheet.clan, sheet.generation, sheet.yearsUnlife],
+  );
+  const attrOk = classicMode
+    ? !validateClassicAttributeSpread(sheet.attributes, sheet.classicAttrPreset)
+    : !validateAttributeSpread(sheet.attributes);
+  const skillOk = classicMode
+    ? !validateClassicSkillSpread(sheet.skills, sheet.classicSkillPreset)
+    : !validateSkillSpread(sheet.skills, sheet.skillMode);
+  const discOk = classicMode
+    ? !validateClassicDisciplineSpread(sheet.disciplines, sheet.clan, sheet.caitiffDisciplinePicks, {
+        budget: timeline.classicDisciplineBudget,
+        maxPer: timeline.classicMaxPerDot,
+      })
+    : !validateDisciplines(sheet.disciplines, sheet.clan, sheet.generation, sheet.caitiffDisciplinePicks, {
+        budget: timeline.v5DisciplineBudget,
+        maxPerDot: timeline.v5MaxPerDot,
+      });
+
+  const classicSums = useMemo(
+    () => (classicMode ? summarizeClassicTotals(sheet) : null),
+    [classicMode, sheet],
+  );
 
   function applyGeneration(gen: Generation) {
     setSheet((s) => ({ ...s, generation: gen, bloodPotency: bloodPotencyForGeneration(gen) }));
@@ -90,6 +143,18 @@ export function CharacterCreation({ initial, onSave }: Props) {
     });
   }
 
+  function applyTimelineSuggestion() {
+    setSheet((s) => {
+      const fp = fusionChargenProfile(s);
+      return {
+        ...s,
+        generation: fp.suggestedSerenoGeneration,
+        bloodPotency: bloodPotencyForGeneration(fp.suggestedSerenoGeneration),
+        freebiePool: fp.freebiesSuggested,
+      };
+    });
+  }
+
   function seal() {
     setTriedSeal(true);
     const picks =
@@ -97,13 +162,22 @@ export function CharacterCreation({ initial, onSave }: Props) {
         ? (sheet.caitiffDisciplinePicks ?? clanDefaultCaitiffPicks(sheet.clan))
         : null;
     if (picks && new Set(picks).size !== 3) return;
-    if (
-      validateAttributeSpread(sheet.attributes) ||
-      validateSkillSpread(sheet.skills, sheet.skillMode) ||
-      validateDisciplines(sheet.disciplines, sheet.clan, sheet.generation, sheet.caitiffDisciplinePicks)
-    ) {
-      return;
-    }
+    const attrErr = classicMode
+      ? validateClassicAttributeSpread(sheet.attributes, sheet.classicAttrPreset)
+      : validateAttributeSpread(sheet.attributes);
+    const skillErr = classicMode
+      ? validateClassicSkillSpread(sheet.skills, sheet.classicSkillPreset)
+      : validateSkillSpread(sheet.skills, sheet.skillMode);
+    const discErr = classicMode
+      ? validateClassicDisciplineSpread(sheet.disciplines, sheet.clan, sheet.caitiffDisciplinePicks, {
+          budget: timeline.classicDisciplineBudget,
+          maxPer: timeline.classicMaxPerDot,
+        })
+      : validateDisciplines(sheet.disciplines, sheet.clan, sheet.generation, sheet.caitiffDisciplinePicks, {
+          budget: timeline.v5DisciplineBudget,
+          maxPerDot: timeline.v5MaxPerDot,
+        });
+    if (attrErr || skillErr || discErr) return;
     onSave({
       ...sheet,
       bloodPotency: bloodPotencyForGeneration(sheet.generation),
@@ -136,7 +210,7 @@ export function CharacterCreation({ initial, onSave }: Props) {
   return (
     <div
       className="codex-dot-grid crt-wrap min-h-screen pb-20 text-neutral-300"
-      style={{ ["--clan-accent"]: accent } as React.CSSProperties}
+      style={{ ["--clan-accent"]: accent } as CSSProperties}
     >
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mx-auto max-w-6xl space-y-5 px-5 py-8 md:px-8">
         <header className="border-b border-[#161616] pb-5 font-mono">
@@ -196,7 +270,84 @@ export function CharacterCreation({ initial, onSave }: Props) {
               />
             </div>
 
+            <div className="md:col-span-12 rounded-sm border border-[#161616] bg-black/35 p-4">
+              <p className="font-mono text-[9px] uppercase tracking-[0.28em] text-neutral-600">
+                {"//_LÍNEA_TEMPORAL · no equivale solo a años mortales"}
+              </p>
+              <div className="mt-3 grid gap-3 md:grid-cols-12">
+                <div className="md:col-span-4">
+                  <label className="text-[9px] uppercase tracking-widest text-neutral-600" title="Años desde el Abrazo.">
+                    {"&gt;_AÑOS_SIN_VIDA"}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={9999}
+                    value={sheet.yearsUnlife || 0}
+                    onChange={(e) =>
+                      setSheet((s) => ({
+                        ...s,
+                        yearsUnlife: Math.max(0, Math.min(9999, Math.floor(Number(e.target.value) || 0))),
+                      }))
+                    }
+                    className={`${inputBase} mt-2`}
+                  />
+                </div>
+                <div className="space-y-1.5 md:col-span-8 md:self-end">
+                  <p className="font-mono text-[10px] leading-relaxed text-neutral-400">
+                    <span className="text-neutral-500">G.MES (tabla CODEX)</span>: Gen {timeline.masqueradeGeneration}
+                    {timeline.thinBloodNoBonus ? " · thin sin bleed ascendente en esta fusión." : ""} · menor número ≈ menos
+                    dilución heurística — confirma con el sire en mesa.
+                  </p>
+                  <p className="font-mono text-[10px] leading-relaxed text-neutral-500">
+                    Cohorte recomendada: <span style={{ color: accent }}>{timeline.suggestedSerenoGeneration}</span>
+                    {" · "}cohorte CODEX seleccionada: {sheet.generation}
+                    {!timeline.thinBloodNoBonus && timeline.suggestedSerenoGeneration !== sheet.generation ? (
+                      <span className="text-neutral-600"> · desalineados</span>
+                    ) : null}
+                  </p>
+                  <p className="font-mono text-[9px] leading-relaxed text-neutral-600">
+                    Presupuesto sugerido:{" "}
+                    <span style={{ color: accent }}>{timeline.freebiesSuggested}</span> freebies · V5ΣDisc{" "}
+                    {timeline.v5DisciplineBudget} (máx {timeline.v5MaxPerDot}/disc) · RevΣDisc{" "}
+                    {timeline.classicDisciplineBudget} (máx {timeline.classicMaxPerDot}/disc)
+                  </p>
+                  {timeline.thinBloodNoBonus ? (
+                    <p className="font-mono text-[9px] text-neutral-500">
+                      Thin-blood: tabla Mes no aplica bleed; usa presupuesto V5 base + Rev 3.
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={applyTimelineSuggestion}
+                    className="mt-2 w-full border border-[#282828] bg-black/50 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-400 hover:border-neutral-700 hover:text-neutral-300 md:w-auto"
+                    style={{ boxShadow: `inset 0 0 0 1px ${accent}18` }}
+                  >
+                    [&gt;_SINCRONIZAR cohorte Sereno · freebies sugeridos]
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3 md:col-span-12 md:border-t md:border-[#161616] md:pt-4">
+              <span className="text-[9px] text-neutral-600">MOTOR CODEX</span>
+              <label className="flex cursor-pointer items-center gap-2 font-mono text-[10px]">
+                <input
+                  type="radio"
+                  checked={sheet.chargenMotor === "v5_sereno"}
+                  onChange={() => setSheet((s) => ({ ...s, chargenMotor: "v5_sereno" }))}
+                />
+                SERENO V5 (cliente)
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 font-mono text-[10px]">
+                <input
+                  type="radio"
+                  checked={sheet.chargenMotor === "classic_rev"}
+                  onChange={() => setSheet((s) => ({ ...s, chargenMotor: "classic_rev" }))}
+                />
+                REVISED (fusión papel)
+              </label>
+              <span className="hidden h-3 w-px bg-[#161616] sm:block" aria-hidden />
               <span className="text-[9px] text-neutral-600">GENERACIÓN</span>
               <label className="flex cursor-pointer items-center gap-2 font-mono text-[10px]">
                 <input type="radio" checked={sheet.generation === "neonato"} onChange={() => applyGeneration("neonato")} />
@@ -208,17 +359,19 @@ export function CharacterCreation({ initial, onSave }: Props) {
               </label>
               <span className="hidden h-3 w-px bg-[#161616] sm:block" aria-hidden />
               <span className="text-[9px] text-neutral-600">DIST_VEC</span>
-              <label className="flex cursor-pointer items-center gap-2 font-mono text-[10px]">
+              <label className={`flex cursor-pointer items-center gap-2 font-mono text-[10px] ${classicMode ? "opacity-35" : ""}`}>
                 <input
                   type="radio"
+                  disabled={classicMode}
                   checked={sheet.skillMode === "jack"}
                   onChange={() => setSheet((s) => ({ ...s, skillMode: "jack" as SkillDistributionMode }))}
                 />
                 JACK
               </label>
-              <label className="flex cursor-pointer items-center gap-2 font-mono text-[10px]">
+              <label className={`flex cursor-pointer items-center gap-2 font-mono text-[10px] ${classicMode ? "opacity-35" : ""}`}>
                 <input
                   type="radio"
+                  disabled={classicMode}
                   checked={sheet.skillMode === "specialist"}
                   onChange={() =>
                     setSheet((s) => ({ ...s, skillMode: "specialist" as SkillDistributionMode }))
@@ -254,6 +407,87 @@ export function CharacterCreation({ initial, onSave }: Props) {
                 </select>
               </label>
             </div>
+
+            <div
+              className="md:col-span-12 md:border-t md:border-[#161616] md:pt-4"
+              title={TOOLTIP_FREEBIE_POOL}
+            >
+              <label className="text-[9px] uppercase tracking-widest text-neutral-600">{"//_FREEBIES"}</label>
+              <div className="mt-2 flex flex-wrap items-center gap-4">
+                <input
+                  type="number"
+                  min={0}
+                  max={999}
+                  value={sheet.freebiePool}
+                  onChange={(e) =>
+                    setSheet((s) => ({
+                      ...s,
+                      freebiePool: Math.max(0, Math.min(999, Number(e.target.value) || 0)),
+                    }))
+                  }
+                  className={`${inputBase} max-w-[6rem]`}
+                />
+                <p className="max-w-xl font-mono text-[8px] leading-relaxed text-neutral-600">
+                  {classicMode
+                    ? "Modo Revised: reparto monetario sobre base atributo 1, habilidades 0–5, 13/9/5 permutable, disciplinas línea suman 3. Freebies siguen sólo cuenta en cliente."
+                    : "REF papel: selecciona «REVISED» arriba para validar 7/5/3 · 13/9/5 ahí; motor Sereno usa 4·3⁴·2³·1 + JACK/ESPEC."}{" "}
+                  {!classicMode && (
+                    <span className="text-neutral-500">Distribución V5: 4·3⁴·2³·1 + JACK/ESPEC.</span>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {classicMode && (
+              <div className="grid gap-4 p-4 md:grid-cols-12 md:border-t md:border-[#161616]">
+                <div className="md:col-span-6">
+                  <label className="text-[9px] uppercase tracking-widest text-neutral-600">
+                    {"//_AGRUP_BANDA_ATTR (P=dots +7,S=+5,T=+3 sobre base 1)"}
+                  </label>
+                  <select
+                    value={sheet.classicAttrPreset}
+                    onChange={(e) =>
+                      setSheet((s) => ({ ...s, classicAttrPreset: Number(e.target.value) }))
+                    }
+                    className={`${inputBase} mt-2 cursor-pointer`}
+                  >
+                    {[0, 1, 2, 3, 4, 5].map((i) => (
+                      <option key={i} value={i}>
+                        {i}: {classicAttrPresetCaption(i)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="md:col-span-6">
+                  <label className="text-[9px] uppercase tracking-widest text-neutral-600">
+                    {"//_AGRUP_CARRILES_HAB (total 13·9·5 por permutación)"}
+                  </label>
+                  <select
+                    value={sheet.classicSkillPreset}
+                    onChange={(e) =>
+                      setSheet((s) => ({ ...s, classicSkillPreset: Number(e.target.value) }))
+                    }
+                    className={`${inputBase} mt-2 cursor-pointer`}
+                  >
+                    {[0, 1, 2, 3, 4, 5].map((i) => (
+                      <option key={i} value={i}>
+                        {i}: {classicSkillPresetCaption(i)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {classicSums != null && (
+                  <div className="font-mono text-[9px] leading-relaxed text-neutral-500 md:col-span-12">
+                    &gt;_EXCESOS_ATTR → P:{classicSums.attrs.primary}/{ATRIBUTOS_SCHEMA.primary} · S:
+                    {classicSums.attrs.secondary}/{ATRIBUTOS_SCHEMA.secondary} · T:{classicSums.attrs.tertiary}/
+                    {ATRIBUTOS_SCHEMA.tertiary}
+                    {" // _HABILIDADES_RAW → "}
+                    P:{classicSums.skills.primary}/{HABILIDADES_SCHEMA.primary} · S:
+                    {classicSums.skills.secondary}/{HABILIDADES_SCHEMA.secondary} · T:{classicSums.skills.tertiary}/{HABILIDADES_SCHEMA.tertiary}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </section>
 
@@ -262,20 +496,33 @@ export function CharacterCreation({ initial, onSave }: Props) {
             <h2 className="border-b border-[#161616] px-3 py-2 font-mono text-[9px] uppercase tracking-[0.32em] text-neutral-600">
               {"//_ATRIBUTOS"}
             </h2>
-            <div className="space-y-3 p-4">
-              {ATTRIBUTE_KEYS.map((a) => (
-                <div key={a.key} className="flex items-center justify-between gap-4">
-                  <span title={a.tooltip} className="cursor-help font-mono text-[10px] tracking-tight text-neutral-500">
-                    {a.label}
-                  </span>
-                  <DotTrack
-                    min={1}
-                    max={4}
-                    accent={accent}
-                    minimal={false}
-                    value={sheet.attributes[a.key]}
-                    onChange={(v) => setAttr(a.key, v)}
-                  />
+            <div className="space-y-5 p-4">
+              {ATTRIBUTE_BANDS.map((band) => (
+                <div key={band.label}>
+                  <p className="mb-2 font-mono text-[8px] uppercase tracking-[0.28em] text-neutral-700">{band.label}</p>
+                  <div className="space-y-3">
+                    {band.keys.map((key) => {
+                      const a = ATTRIBUTE_KEYS.find((x) => x.key === key)!;
+                      return (
+                        <div key={key} className="flex items-center justify-between gap-4">
+                          <span
+                            title={a.tooltip}
+                            className="cursor-help font-mono text-[10px] tracking-tight text-neutral-500"
+                          >
+                            {a.label}
+                          </span>
+                          <DotTrack
+                            min={1}
+                            max={classicMode ? 5 : 4}
+                            accent={accent}
+                            minimal={false}
+                            value={sheet.attributes[key]}
+                            onChange={(v) => setAttr(key, v)}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               ))}
             </div>
@@ -285,13 +532,28 @@ export function CharacterCreation({ initial, onSave }: Props) {
             <h2 className="border-b border-[#161616] px-3 py-2 font-mono text-[9px] uppercase tracking-[0.32em] text-neutral-600">
               {"//_HABILIDADES"}
             </h2>
-            <div className="max-h-[60vh] space-y-2.5 overflow-y-auto p-4 lg:max-h-[calc(100vh-220px)]">
-              {SERENO_SKILLS.map(({ key, label, tooltip }) => (
-                <div key={key} className="flex items-center justify-between gap-2">
-                  <span title={tooltip} className="cursor-help truncate font-mono text-[10px] text-neutral-500">
-                    {label}
-                  </span>
-                  <DotTrack max={3} accent={accent} minimal={false} value={sheet.skills[key] ?? 0} onChange={(v) => setSkill(key, v)} />
+            <div className="max-h-[60vh] space-y-5 overflow-y-auto p-4 lg:max-h-[calc(100vh-220px)]">
+              {(["talento", "tecnica", "conocimiento"] as const as readonly SkillLane[]).map((lane) => (
+                <div key={lane}>
+                  <p className="mb-2 font-mono text-[8px] uppercase tracking-[0.28em] text-neutral-700">
+                    {SKILL_LANE_LABEL[lane]}
+                  </p>
+                  <div className="space-y-2.5">
+                    {SERENO_SKILLS.filter((s) => s.lane === lane).map(({ key, label, tooltip }) => (
+                      <div key={key} className="flex items-center justify-between gap-2">
+                        <span title={tooltip} className="cursor-help truncate font-mono text-[10px] text-neutral-500">
+                          {label}
+                        </span>
+                        <DotTrack
+                          max={classicMode ? 5 : 3}
+                          accent={accent}
+                          minimal={false}
+                          value={sheet.skills[key] ?? 0}
+                          onChange={(v) => setSkill(key, v)}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
@@ -301,6 +563,13 @@ export function CharacterCreation({ initial, onSave }: Props) {
             <h2 className="border-b border-[#161616] px-3 py-2 font-mono text-[9px] uppercase tracking-[0.32em] text-neutral-600">
               {"//_PODERES"}
             </h2>
+            <p className="border-b border-[#161616] px-3 py-1 font-mono text-[8px] text-neutral-600">
+              Σ disciplinas línea:{" "}
+              <span style={{ color: accent }}>
+                {discDotsSum}/{classicMode ? timeline.classicDisciplineBudget : timeline.v5DisciplineBudget}
+              </span>
+              {classicMode ? " (Rev)" : " (Sereno)"} · máx/dot según tiempo + G.Mes
+            </p>
             <div className="space-y-3 p-4">
               {(sheet.clan === "caitiff" || sheet.clan === "other") && (
                 <div className="grid gap-2">
@@ -326,7 +595,7 @@ export function CharacterCreation({ initial, onSave }: Props) {
                     {disciplineLabel(k)}
                   </span>
                   <DotTrack
-                    max={2}
+                    max={classicMode ? timeline.classicMaxPerDot : timeline.v5MaxPerDot}
                     accent={accent}
                     minimal={false}
                     value={(sheet.disciplines[k] as number) ?? 0}

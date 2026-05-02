@@ -54,38 +54,88 @@ export function disciplineTooltip(key: DisciplineKey | string): string {
 
 export const RESONANCE_OPTIONS = ["Colérica", "Melancólica", "Flemática", "Sanguínea"] as const;
 
-/** Habilidades V5 · etiquetas técnicas ES + tooltip 1 línea. */
+/** Carril tipo ficha clásica (Talento / Técnica / Conocimiento). La validación de puntos sigue siendo V5 Sereno. */
+export type SkillLane = "talento" | "tecnica" | "conocimiento";
+
+export const SKILL_LANE_LABEL: Record<SkillLane, string> = {
+  talento: "//_TALENTO",
+  tecnica: "//_TÉCNICA",
+  conocimiento: "//_CONOC",
+};
+
+/** Habilidades V5 · etiquetas técnicas ES + tooltip + carril visual. */
 export const SERENO_SKILLS = [
-  { key: "atletismo", label: "Movimiento", tooltip: "Correr, trepar y sostener carga física." },
-  { key: "refriegas", label: "Combate", tooltip: "Violencia cuerpo a cuerpo desarmado o improvisado." },
-  { key: "oficios", label: "Oficios", tooltip: "Fabricación y mantenimiento con las manos." },
-  { key: "conducir", label: "Propulsión", tooltip: "Vehículos bajo tiempo y dispersión táctica." },
-  { key: "armas_fuego", label: "Proyectiles", tooltip: "Líneas de fuego y precisión corta." },
-  { key: "latrocinio", label: "Exfiltración", tooltip: "Abrir cerraduras, tomar objetos sin dejar marca." },
-  { key: "combate_cac", label: "Contacto armado", tooltip: "Armas cortas/contundentes con intención letal." },
-  { key: "sigilo", label: "Infiltración", tooltip: "Movimiento invisible al ojo medio." },
-  { key: "supervivencia", label: "Exterior", tooltip: "Orientación, cobijo y huella en zona hostil." },
-  { key: "trato_animales", label: "Fauna", tooltip: "Imponerte o pactar con no humanos vivientes." },
-  { key: "etiqueta", label: "Protocolo", tooltip: "Cadencias de poder en salón y pacto verbal." },
-  { key: "perspicacia", label: "Lectura", tooltip: "Captar inconsistencias antes de verbalizarlas." },
-  { key: "intimidacion", label: "Coerción", tooltip: "Doblar comportamiento mediante presión fría." },
-  { key: "liderazgo", label: "Mando", tooltip: "Sincronizar cuerpo ajeno cuando el caos ordena cerrar." },
-  { key: "persuasion", label: "Ingeniería social", tooltip: "Reescribir deseos sin usar cadena física." },
-  { key: "callejeo", label: "Geografía urbana", tooltip: "Códigos locales, rutas ilegales, rumores pegados." },
-  { key: "subterfugio", label: "Disfraz narrativo", tooltip: "Construir narrativas falsas y sostenerlas." },
-  { key: "academicos", label: "Corpus textual", tooltip: "Humanidades densas aplicadas sobre la marcha." },
-  { key: "consciencia", label: "Periferia", tooltip: "Campo sensorial periférico antes de verbalizar amenazas." },
-  { key: "finanzas", label: "Flujo capital", tooltip: "Liquidez, extorsión contable y tráfico económico." },
-  { key: "investigacion", label: "Reconstrucción", tooltip: "Escena del crimen y deducción física literal." },
-  { key: "medicina", label: "Trauma técnico", tooltip: "Drenar vida o suturar urgencias con precisión." },
+  { key: "atletismo", label: "Movimiento", tooltip: "Correr, trepar y sostener carga física.", lane: "tecnica" as const },
+  {
+    key: "refriegas",
+    label: "Combate",
+    tooltip: "Violencia cuerpo a cuerpo desarmado o improvisado.",
+    lane: "talento" as const,
+  },
+  { key: "oficios", label: "Oficios", tooltip: "Fabricación y mantenimiento con las manos.", lane: "tecnica" as const },
+  { key: "conducir", label: "Propulsión", tooltip: "Vehículos bajo tiempo y dispersión táctica.", lane: "tecnica" as const },
+  { key: "armas_fuego", label: "Proyectiles", tooltip: "Líneas de fuego y precisión corta.", lane: "tecnica" as const },
+  {
+    key: "latrocinio",
+    label: "Exfiltración",
+    tooltip: "Abrir cerraduras, tomar objetos sin dejar marca.",
+    lane: "tecnica" as const,
+  },
+  {
+    key: "combate_cac",
+    label: "Contacto armado",
+    tooltip: "Armas cortas/contundentes con intención letal.",
+    lane: "tecnica" as const,
+  },
+  { key: "sigilo", label: "Infiltración", tooltip: "Movimiento invisible al ojo medio.", lane: "tecnica" as const },
+  { key: "supervivencia", label: "Exterior", tooltip: "Orientación, cobijo y huella en zona hostil.", lane: "tecnica" as const },
+  { key: "trato_animales", label: "Fauna", tooltip: "Imponerte o pactar con no humanos vivientes.", lane: "talento" as const },
+  { key: "etiqueta", label: "Protocolo", tooltip: "Cadencias de poder en salón y pacto verbal.", lane: "tecnica" as const },
+  { key: "perspicacia", label: "Lectura", tooltip: "Captar inconsistencias antes de verbalizarlas.", lane: "talento" as const },
+  { key: "intimidacion", label: "Coerción", tooltip: "Doblar comportamiento mediante presión fría.", lane: "talento" as const },
+  { key: "liderazgo", label: "Mando", tooltip: "Sincronizar cuerpo ajeno cuando el caos ordena cerrar.", lane: "talento" as const },
+  {
+    key: "persuasion",
+    label: "Ingeniería social",
+    tooltip: "Reescribir deseos sin usar cadena física.",
+    lane: "talento" as const,
+  },
+  { key: "callejeo", label: "Geografía urbana", tooltip: "Códigos locales, rutas ilegales, rumores pegados.", lane: "talento" as const },
+  {
+    key: "subterfugio",
+    label: "Disfraz narrativo",
+    tooltip: "Construir narrativas falsas y sostenerlas.",
+    lane: "talento" as const,
+  },
+  {
+    key: "academicos",
+    label: "Corpus textual",
+    tooltip: "Humanidades densas aplicadas sobre la marcha.",
+    lane: "conocimiento" as const,
+  },
+  {
+    key: "consciencia",
+    label: "Periferia",
+    tooltip: "Campo sensorial periférico antes de verbalizar amenazas.",
+    lane: "talento" as const,
+  },
+  { key: "finanzas", label: "Flujo capital", tooltip: "Liquidez, extorsión contable y tráfico económico.", lane: "conocimiento" as const },
+  {
+    key: "investigacion",
+    label: "Reconstrucción",
+    tooltip: "Escena del crimen y deducción física literal.",
+    lane: "conocimiento" as const,
+  },
+  { key: "medicina", label: "Trauma técnico", tooltip: "Drenar vida o suturar urgencias con precisión.", lane: "conocimiento" as const },
   {
     key: "ocultismo",
     label: "Arcanismo",
     tooltip: "Conocimiento de lo que acecha en la oscuridad.",
+    lane: "conocimiento" as const,
   },
-  { key: "politica", label: "Estructura poder", tooltip: "Mapear cortes cerradas sin invitación." },
-  { key: "ciencia", label: "Método cerrado", tooltip: "Laboratorio, hipótesis y instrumentación fría." },
-  { key: "tecnologia", label: "Sistemas", tooltip: "Redes, código y electrónica dura." },
+  { key: "politica", label: "Estructura poder", tooltip: "Mapear cortes cerradas sin invitación.", lane: "conocimiento" as const },
+  { key: "ciencia", label: "Método cerrado", tooltip: "Laboratorio, hipótesis y instrumentación fría.", lane: "conocimiento" as const },
+  { key: "tecnologia", label: "Sistemas", tooltip: "Redes, código y electrónica dura.", lane: "conocimiento" as const },
 ] as const;
 
 export type SerenoSkillKey = (typeof SERENO_SKILLS)[number]["key"];
@@ -100,6 +150,9 @@ export const TOOLTIP_BLOOD_POTENCY = "Índice de sangre cursada usada como canal
 export const TOOLTIP_RESONANCE = "Firma tonal de la víctima o fuente hematófaga percibida.";
 
 export const TOOLTIP_HUMANITY = "Tensión con la Bestia antes del colapso total.";
+
+export const TOOLTIP_FREEBIE_POOL =
+  "Puntos libres (mesa clásica, p. ej. 21). Este cliente no descuenta compras; el MJ/ficha papel liquida el gasto.";
 
 /** Fichas antiguas (inglés) → claves Sereno. */
 export const LEGACY_SKILL_ALIASES: Record<string, SerenoSkillKey> = {
@@ -188,9 +241,11 @@ export function validateDisciplines(
   clan: ClanId,
   gen: Generation,
   caitiffPicks: [DisciplineKey, DisciplineKey, DisciplineKey] | null,
+  fusion?: { budget: number; maxPerDot: number },
 ): string | null {
   const keys = getActiveDisciplineKeys(clan, caitiffPicks);
-  const budget = disciplineBudget(gen);
+  const budget = fusion?.budget ?? disciplineBudget(gen);
+  const maxPer = fusion?.maxPerDot ?? 2;
   for (const k of Object.keys(disciplines)) {
     const v = disciplines[k] ?? 0;
     if (!keys.includes(k as DisciplineKey) && v > 0) return "!";
@@ -198,7 +253,7 @@ export function validateDisciplines(
   let sum = 0;
   for (const k of keys) {
     const v = disciplines[k] ?? 0;
-    if (v < 0 || v > 2) return "!";
+    if (v < 0 || v > maxPer) return "!";
     sum += v;
   }
   if (sum !== budget) return "!";

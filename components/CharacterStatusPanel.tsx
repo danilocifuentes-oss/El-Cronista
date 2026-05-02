@@ -36,7 +36,7 @@ export function CharacterStatusPanel({
           {linajeLabel}
         </p>
         <p className="mt-2 text-[9px] text-neutral-600">
-          PS{sheet.bloodPotency}_HUM{sheet.humanity}_{sheet.resonance?.slice(0, 3) || "—"}
+          PS{sheet.bloodPotency}_HUM{sheet.humanity}_FB{sheet.freebiePool}_{sheet.resonance?.slice(0, 3) || "—"}
         </p>
       </div>
 

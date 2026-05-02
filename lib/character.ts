@@ -50,12 +50,48 @@ export const CLAN_ACCENTS: Record<ClanId, string> = {
   other: "#3d8840",
 };
 
+export type AttributePhysKey = "str" | "dex" | "sta";
+export type AttributeSocKey = "cha" | "man" | "com";
+export type AttributeMenKey = "int" | "wit" | "res";
+
+/** Columnas fís / soc / mental (compartidas V5 UI y modo clásico). */
+export const ATTR_BAND_KEYS: Record<
+  "fis" | "soc" | "men",
+  readonly (AttributePhysKey | AttributeSocKey | AttributeMenKey)[]
+> = {
+  fis: ["str", "dex", "sta"],
+  soc: ["cha", "man", "com"],
+  men: ["int", "wit", "res"],
+};
+
+/** Agrupación visual CODEX (`//_FÍS` …). */
+export const ATTRIBUTE_BANDS: readonly {
+  label: string;
+  keys: readonly (AttributePhysKey | AttributeSocKey | AttributeMenKey)[];
+}[] = [
+  { label: "//_FÍS", keys: [...ATTR_BAND_KEYS.fis] },
+  { label: "//_SOC", keys: [...ATTR_BAND_KEYS.soc] },
+  { label: "//_MEN", keys: [...ATTR_BAND_KEYS.men] },
+] as const;
+
+export type ChargenMotor = "v5_sereno" | "classic_rev";
+
 export interface CharacterSheet {
   name: string;
   clan: ClanId;
   /** Anomalía de linaje: prefijo táctico opcional / tachado UI. */
   antitribu: boolean;
   concept: string;
+  /** Años de no‑vida desde el Abrazo; la fusión CODEX estima Generación Mes y presupuestos derivados (no equivale automáticamente a la edad mortal). */
+  yearsUnlife: number;
+  /** Puntos libres (mesa Revised). El cliente no ejecuta tabla de compra; sólo persiste el contador. */
+  freebiePool: number;
+  /** Fusión: motor Sereno V5 cliente vs distribución tipo Revised (7/5/3 · 13/9/5 · 3 disc). */
+  chargenMotor: ChargenMotor;
+  /** Índice 0–5: orden de pesos primario/secundario/terciario sobre bandas fís/soc/ment. */
+  classicAttrPreset: number;
+  /** Índice 0–5: orden de Talentos/Técnicas/Conocimientos contra 13/9/5. */
+  classicSkillPreset: number;
   generation: Generation;
   skillMode: SkillDistributionMode;
   /** Sólo Caitiff / Otro: tres disciplinas elegidas del pool. */
@@ -162,6 +198,11 @@ export function emptySheet(): CharacterSheet {
     clan: "other",
     antitribu: false,
     concept: "",
+    yearsUnlife: 12,
+    freebiePool: 21,
+    chargenMotor: "v5_sereno",
+    classicAttrPreset: 0,
+    classicSkillPreset: 0,
     generation: gen,
     skillMode: "jack",
     caitiffDisciplinePicks: null,
@@ -202,6 +243,25 @@ export function normalizeCharacterSheet(partial: Partial<CharacterSheet>): Chara
     antitribu: partial.antitribu ?? base.antitribu,
     clan: clanId,
     concept: partial.concept ?? base.concept,
+    yearsUnlife:
+      typeof partial.yearsUnlife === "number" &&
+      partial.yearsUnlife >= 0 &&
+      partial.yearsUnlife <= 50000
+        ? Math.floor(partial.yearsUnlife)
+        : base.yearsUnlife,
+    freebiePool:
+      typeof partial.freebiePool === "number" && partial.freebiePool >= 0 && partial.freebiePool <= 999
+        ? partial.freebiePool
+        : base.freebiePool,
+    chargenMotor: partial.chargenMotor ?? base.chargenMotor,
+    classicAttrPreset:
+      typeof partial.classicAttrPreset === "number" && partial.classicAttrPreset >= 0 && partial.classicAttrPreset < 6
+        ? partial.classicAttrPreset
+        : base.classicAttrPreset,
+    classicSkillPreset:
+      typeof partial.classicSkillPreset === "number" && partial.classicSkillPreset >= 0 && partial.classicSkillPreset < 6
+        ? partial.classicSkillPreset
+        : base.classicSkillPreset,
     caitiffDisciplinePicks:
       partial.caitiffDisciplinePicks != null
         ? partial.caitiffDisciplinePicks
