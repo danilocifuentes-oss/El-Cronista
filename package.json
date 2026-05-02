@@ -2,6 +2,9 @@
   "name": "el-cronista-de-las-sombras",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "description": "SPA SchreckNet — mesa inspirada en V:tM V5 (fan work, no oficial)",
   "scripts": {
     "dev": "next dev",
