@@ -1,7 +1,7 @@
 /**
  * Línea temporal CODEX · fusión “a todo gas”: años sin vida → generación Masquerada
  * tentativa + presupuestos derivados (freebies · disciplinas V5/Revised).
- * No es tabla canónica de White Wolf — el MJ debe confirmar sire y generación real.
+ * No es tabla canónica de White Wolf: el director de juego debe confirmar sire y generación real.
  */
 
 import type { ClanId } from "./character";

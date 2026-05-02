@@ -8,6 +8,7 @@ import {
   bloodPotencyForGeneration,
   migrateSkillsFromLegacy,
 } from "@/lib/sereno";
+import { coerceClassicAttrPresetForClan } from "@/lib/serenoClassic";
 
 export type ClanId =
   | "ventrue"
@@ -89,9 +90,9 @@ export interface CharacterSheet {
   conceptPresetId: string | null;
   /** Años de no‑vida desde el Abrazo; la fusión CODEX estima Generación Mes y presupuestos derivados (no equivale automáticamente a la edad mortal). */
   yearsUnlife: number;
-  /** Puntos libres (mesa Revised). El cliente no ejecuta tabla de compra; sólo persiste el contador. */
+  /** Puntos libres (mesa Revised). El cliente no ejecuta tabla de compra; solo guarda el contador. */
   freebiePool: number;
-  /** Fusión: motor Sereno V5 cliente vs distribución tipo Revised (7/5/3 · 13/9/5 · 3 disc). */
+  /** Fusión: motor Sereno V5 cliente usa el mismo reparto 7·5·3 y 13·9·5 por preset que Revised en papel. */
   chargenMotor: ChargenMotor;
   /** Índice 0–5: orden de pesos primario/secundario/terciario sobre bandas fís/soc/ment. */
   classicAttrPreset: number;
@@ -99,7 +100,7 @@ export interface CharacterSheet {
   classicSkillPreset: number;
   generation: Generation;
   skillMode: SkillDistributionMode;
-  /** Sólo Caitiff / Otro: tres disciplinas elegidas del pool. */
+  /** Solo Caitiff / Otro: tres disciplinas elegidas del pool. */
   caitiffDisciplinePicks: [DisciplineKey, DisciplineKey, DisciplineKey] | null;
   attributes: {
     str: number;
@@ -128,7 +129,7 @@ export const STORAGE_KEY = "cronista-sheet-v1";
 /** Humanidad de arranque estándar en creación (ajustable con la pista ANIMA). */
 export const CHARGEN_HUMANITY_BASE = 7;
 
-/** Punto base por atributo (● gris en CODEX); encima repartís con color de linaje. */
+/** Punto base por atributo (● gris en CODEX); el extra asignado se muestra con el color del linaje. */
 export const CHARGEN_ATTRIBUTE_DOT_BASE = 1;
 
 export const ATTRIBUTE_KEYS = [
@@ -136,7 +137,7 @@ export const ATTRIBUTE_KEYS = [
   { key: "dex" as const, label: "Destreza", tooltip: "Fineza motora y reflejos bajo estrés." },
   { key: "sta" as const, label: "Resistencia", tooltip: "Aguante del cuerpo frente al daño y la fatiga." },
   { key: "cha" as const, label: "Carisma", tooltip: "Presencia que atrae o impone cuando hablas." },
-  { key: "man" as const, label: "Manipulación", tooltip: "Dirigir a otros sin revelar tus manos." },
+  { key: "man" as const, label: "Manipulación", tooltip: "Influir en otros sin revelar la maniobra." },
   { key: "com" as const, label: "Compostura", tooltip: "Dominio emocional bajo fuego psicológico." },
   { key: "int" as const, label: "Intelecto", tooltip: "Razonamiento, memoria factual y teoría rápida." },
   { key: "wit" as const, label: "Astucia", tooltip: "Pensamiento táctico y síntesis bajo tiempo corto." },
@@ -159,7 +160,7 @@ export function chargenBaseAttributes(): CharacterSheet["attributes"] {
   };
 }
 
-/** V5: tope de voluntad desde Compostura + Resolución (mínimo 1 hasta que distribuyas). */
+/** V5: tope de voluntad desde Compostura + Resolución (mínimo 1 hasta completar la distribución). */
 export function willpowerMaxFromAttributes(attrs: CharacterSheet["attributes"]): number {
   return Math.max(1, attrs.com + attrs.res);
 }
@@ -289,10 +290,12 @@ export function normalizeCharacterSheet(partial: Partial<CharacterSheet>): Chara
         ? partial.freebiePool
         : base.freebiePool,
     chargenMotor: partial.chargenMotor ?? base.chargenMotor,
-    classicAttrPreset:
+    classicAttrPreset: coerceClassicAttrPresetForClan(
+      clanId,
       typeof partial.classicAttrPreset === "number" && partial.classicAttrPreset >= 0 && partial.classicAttrPreset < 6
         ? partial.classicAttrPreset
         : base.classicAttrPreset,
+    ),
     classicSkillPreset:
       typeof partial.classicSkillPreset === "number" && partial.classicSkillPreset >= 0 && partial.classicSkillPreset < 6
         ? partial.classicSkillPreset

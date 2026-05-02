@@ -6,7 +6,7 @@ import type { ClanId } from "@/lib/character";
 
 export const SERENO_TITLE_FULL = "PROYECTO_SERENO · NODO_LATAM";
 export const SERENO_COMM_CHANNEL = "SCHRECK_NET";
-export const SERENO_LOGIN_TAGLINE = "CANAL_CIFRADO · tráfico sólo en cliente.";
+export const SERENO_LOGIN_TAGLINE = "CANAL_CIFRADO · tráfico solo en el cliente.";
 export const SERENO_DISCLAIMER =
   "Simulación de mesa sin licencia oficial. Vampire / World of Darkness son marcas de sus titulares.";
 
@@ -142,8 +142,8 @@ export type SerenoSkillKey = (typeof SERENO_SKILLS)[number]["key"];
 
 export const SERENO_SKILL_KEYS = SERENO_SKILLS.map((s) => s.key) as unknown as readonly SerenoSkillKey[];
 
-/** Hint técnico (no UI larga): spread cerrado físico/soc/mental. */
-export const ATTRIBUTE_GRID_HINT_ES = "// CODEX físico-soc-mental · cuadratura 4-3³-2³-1 (V5 proyecto).";
+/** Hint técnico (no UI larga): reparto 7·5·3 por tres categorías. */
+export const ATTRIBUTE_GRID_HINT_ES = "// CODEX atributos físico · social · mental · 7-5-3 sobre base.";
 
 export const TOOLTIP_BLOOD_POTENCY = "Índice de sangre cursada usada como canal de poder.";
 
@@ -152,7 +152,7 @@ export const TOOLTIP_RESONANCE = "Firma tonal de la víctima o fuente hematófag
 export const TOOLTIP_HUMANITY = "Tensión con la Bestia antes del colapso total.";
 
 export const TOOLTIP_FREEBIE_POOL =
-  "Puntos libres (mesa clásica, p. ej. 21). Este cliente no descuenta compras; el MJ/ficha papel liquida el gasto.";
+  "Puntos libres (mesa clásica; p. ej., 21). Este cliente no registra compras: el gasto se lleva en papel o con el director de juego.";
 
 /** Fichas antiguas (inglés) → claves Sereno. */
 export const LEGACY_SKILL_ALIASES: Record<string, SerenoSkillKey> = {
@@ -185,34 +185,8 @@ export function migrateSkillsFromLegacy(raw: Record<string, number>): Record<str
   return out;
 }
 
-function countMap(nums: number[]) {
-  const m: Record<number, number> = {};
-  for (const n of nums) m[n] = (m[n] ?? 0) + 1;
-  return m;
-}
-
-/** V5 distribución proyectada minimal: 4, 3, 3, 3, 2, 2, 2, 1 + novena estadística ⇒ 1×4, 4×3, 3×2, 1×1. */
-export function validateAttributeSpread(attrs: Record<string, number>): string | null {
-  const vals = Object.values(attrs);
-  if (vals.some((v) => v < 1 || v > 4)) return "!";
-  const c = countMap(vals);
-  if (c[4] !== 1 || c[3] !== 4 || c[2] !== 3 || c[1] !== 1) return "!";
-  return null;
-}
-
+/** Perfil de habilidad heredado en ficha · la creación CODEX usa 13/9/5 por carril (`validateClassicSkillSpread`). */
 export type SkillMode = "jack" | "specialist";
-
-export function validateSkillSpread(skills: Record<string, number>, mode: SkillMode): string | null {
-  const vals = SERENO_SKILL_KEYS.map((k) => skills[k] ?? 0);
-  if (vals.some((v) => v < 0 || v > 3)) return "!";
-  const c = countMap(vals);
-  if (mode === "jack") {
-    if (c[3] !== 1 || c[2] !== 8 || c[1] !== 10) return "!";
-  } else if (c[3] !== 3 || c[2] !== 5 || c[1] !== 7) {
-    return "!";
-  }
-  return null;
-}
 
 export type Generation = "neonato" | "ancilla";
 

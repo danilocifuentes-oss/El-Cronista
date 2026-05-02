@@ -212,6 +212,71 @@ export function validateClassicDisciplineSpread(
   return null;
 }
 
+/** Algunos clanes CODEX fuerzan cuál grupo (fís/social/mental) recibe siempre los 7 puntos sobre base 1. */
+const CLAN_LOCKED_ATTR_PRIMARY: Partial<Record<ClanId, keyof typeof ATTR_BAND_KEYS>> = {
+  brujah: "fis",
+  nosferatu: "fis",
+  gangrel: "fis",
+  ventrue: "soc",
+  toreador: "soc",
+  malkavian: "men",
+  tremere: "men",
+};
+
+export function clanLockedAttrPrimaryBand(clan: ClanId): keyof typeof ATTR_BAND_KEYS | null {
+  return CLAN_LOCKED_ATTR_PRIMARY[clan] ?? null;
+}
+
+/** Etiqueta corta («físicos» …) cuando el clan fija grupo principal en CODEX. */
+export function classicAttrPresetChoicesForClan(clan: ClanId): number[] {
+  const b = clanLockedAttrPrimaryBand(clan);
+  if (b === null) return [0, 1, 2, 3, 4, 5];
+  const out: number[] = [];
+  CLASSIC_ATTR_PERM_PRESETS.forEach((p, i) => {
+    if (p[b] === "primary") out.push(i);
+  });
+  return out.length > 0 ? out : [0];
+}
+
+/** Asegura preset permitido cuando el clan fija grupo principal. */
+export function coerceClassicAttrPresetForClan(clan: ClanId, presetIdx: number): number {
+  const choices = classicAttrPresetChoicesForClan(clan);
+  const p = presetIdx >= 0 && presetIdx <= 5 ? presetIdx % 6 : 0;
+  return choices.includes(p) ? p : choices[0] ?? 0;
+}
+
+const ATTR_BAND_SUMMARY_ES: Record<keyof ClassicAttrPermMap, string> = {
+  fis: "físicos",
+  soc: "sociales",
+  men: "mentales",
+};
+
+export function clanLockedAttrPrimaryEs(clan: ClanId): string | null {
+  const b = clanLockedAttrPrimaryBand(clan);
+  if (!b) return null;
+  return ATTR_BAND_SUMMARY_ES[b];
+}
+
+export function classicAttrPresetSummary(idx: number): string {
+  const perm = CLASSIC_ATTR_PERM_PRESETS[idx % CLASSIC_ATTR_PERM_PRESETS.length];
+  return (["fis", "soc", "men"] as const)
+    .map((b) => `${ATRIBUTOS_SCHEMA[perm[b]]} en ${ATTR_BAND_SUMMARY_ES[b]}`)
+    .join(" · ");
+}
+
+const SKILL_LANE_SUMMARY_ES: Record<SkillLane, string> = {
+  talento: "talentos",
+  tecnica: "técnicas",
+  conocimiento: "conocimientos",
+};
+
+export function classicSkillPresetSummary(idx: number): string {
+  const perm = CLASSIC_SKILL_PERM_PRESETS[idx % CLASSIC_SKILL_PERM_PRESETS.length];
+  return (["talento", "tecnica", "conocimiento"] as const)
+    .map((lane) => `${HABILIDADES_SCHEMA[perm[lane]]} en ${SKILL_LANE_SUMMARY_ES[lane]}`)
+    .join(" · ");
+}
+
 export function summarizeClassicTotals(
   sheet: CharacterSheet,
 ): { attrs: PointsSchema; skills: PointsSchema } {

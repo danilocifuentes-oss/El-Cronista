@@ -149,7 +149,7 @@ export function AdminConsole({
               panelForNarrator
             ) : (
               <p className="mt-6 font-mono text-[10px] text-neutral-600">
-                MJ_FLAG=OFF · sin acceso CLOCK / OVERRIDE / PIPE MJ.
+                MJ_FLAG=OFF · sin acceso a reloj, anulación ni tubería del narrador.
               </p>
             )}
 
@@ -162,7 +162,7 @@ export function AdminConsole({
               rows={4}
               disabled={!isNarrator}
               className="mt-2 w-full resize-none border border-neutral-700 bg-black/80 px-2 py-2 font-mono text-xs text-neutral-200 sharp-border-inner disabled:opacity-40"
-              placeholder="// orden telepática al canal..."
+              placeholder="// instrucción para el canal narrativo..."
             />
 
             <div className="mt-4 flex flex-wrap gap-2">

@@ -145,7 +145,7 @@ function CronistaAppInner() {
     setPhase("nexus");
     pushLog({
       role: "sistema",
-      text: "[STATE_LOCK]: CODEX cerrado (`cronista-sheet-v1`) · mutaciones sólo MJ auditadas.",
+      text: "[STATE_LOCK]: CODEX cerrado (`cronista-sheet-v1`) · cambios solo si el narrador los audita.",
     });
   };
 
@@ -351,7 +351,7 @@ function CronistaAppInner() {
               } else {
                 pushLog({
                   role: "sistema",
-                  text: `[EVENTO_MANIFEST]: cierre pipelines · DF blind · ${outcomeCode(playerLabel)}`,
+                  text: `[EVENTO_MANIFEST]: canal narrativo cerrado · dificultad oculta · ${outcomeCode(playerLabel)}`,
                 });
               }
             }}
@@ -375,7 +375,7 @@ function CronistaAppInner() {
         command={mjCmd}
         onCommand={setMjCmd}
         onEmitCommand={emitMj}
-        remoteSheetHint="//_PERSIST: sólo KV local (cronista-sheet / meta / audit). Backend TBD."
+        remoteSheetHint="//_PERSIST: datos solo en almacenamiento local (cronista-sheet / meta / audit). Servidor pendiente."
         onStressHunger={tweakRemoteSimulation}
         onForcedFrenesy={() => requestForcedRoll("frenesy", rollDifficulty)}
         onForcedRage={() => requestForcedRoll("enardecimiento", rollDifficulty)}

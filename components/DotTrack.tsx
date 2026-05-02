@@ -11,7 +11,7 @@ type Props = {
   minimal?: boolean;
   /**
    * Primeros N puntos rellenos se pintan como “base” (gris/discretos).
-   * El resto rellenos usan accent (jugador / distribución).
+   * El resto rellenos usan accent (reparto manual / distribución).
    */
   baselineFilled?: number;
   /**

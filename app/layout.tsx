@@ -14,7 +14,8 @@ const jetbrains = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "PROYECTO_SERENO · NEXO_LATAM",
-  description: "Interfaz Schreck_NET · CODEX_V · simulación V5 cliente.",
+  description:
+    "Cliente de mesa inspirado en Vampire V5 (no oficial): interfaz tipo SchreckNet, hoja CODEX y motor Sereno.",
 };
 
 export default function RootLayout({
