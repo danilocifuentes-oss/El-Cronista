@@ -79,6 +79,10 @@ export function SchreckNetLogin({ onAuthenticate }: Props) {
               }`}
             />
 
+            <p className="mt-3 font-mono text-[10px] leading-relaxed tracking-widest text-neutral-600/50" aria-hidden>
+              1123…
+            </p>
+
             {error ? <p className="mt-3 text-[10px] text-[var(--blood)]">DENEGADO</p> : null}
 
             <motion.button
