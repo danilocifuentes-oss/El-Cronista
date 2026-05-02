@@ -73,16 +73,13 @@ export function SchreckNetLogin({ onAuthenticate }: Props) {
                 setError(false);
               }}
               placeholder={"·".repeat(BLOOD_CIPHER_LENGTH)}
-              aria-label="Código numérico de seis dígitos"
+              aria-label="Código de acceso"
               className={`mt-2 w-full tracking-[0.35em] border bg-black/60 px-2 py-2.5 font-mono text-[11px] text-[var(--terminal)] sharp-border-inner focus:outline-none ${
                 error ? "border-[var(--blood)]" : "border-neutral-800 focus:border-[var(--terminal)]/55"
               }`}
             />
 
-            <p className="mt-3 font-mono text-[10px] leading-relaxed text-neutral-600">
-              Secuencia: {BLOOD_CIPHER_LENGTH} dígitos (1, 1, 2, 3…)
-            </p>
-            {error ? <p className="mt-1 text-[10px] text-[var(--blood)]">DENEGADO</p> : null}
+            {error ? <p className="mt-3 text-[10px] text-[var(--blood)]">DENEGADO</p> : null}
 
             <motion.button
               type="button"
