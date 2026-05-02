@@ -14,6 +14,13 @@ type Props = {
    * El resto rellenos usan accent (jugador / distribución).
    */
   baselineFilled?: number;
+  /**
+   * Cuando viene definido, no puede subirse por encima en un solo clic:
+   * evita pulsos ilegales y refuerza el “feel” del reparto gradual.
+   */
+  increaseCeiling?: number;
+  /** Click que intentaría subir por encima de `increaseCeiling`. */
+  onIncreaseBlocked?: (targetLevel: number) => void;
 };
 
 export function DotTrack({
@@ -25,6 +32,8 @@ export function DotTrack({
   accent = "var(--terminal)",
   minimal = true,
   baselineFilled = 0,
+  increaseCeiling,
+  onIncreaseBlocked,
 }: Props) {
   const n = Math.min(max, Math.max(min, value));
   const baseSlots = Math.max(0, Math.min(baselineFilled, max));
@@ -37,19 +46,34 @@ export function DotTrack({
         const filled = i < n;
         const isBaselineFill = filled && i < baseSlots;
         const isAccentFill = filled && i >= baseSlots;
+        const targetLevel = i + 1;
+        const blockIncrease =
+          increaseCeiling !== undefined &&
+          targetLevel > n &&
+          targetLevel > increaseCeiling;
         return (
           <button
             key={i}
             type="button"
             disabled={disabled}
             aria-label={`${i + 1}`}
+            aria-disabled={disabled === true ? true : blockIncrease === true ? true : undefined}
+            title={blockIncrease ? "Valor bloqueado por las reglas de reparto vigentes." : undefined}
             onClick={() => {
-              const target = i + 1;
-              if (target === n) onChange?.(Math.max(min, n - 1));
-              else onChange?.(target);
+              const target = targetLevel;
+              if (target === n) {
+                onChange?.(Math.max(min, n - 1));
+                return;
+              }
+              if (blockIncrease && !disabled) {
+                onIncreaseBlocked?.(target);
+                return;
+              }
+              if (disabled) return;
+              onChange?.(target);
             }}
             className={`rounded-sm px-[1px] leading-none disabled:opacity-40 ${
-              disabled ? "cursor-default" : "cursor-pointer"
+              disabled ? "cursor-default" : blockIncrease ? "cursor-not-allowed opacity-30" : "cursor-pointer"
             } ${
               minimal
                 ? filled

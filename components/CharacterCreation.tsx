@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   CLAN_ACCENTS,
   CLAN_OPTIONS,
@@ -50,9 +50,18 @@ import {
 } from "@/lib/serenoClassic";
 import { fusionChargenProfile } from "@/lib/fusionTimeline";
 import {
+  CODEX_V5_ATTRIBUTE_POOL,
   codexAllowsAttributeDots,
   codexAllowsDisciplineDots,
   codexAllowsSkillDots,
+  codexMaxAttributeDots,
+  codexMaxDisciplineDots,
+  codexMaxSkillDots,
+  codexRejectHintAttribute,
+  codexRejectHintDiscipline,
+  codexRejectHintSkill,
+  codexV5AttributeDotsUsed,
+  codexV5SkillRankSnapshot,
 } from "@/lib/codexChargenGuards";
 import { CONCEPTOS_DATA, inferConceptPresetIdFromNombre } from "@/lib/conceptosCodex";
 import { ConceptCodexField } from "./ConceptCodexField";
@@ -104,6 +113,25 @@ export function CharacterCreation({ initial, onSave }: Props) {
         : null),
   }));
   const [triedSeal, setTriedSeal] = useState(false);
+  const [codexHint, setCodexHint] = useState<string | null>(null);
+  const hintClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function pokeHint(msg: string) {
+    const t = msg.trim();
+    if (!t) return;
+    if (hintClearRef.current) clearTimeout(hintClearRef.current);
+    setCodexHint(t);
+    hintClearRef.current = setTimeout(() => {
+      setCodexHint(null);
+      hintClearRef.current = null;
+    }, 3800);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (hintClearRef.current) clearTimeout(hintClearRef.current);
+    };
+  }, []);
 
   const accent = CLAN_ACCENTS[sheet.clan];
   const clanLabel = CLAN_OPTIONS.find((c) => c.id === sheet.clan)?.label ?? sheet.clan;
@@ -148,6 +176,22 @@ export function CharacterCreation({ initial, onSave }: Props) {
     () => (classicMode ? summarizeClassicTotals(sheet) : null),
     [classicMode, sheet],
   );
+
+  const codexSkillSnap = useMemo(() => codexV5SkillRankSnapshot(sheet), [sheet]);
+
+  const attrSubtitle = classicMode
+    ? "REVISED · reparto dentro de tus bandas de preset (métrica «excesos P/S/T» en la cabecera clásica)."
+    : `${codexV5AttributeDotsUsed(sheet.attributes)} / ${CODEX_V5_ATTRIBUTE_POOL} pts Sereno entre los nueve stats. Al sellar se valida cuadrícula 4 · 3×4 · 2×3 · 1 cerrada."`;
+
+  const skillSubtitle = classicMode
+    ? "REVISED · 13·9·5 por carril de preset; valores 0–5 por habilidad."
+    : `Patrón ${sheet.skillMode === "jack" ? "JACK" : "ESPEC"}: ●●● ${codexSkillSnap.r3}/${codexSkillSnap.cap3} · ●● ${codexSkillSnap.r2}/${codexSkillSnap.cap2} · ● ${codexSkillSnap.r1}/${codexSkillSnap.cap1} (histograma provisional hasta sellar).`;
+
+  const pendingSealBits = [
+    triedSeal && !attrOk ? "atributos" : null,
+    triedSeal && !skillOk ? "habilidades" : null,
+    triedSeal && !discOk ? "disciplinas y poderes de clan" : null,
+  ].filter(Boolean);
 
   function applyGeneration(gen: Generation) {
     setSheet((s) => ({ ...s, generation: gen, bloodPotency: bloodPotencyForGeneration(gen) }));
@@ -207,7 +251,12 @@ export function CharacterCreation({ initial, onSave }: Props) {
 
   function setAttr(key: keyof CharacterSheet["attributes"], v: number) {
     setSheet((s) => {
-      if (!codexAllowsAttributeDots(s, key, v)) return s;
+      if (!codexAllowsAttributeDots(s, key, v)) {
+        queueMicrotask(() => {
+          pokeHint(codexRejectHintAttribute(s, key, v));
+        });
+        return s;
+      }
       const nextAttrs = { ...s.attributes, [key]: v };
       const wpMax = willpowerMaxFromAttributes(nextAttrs);
       return {
@@ -221,14 +270,20 @@ export function CharacterCreation({ initial, onSave }: Props) {
 
   function setSkill(key: string, v: number) {
     setSheet((s) => {
-      if (!codexAllowsSkillDots(s, key, v)) return s;
+      if (!codexAllowsSkillDots(s, key, v)) {
+        queueMicrotask(() => pokeHint(codexRejectHintSkill(s, key, v)));
+        return s;
+      }
       return { ...s, skills: { ...s.skills, [key]: v } };
     });
   }
 
   function setDisc(key: DisciplineKey, v: number) {
     setSheet((s) => {
-      if (!codexAllowsDisciplineDots(s, key, v)) return s;
+      if (!codexAllowsDisciplineDots(s, key, v)) {
+        queueMicrotask(() => pokeHint(codexRejectHintDiscipline(s, key, v)));
+        return s;
+      }
       return { ...s, disciplines: { ...s.disciplines, [key]: v } };
     });
   }
@@ -270,6 +325,17 @@ export function CharacterCreation({ initial, onSave }: Props) {
       className="codex-dot-grid crt-wrap min-h-screen pb-20 text-neutral-300"
       style={{ ["--clan-accent"]: accent } as CSSProperties}
     >
+      {codexHint && (
+        <div
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className="pointer-events-none fixed bottom-8 left-1/2 z-50 max-w-md -translate-x-1/2 border border-neutral-700/80 bg-black/90 px-4 py-2.5 font-mono text-[10px] leading-snug tracking-tight text-neutral-200 shadow-lg sm:max-w-lg"
+          style={{ boxShadow: `0 0 0 1px ${accent}22, 0 8px 32px #000c` }}
+        >
+          <span style={{ color: accent }}>{">"}</span> {codexHint}
+        </div>
+      )}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mx-auto max-w-6xl space-y-5 px-5 py-8 md:px-8">
         <header className="flex flex-wrap items-end justify-between gap-4 border-b border-[#161616] pb-5 font-mono">
           <div>
@@ -532,6 +598,7 @@ export function CharacterCreation({ initial, onSave }: Props) {
             <h2 className="border-b border-[#161616] px-3 py-2 font-mono text-[9px] uppercase tracking-[0.32em] text-neutral-600">
               {"//_ATRIBUTOS"}
             </h2>
+            <p className="border-b border-[#161616] px-3 py-1.5 font-mono text-[8px] leading-relaxed tracking-tight text-neutral-500">{attrSubtitle}</p>
             <div className="space-y-5 p-4">
               {ATTRIBUTE_BANDS.map((band) => (
                 <div key={band.label}>
@@ -553,6 +620,10 @@ export function CharacterCreation({ initial, onSave }: Props) {
                             accent={accent}
                             minimal={false}
                             baselineFilled={CHARGEN_ATTRIBUTE_DOT_BASE}
+                            increaseCeiling={codexMaxAttributeDots(sheet, key)}
+                            onIncreaseBlocked={(t) =>
+                              pokeHint(codexRejectHintAttribute(sheet, key, t))
+                            }
                             value={sheet.attributes[key]}
                             onChange={(v) => setAttr(key, v)}
                           />
@@ -569,6 +640,7 @@ export function CharacterCreation({ initial, onSave }: Props) {
             <h2 className="border-b border-[#161616] px-3 py-2 font-mono text-[9px] uppercase tracking-[0.32em] text-neutral-600">
               {"//_HABILIDADES"}
             </h2>
+            <p className="border-b border-[#161616] px-3 py-1.5 font-mono text-[8px] leading-relaxed tracking-tight text-neutral-500">{skillSubtitle}</p>
             <div className="max-h-[60vh] space-y-5 overflow-y-auto p-4 lg:max-h-[calc(100vh-220px)]">
               {(["talento", "tecnica", "conocimiento"] as const as readonly SkillLane[]).map((lane) => (
                 <div key={lane}>
@@ -585,6 +657,8 @@ export function CharacterCreation({ initial, onSave }: Props) {
                           max={classicMode ? 5 : 3}
                           accent={accent}
                           minimal={false}
+                          increaseCeiling={codexMaxSkillDots(sheet, key)}
+                          onIncreaseBlocked={(t) => pokeHint(codexRejectHintSkill(sheet, key, t))}
                           value={sheet.skills[key] ?? 0}
                           onChange={(v) => setSkill(key, v)}
                         />
@@ -636,6 +710,8 @@ export function CharacterCreation({ initial, onSave }: Props) {
                     max={classicMode ? timeline.classicMaxPerDot : timeline.v5MaxPerDot}
                     accent={accent}
                     minimal={false}
+                    increaseCeiling={codexMaxDisciplineDots(sheet, k)}
+                    onIncreaseBlocked={(t) => pokeHint(codexRejectHintDiscipline(sheet, k, t))}
                     value={(sheet.disciplines[k] as number) ?? 0}
                     onChange={(v) => setDisc(k, v)}
                   />
@@ -652,6 +728,19 @@ export function CharacterCreation({ initial, onSave }: Props) {
               >
                 &gt;_SELLAR_CODEX
               </motion.button>
+              {pendingSealBits.length > 0 && (
+                <p className="mt-2 font-mono text-[8px] leading-relaxed tracking-tight text-[var(--blood)]">
+                  Pendiente antes de nexo vivo:{" "}
+                  <span className="text-neutral-400">{pendingSealBits.join(" · ")}.</span>
+                </p>
+              )}
+              {triedSeal && !discOk && (
+                <p className="mt-2 font-mono text-[8px] leading-relaxed text-neutral-500">
+                  Sellado cerrado: la suma de tus tres líneas debe ser exactamente{" "}
+                  {classicMode ? timeline.classicDisciplineBudget : timeline.v5DisciplineBudget} puntos entre las
+                  disciplinas activas (ahora hay {discDotsSum}).
+                </p>
+              )}
             </div>
           </section>
         </div>
