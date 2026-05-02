@@ -14,6 +14,8 @@ import {
   defaultSkills,
   defaultDisciplines,
   clanDefaultCaitiffPicks,
+  emptySheet,
+  normalizeCharacterSheet,
   CHARGEN_ATTRIBUTE_DOT_BASE,
   CHARGEN_HUMANITY_BASE,
   willpowerMaxFromAttributes,
@@ -219,6 +221,27 @@ export function CharacterCreation({ initial, onSave }: Props) {
     setSheet((s) => ({ ...s, disciplines: { ...s.disciplines, [key]: v } }));
   }
 
+  function resetToBlankCodex() {
+    if (
+      !window.confirm(
+        "¿Plantilla CODEX en cero? Borra operador, concepto y todo el reparto de puntos hasta el estado base (atributos sólo en punto gris, habilidades ○). Ignora el borrador en memoria; lo guardado en el Nexo no cambia hasta volver a sellar.",
+      )
+    ) {
+      return;
+    }
+    const blank = normalizeCharacterSheet(emptySheet());
+    setSheet({
+      ...blank,
+      skills: { ...defaultSkills() },
+      disciplines: { ...defaultDisciplines() },
+      caitiffDisciplinePicks:
+        blank.clan === "caitiff" || blank.clan === "other"
+          ? clanDefaultCaitiffPicks(blank.clan)
+          : null,
+    });
+    setTriedSeal(false);
+  }
+
   const ring = (ok: boolean) =>
     triedSeal && !ok ? "ring-1 ring-[var(--blood)]/90 ring-offset-0 ring-offset-[#050505]" : "";
 
@@ -236,9 +259,19 @@ export function CharacterCreation({ initial, onSave }: Props) {
       style={{ ["--clan-accent"]: accent } as CSSProperties}
     >
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mx-auto max-w-6xl space-y-5 px-5 py-8 md:px-8">
-        <header className="border-b border-[#161616] pb-5 font-mono">
-          <p className="text-[9px] uppercase tracking-[0.35em] text-neutral-600">CODEX_V</p>
-          <h1 className="mt-1 text-sm font-normal tracking-[0.12em] text-neutral-400">Matriz Cainita</h1>
+        <header className="flex flex-wrap items-end justify-between gap-4 border-b border-[#161616] pb-5 font-mono">
+          <div>
+            <p className="text-[9px] uppercase tracking-[0.35em] text-neutral-600">CODEX_V</p>
+            <h1 className="mt-1 text-sm font-normal tracking-[0.12em] text-neutral-400">Matriz Cainita</h1>
+          </div>
+          <button
+            type="button"
+            onClick={resetToBlankCodex}
+            title="Descarta borrador actual y fuerza plantilla CODEX inicial (sin leer KV)."
+            className="shrink-0 border border-[#2a2a2a] bg-black/40 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500 hover:border-neutral-600 hover:text-neutral-400"
+          >
+            [NUEVA_MATRIZ]
+          </button>
         </header>
 
         <section className="divide-y divide-[#161616] border border-[#161616] bg-black/20">
