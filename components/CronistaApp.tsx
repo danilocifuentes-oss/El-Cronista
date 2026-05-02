@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   CLAN_ACCENTS,
-  defaultSkills,
   emptySheet,
   loadSheet,
+  normalizeCharacterSheet,
   saveSheet,
   type CharacterSheet,
 } from "@/lib/character";
@@ -27,8 +27,13 @@ import { SchreckNetLogin } from "./SchreckNetLogin";
 import { GameSessionProvider, useGameSession } from "@/context/GameSessionContext";
 import { ManifestWill } from "./ManifestWill";
 import { ForcedDestinyOverlay } from "./ForcedDestinyOverlay";
+import { SerenoFooter } from "./SerenoFooter";
+import { TechnicalHud } from "./TechnicalHud";
+import { outcomeCode } from "@/lib/dice";
 
 type Phase = "login" | "chargen" | "nexus";
+
+const HEALTH_MAX_UI = 7;
 
 const MOCK_CONCLAVE: ConclaveMate[] = [
   { id: "1", name: "Mireya V.", clan: "Tremere", status: "refugio" },
@@ -45,10 +50,7 @@ function famineSealWallClock(): number {
 }
 
 function mergeStoredSheet(raw: CharacterSheet): CharacterSheet {
-  return {
-    ...raw,
-    skills: { ...defaultSkills(), ...raw.skills },
-  };
+  return normalizeCharacterSheet(raw);
 }
 
 export default function CronistaApp() {
@@ -68,8 +70,8 @@ function CronistaAppInner() {
   const [logs, setLogs] = useState<LogEntry[]>([
     {
       id: "0",
-      role: "narrador",
-      text: "Las cámaras del siervo no proyectan tu rostro… sólo pulsos verdosenos contra el vértigo de la ciudad dormida.",
+      role: "sistema",
+      text: "[BOOT]: Nexo_standby · buffer vacío.",
       ts: 0,
     },
   ]);
@@ -118,18 +120,14 @@ function CronistaAppInner() {
       setSheet(mergeStoredSheet(stored));
       setPhase("nexus");
       refreshXpLog();
-      pushLog({
-        role: "sistema",
-        text: "> Sesión recuperada desde almacén local. El Reloj Mnemósine está sincronizado con el servidor fantasma.",
-      });
+      pushLog({ role: "sistema", text: "[CACHE_HIT]: índice operador · KV persistido." });
     } else {
       setPhase("chargen");
     }
   };
 
   const finishChargen = (w: CharacterSheet) => {
-    const mergedSkills = { ...defaultSkills(), ...w.skills };
-    const finalized: CharacterSheet = { ...w, skills: mergedSkills };
+    const finalized = normalizeCharacterSheet(w);
     saveSheet(finalized);
     setSheet(finalized);
     const meta = loadMeta();
@@ -140,16 +138,14 @@ function CronistaAppInner() {
       lastFamineTickAt: firstSeal ? famineSealWallClock() : meta.lastFamineTickAt,
     });
     appendXpLog(
-      firstSeal
-        ? `Ficha archivada: ${finalized.name || "Sin nombre"} (registro inicial).`
-        : `Narrador re-selló ficha: ${finalized.name || "Sin nombre"}.`,
+      firstSeal ? `[CODEX_COMMIT]: ${finalized.name || "NULL"}` : `[CODEX_RELAY]: MJ · ${finalized.name || "NULL"}`,
     );
     setSheetLocked(true);
     refreshXpLog();
     setPhase("nexus");
     pushLog({
       role: "sistema",
-      text: "> Ficha cifrada (`cronista-sheet-v1`). El candado Mnemósine sólo permite retoques auditados.",
+      text: "[STATE_LOCK]: CODEX cerrado (`cronista-sheet-v1`) · mutaciones sólo MJ auditadas.",
     });
   };
 
@@ -173,7 +169,7 @@ function CronistaAppInner() {
       saveSheet(nextSheet);
       setSheet(nextSheet);
       saveMeta({ ...meta, lastFamineTickAt: Date.now() });
-      appendXpLog(`Reloj Mnemósine · Hambre +1 (${nextHunger}/5).`);
+      appendXpLog(`[CLOCK_TICK]: Σh+1 → ${nextHunger}/5`);
       refreshXpLog();
     }, 45000);
 
@@ -203,20 +199,20 @@ function CronistaAppInner() {
         text: whisper,
       });
     } catch {
-      pushLog({ role: "sistema", text: "// Error al contactar placeholder del Cronista IA." });
+      pushLog({ role: "sistema", text: "[PIPE_ERR]: downstream_narrative · timeout/mock." });
     }
   };
 
   const emitMj = () => {
     if (!mjCmd.trim() || !isNarrator) return;
-    pushLog({ role: "narrador", text: `[ORDEN MJ] ${mjCmd.trim()}` });
+    pushLog({ role: "sistema", text: `[MJ_PIPE]: ${mjCmd.trim()}` });
     setMjCmd("");
     setAdminOpen(false);
   };
 
   const tweakRemoteSimulation = () => {
     if (!isNarrator) return;
-    handleSheetMutation({ ...sheet, hunger: Math.min(5, sheet.hunger + 1) }, "MJ: estrés inmediato—Hambre +1 (simulacro)");
+    handleSheetMutation({ ...sheet, hunger: Math.min(5, sheet.hunger + 1) }, "[SIM]: Σh+1");
   };
 
   const persistFamine = (minutes: number) => {
@@ -226,7 +222,7 @@ function CronistaAppInner() {
       famineIntervalMinutes: clamped,
     });
     setFamineIntervalMinutes(clamped);
-    appendXpLog(`Reloj Mnemósine • intervalo ajustado a ${clamped} min.`);
+    appendXpLog(`[CLOCK_CONFIG]:Δ=${clamped}m`);
     refreshXpLog();
   };
 
@@ -241,10 +237,8 @@ function CronistaAppInner() {
     const blocked = meta.sheetLocked && !isNarrator && Boolean(stored?.name);
     if (blocked && stored) {
       return (
-        <div className="flex min-h-screen flex-col items-center justify-center gap-6 crt-wrap techno-grid px-8 text-center font-mono text-sm text-neutral-400">
-          <p className="max-w-md text-neutral-300">
-            El archivo civil está sellado por Mnemósine. Solicita al Narrador reabrir el editor o usa el Nexo habitual.
-          </p>
+        <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#050505] px-8 text-center font-mono text-[10px] text-neutral-600">
+          <p className="max-w-md border border-[#161616] bg-black/50 p-5 text-neutral-400">[LOCK]: CODEX_MJ_ONLY</p>
           <button
             type="button"
             onClick={() => {
@@ -253,24 +247,27 @@ function CronistaAppInner() {
               refreshXpLog();
               setPhase("nexus");
             }}
-            className="border border-[var(--blood)] px-8 py-3 text-[11px] font-bold uppercase tracking-[0.32em] text-[var(--blood)] sharp-border-inner hover:bg-[var(--blood)]/10"
+            className="border border-[#333] px-8 py-2.5 font-mono text-[9px] uppercase tracking-[0.35em] text-neutral-400 hover:border-[var(--terminal)] hover:text-neutral-300"
           >
-            Volver al Nexo
+            [ROUTING_NEXO]
           </button>
         </div>
       );
     }
 
-    return (
-      <CharacterCreation
-        initial={mergeStoredSheet(stored ?? emptySheet())}
-        onSave={(s) => finishChargen(s)}
-      />
-    );
+    return <CharacterCreation initial={mergeStoredSheet(stored ?? emptySheet())} onSave={(s) => finishChargen(s)} />;
   }
 
+  const healthHudFilled =
+    HEALTH_MAX_UI - Math.min(sheet.healthDamage, HEALTH_MAX_UI);
+
   return (
-    <div className={mainFrameClass}>
+    <div
+      className={`${mainFrameClass} techno-grid bg-[var(--void)] text-neutral-200`}
+      style={{ ["--accent-clan"]: accent } as CSSProperties}
+    >
+      <TechnicalHud healthFilled={healthHudFilled} healthMax={HEALTH_MAX_UI} hunger={sheet.hunger} />
+
       <ForcedDestinyOverlay
         forced={forcedRoll}
         sheet={sheet}
@@ -283,32 +280,20 @@ function CronistaAppInner() {
         }}
       />
 
-      <header
-        className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-neutral-800 bg-neutral-950/95 px-4 py-4 font-mono text-xs lg:px-8"
-        style={{ boxShadow: "inset 0 -2px 0 rgba(57,255,20,0.08)" }}
-      >
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.5em] text-[var(--terminal)]">
-            SchreckNet · Nexo Mnemósine
-          </p>
-          <h1 className="font-sans text-lg font-semibold tracking-tight text-neutral-100">
-            El Cronista de las Sombras
-          </h1>
-          <p className="max-w-xl text-neutral-500">
-            Amenaza sabática del canal{" "}
-            <span style={{ color: accent }} className="font-mono font-bold">
-              σ = {inquisitionThreat}
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-[#161616] bg-black/55 px-4 py-4 pr-40 font-mono text-[10px] lg:px-6">
+        <div className="space-y-2 text-neutral-500">
+          <p className="text-[var(--terminal)]/90 tracking-[0.25em]">CANAL SCHRECK_NET · NEXO_LATAM</p>
+          <p className="tracking-tight">
+            RUNTIME:PROYECTO_SERENO ·{" "}
+            <span style={{ color: accent }} className="font-mono font-semibold">
+              σ={inquisitionThreat}
             </span>
             {sheet.hunger >= 5 ? (
-              <span className="ml-3 font-mono text-[10px] uppercase tracking-[0.4em] text-[var(--blood)]">
-                :: hambre rabiosa ::
-              </span>
+              <span className="ml-3 text-[var(--blood)]">[H_SAT:MAX]</span>
             ) : null}
           </p>
-          <p className="mt-2 text-neutral-600">
-            Reloj Mnemósine configurado cada{" "}
-            <strong className="text-neutral-400">{famineIntervalMinutes}</strong> min · estado narrador{" "}
-            <strong className="text-neutral-400">{isNarrator ? "activo" : "suspendido"}</strong>
+          <p className="text-neutral-600">
+            [CLOCK]={famineIntervalMinutes}min · [MJ]={isNarrator ? "1" : "0"}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -316,17 +301,17 @@ function CronistaAppInner() {
             <button
               type="button"
               onClick={() => setPhase("chargen")}
-              className="border border-neutral-700 px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-neutral-400 sharp-border-inner hover:border-[var(--terminal)] hover:text-[var(--terminal)]"
+              className="border border-[#252525] px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-400 hover:border-[color:var(--accent-clan)] hover:text-neutral-300"
             >
-              {sheetLocked ? "Reabrir ficha (MJ)" : "Abrir editor de ficha"}
+              {sheetLocked ? "CODEX_MJ" : "CODEX"}
             </button>
           )}
           <button
             type="button"
             onClick={() => setPhase("login")}
-            className="border border-[var(--blood)]/50 px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-[var(--blood)] sharp-border-inner hover:bg-[var(--blood)]/10"
+            className="border border-[var(--blood)]/45 px-3 py-2 text-[9px] uppercase tracking-widest text-[var(--blood)] hover:bg-[var(--blood)]/10"
           >
-            Cerrar sesión
+            LOGOUT
           </button>
         </div>
       </header>
@@ -340,7 +325,7 @@ function CronistaAppInner() {
           onChange={(next, logLine) => handleSheetMutation(next, logLine)}
         />
 
-        <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 lg:p-6">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 p-4 lg:p-6">
           <NarrativeFlow
             logs={logs}
             composer={composer}
@@ -352,13 +337,14 @@ function CronistaAppInner() {
             key={`${sheet.hunger}-${sheet.name}`}
             sheet={sheet}
             hungerLevel={sheet.hunger}
+            accent={accent}
             onResolve={(narratorLine, playerLabel) => {
               if (isNarrator) {
                 pushLog({ role: "sistema", text: narratorLine });
               } else {
                 pushLog({
                   role: "sistema",
-                  text: `Veredicto civil — ${playerLabel}. La dificultad permanece clasificada.`,
+                  text: `[EVENTO_MANIFEST]: cierre pipelines · DF blind · ${outcomeCode(playerLabel)}`,
                 });
               }
             }}
@@ -382,11 +368,13 @@ function CronistaAppInner() {
         command={mjCmd}
         onCommand={setMjCmd}
         onEmitCommand={emitMj}
-        remoteSheetHint="La persistencia remota llegará con WebSockets + servidor Camarilla Secure. Esta build escribe Nexo/Hambre en LocalStorage hasta la integración completa."
+        remoteSheetHint="//_PERSIST: sólo KV local (cronista-sheet / meta / audit). Backend TBD."
         onStressHunger={tweakRemoteSimulation}
         onForcedFrenesy={() => requestForcedRoll("frenesy", rollDifficulty)}
         onForcedRage={() => requestForcedRoll("enardecimiento", rollDifficulty)}
       />
+
+      <SerenoFooter />
     </div>
   );
 }

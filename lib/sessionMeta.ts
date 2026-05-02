@@ -5,7 +5,7 @@ export const BLOOD_CIPHER = "112358";
 
 export type SessionMeta = {
   sheetLocked: boolean;
-  /** Última vez que el Reloj Mnemósine aumentó Hambre */
+  /** Última marca temporal del ticker Σh (+1 hasta tope). */
   lastFamineTickAt: number;
   /** Intervalo configurable (narrador), en minutos reales */
   famineIntervalMinutes: number;

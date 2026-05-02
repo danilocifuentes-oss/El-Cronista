@@ -1,24 +1,26 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import type { CharacterSheet } from "@/lib/character";
-import { ATTRIBUTE_KEYS, SKILL_KEYS } from "@/lib/character";
-import { rollPoolV5, summarizeRollNarrator, type PlayerOutcomeLabel } from "@/lib/dice";
+import { ATTRIBUTE_KEYS } from "@/lib/character";
+import { SERENO_SKILLS } from "@/lib/sereno";
+import { rollPoolV5, summarizeRollNarrator, outcomeCode, type PlayerOutcomeLabel } from "@/lib/dice";
 import { useGameSession } from "@/context/GameSessionContext";
 
 type Props = {
   sheet: CharacterSheet;
   hungerLevel: number;
-  /** Narrador: log técnico; jugador sólo resultado cifrado */
+  accent: string;
   onResolve: (narratorLine: string, playerFacing: PlayerOutcomeLabel) => void;
 };
 
-export function ManifestWill({ sheet, hungerLevel, onResolve }: Props) {
+export function ManifestWill({ sheet, hungerLevel, accent, onResolve }: Props) {
   const { isNarrator, rollDifficulty, setRollDifficulty } = useGameSession();
 
   const [attrKey, setAttrKey] = useState<(typeof ATTRIBUTE_KEYS)[number]["key"]>("wit");
   const [skillKey, setSkillKey] = useState<string>(
-    SKILL_KEYS.find((sk) => sk === "Tecnología") ?? SKILL_KEYS[0],
+    SERENO_SKILLS.find((sk) => sk.key === "tecnologia")?.key ?? SERENO_SKILLS[0].key,
   );
   const [lastPlayerLabel, setLastPlayerLabel] = useState<PlayerOutcomeLabel | null>(null);
 
@@ -33,50 +35,47 @@ export function ManifestWill({ sheet, hungerLevel, onResolve }: Props) {
   function manifest(e: React.FormEvent) {
     e.preventDefault();
     const r = rollPoolV5(pool, hungerDicePool, rollDifficulty);
-    const narr = summarizeRollNarrator(r);
-    const detail = `[Pool ${pool} = atr(${attrKey}) + hab (${skillKey}) | rojos=${hungerDicePool}] · ${narr}`;
+    const ledger = summarizeRollNarrator(r);
+    const detail = `[MANIFEST]: sujeto emite voluntad · ${attrKey}+${skillKey} · pool:${pool}(Σh:${hungerDicePool}) · DF:${rollDifficulty} · ${ledger}`;
     setLastPlayerLabel(r.outcome);
     onResolve(detail, r.outcome);
   }
 
   return (
-    <section className="mnemosyne-panel techno-grid mt-4 border border-neutral-800 bg-neutral-950/90 p-5 font-mono text-xs sharp-border-inner">
-      <header className="mb-4 flex flex-col gap-1 border-b border-neutral-800 pb-3">
-        <p className="text-[10px] uppercase tracking-[0.38em] text-[var(--terminal)]">
-          PROTOCOLO · MANIFESTAR VOLUNTAD
-        </p>
-        <p className="font-sans text-[11px] font-normal tracking-wide text-neutral-500">
-          El archivo legal calcula tu reserva. No negocie el número de dados.
-        </p>
+    <section className="relative mt-6 border border-[#161616] bg-black/30 p-4 font-mono text-[10px] text-neutral-500">
+      <header className="mb-4 border-b border-[#161616] pb-3 font-mono text-[9px] uppercase tracking-[0.32em] text-neutral-600">
+        {"//_VOLUNTAD"}
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-neutral-500">
-          <span className="text-[10px] uppercase tracking-wider">Atributo (registro físico/psíquico)</span>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1">
+          <span className="text-[9px] uppercase tracking-wider text-neutral-600" style={{ color: accent }}>
+            &gt;_ATRIBUTO
+          </span>
           <select
             value={attrKey}
-            onChange={(e) =>
-              setAttrKey(e.target.value as keyof CharacterSheet["attributes"])
-            }
-            className="border border-neutral-700 bg-black px-2 py-2 text-neutral-200 sharp-border-inner"
+            onChange={(e) => setAttrKey(e.target.value as keyof CharacterSheet["attributes"])}
+            className="cursor-pointer border border-[#161616] bg-black/60 px-2 py-2 text-neutral-400 focus:border-[var(--terminal)]/40 focus:outline-none"
           >
             {ATTRIBUTE_KEYS.map((a) => (
               <option key={a.key} value={a.key}>
-                {a.label} ({sheet.attributes[a.key]})
+                {a.label} [{sheet.attributes[a.key]}]
               </option>
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-neutral-500">
-          <span className="text-[10px] uppercase tracking-wider">Habilidad civil</span>
+        <label className="flex flex-col gap-1">
+          <span className="text-[9px] uppercase tracking-wider text-neutral-600" style={{ color: accent }}>
+            &gt;_HAB
+          </span>
           <select
             value={skillKey}
             onChange={(e) => setSkillKey(e.target.value)}
-            className="border border-neutral-700 bg-black px-2 py-2 text-neutral-200 sharp-border-inner"
+            className="cursor-pointer border border-[#161616] bg-black/60 px-2 py-2 text-neutral-400 focus:border-[var(--terminal)]/40 focus:outline-none"
           >
-            {SKILL_KEYS.map((sk) => (
-              <option key={sk} value={sk}>
-                {sk} ({sheet.skills[sk] ?? 0})
+            {SERENO_SKILLS.map(({ key, label }) => (
+              <option key={key} value={key}>
+                {label} [{sheet.skills[key] ?? 0}]
               </option>
             ))}
           </select>
@@ -84,62 +83,52 @@ export function ManifestWill({ sheet, hungerLevel, onResolve }: Props) {
       </div>
 
       {isNarrator ? (
-        <p className="mt-4 border border-neutral-800 bg-black/50 px-3 py-2 text-[var(--terminal)]">
-          RESERVA CAINITA DETECTADA: <strong>{pool}</strong> dados ·{" "}
-          <strong className="text-neutral-400">{Math.max(0, pool - hungerDicePool)} negros</strong> ·{" "}
-          <strong className="text-[var(--blood)]">{hungerDicePool} carmesí</strong> [Hambre]
+        <p className="mt-3 border border-[#161616] bg-black/40 px-2 py-1.5 text-[var(--terminal)]">
+          VECTOR:{pool} · N:{Math.max(0, pool - hungerDicePool)} · Σh:{hungerDicePool}
         </p>
       ) : (
-        <p className="mt-4 border border-neutral-800 bg-black/60 px-3 py-2 text-neutral-500">
-          Se ha enviado el protocolo Mnemósine. Espera sello civil oficial.
-        </p>
+        <p className="mt-3 border border-[#161616] bg-black/40 px-2 py-1.5 opacity-75">[&gt;_EN_COLA_PIPELINE]</p>
       )}
 
       {isNarrator && (
-        <label className="mt-4 flex max-w-xs flex-col gap-1 text-neutral-500">
-          <span className="text-[10px] uppercase tracking-wider">Dificultad (sólo narrador)</span>
+        <label className="mt-3 flex max-w-[10rem] flex-col gap-1">
+          <span className="text-[9px] uppercase text-neutral-600">{"//_FACTOR_DIFF"}</span>
           <input
             type="number"
             min={0}
             max={8}
             value={rollDifficulty}
             onChange={(e) => setRollDifficulty(Number(e.target.value))}
-            className="border border-neutral-700 bg-black px-2 py-2 text-neutral-200"
+            className="border border-[#161616] bg-black/60 px-2 py-1.5 text-neutral-300 focus:outline-none"
           />
         </label>
       )}
 
-      <form onSubmit={manifest}>
-        <button
+      <form onSubmit={manifest} className="mt-5 flex justify-center">
+        <motion.button
           type="submit"
-          className="mt-5 w-full border border-[var(--terminal)] px-6 py-3 text-[12px] font-bold uppercase tracking-[0.22em] text-[var(--terminal)] sharp-border-inner hover:bg-[var(--terminal)]/10"
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          className="border px-14 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.4em]"
+          style={{ borderColor: accent, color: accent, boxShadow: `inset 0 0 18px ${accent}26` }}
         >
-          Manifestar voluntad
-        </button>
+          MANIFESTAR
+        </motion.button>
       </form>
 
-      <div className="mt-4 border-t border-neutral-800 pt-4">
-        <p className="text-[10px] uppercase tracking-wider text-neutral-600">
-          Estado civil (clave de lectura restringida)
-        </p>
-        <div className="mt-2 min-h-[2.75rem] font-sans text-sm tracking-wide">
+      <div className="mt-4 border-t border-[#161616] pt-4">
+        <p className="text-[9px] uppercase tracking-[0.28em] text-neutral-600">{"//_OUT"}</p>
+        <div className="mt-2 min-h-[2rem] text-[11px]">
           {!lastPlayerLabel ? (
-            <span className="text-neutral-600">Pulse manifestación para obtener veredicto.</span>
+            <span className="text-neutral-600">[NULL]</span>
           ) : (
-            <span className={`verdict-${lastPlayerLabel === "ÉXITO" ? "hit" : lastPlayerLabel === "FRACASO" ? "miss" : "beast"}`}>
-              {lastPlayerLabel === "ÉXITO" && "ÉXITO"}
-              {lastPlayerLabel === "FRACASO" && "FRACASO"}
-              {lastPlayerLabel === "CONSECUENCIAS DE LA BESTIA" && "CONSECUENCIAS DE LA BESTIA"}
+            <span
+              className={`verdict-${lastPlayerLabel === "ÉXITO" ? "hit" : lastPlayerLabel === "FRACASO" ? "miss" : "beast"}`}
+            >
+              {outcomeCode(lastPlayerLabel)}
             </span>
           )}
         </div>
-        {lastPlayerLabel && (
-          <p className="mt-1 text-[10px] text-neutral-600">
-            {isNarrator
-              ? "Como Narrador ves el log técnico en el Nexo inferior."
-              : "La dificultad y la tinta técnica están ocultas por protocolo Tecnocracia."}
-          </p>
-        )}
       </div>
     </section>
   );

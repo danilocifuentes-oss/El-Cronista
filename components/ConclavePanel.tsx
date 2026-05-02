@@ -9,11 +9,11 @@ export type ConclaveMate = {
   status: "refugio" | "caceria" | "conclave" | "desconectado";
 };
 
-const STATUS_LABEL: Record<ConclaveMate["status"], string> = {
-  refugio: "En el refugio",
-  caceria: "En cacería",
-  conclave: "En cónclave SchreckNet",
-  desconectado: "Señal mínima",
+const STATUS_CODE: Record<ConclaveMate["status"], string> = {
+  refugio: "RF",
+  caceria: "CR",
+  conclave: "CN",
+  desconectado: "◇",
 };
 
 type Props = {
@@ -23,29 +23,16 @@ type Props = {
 
 export function ConclavePanel({ mates, accent }: Props) {
   return (
-    <aside className="flex h-full w-full shrink-0 flex-col border-neutral-800 bg-neutral-950/90 lg:w-64 sharp-border-inner">
-      <header
-        className="border-b border-neutral-800 px-4 py-3 font-mono text-xs uppercase tracking-[0.25em]"
-        style={{ color: accent }}
-      >
-        Cónclave
+    <aside className="flex h-full w-full shrink-0 flex-col border-l border-[#161616] bg-black/35 lg:w-52">
+      <header className="border-b border-[#161616] px-3 py-2 font-mono text-[8px] uppercase tracking-[0.35em]" style={{ color: accent }}>
+        {"//_PEERS"}
       </header>
-      <ul className="flex-1 space-y-2 overflow-y-auto p-4">
+      <ul className="flex-1 space-y-2 overflow-y-auto p-3">
         {mates.map((m) => (
-          <motion.li
-            key={m.id}
-            layout
-            className="border border-neutral-800 bg-black/60 px-3 py-3 font-mono text-xs sharp-border-inner"
-            style={{
-              borderLeftWidth: 3,
-              borderLeftColor: accent,
-              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
-            }}
-          >
-            <p className="font-sans text-sm text-neutral-200">{m.name}</p>
-            <p className="mt-1 text-[10px] uppercase tracking-wide text-neutral-500">{m.clan}</p>
-            <p className="mt-2 text-[10px]" style={{ color: accent }}>
-              ● {STATUS_LABEL[m.status]}
+          <motion.li key={m.id} layout className="border border-[#161616] bg-black/50 px-2.5 py-2">
+            <p className="font-mono text-[10px] text-neutral-400">{m.name}</p>
+            <p className="mt-0.5 text-[9px] text-neutral-700">
+              {m.clan}:{STATUS_CODE[m.status]}
             </p>
           </motion.li>
         ))}

@@ -98,7 +98,9 @@ body {
 
 .fibonacci-whisper {
   color: rgba(115, 115, 132, 0.28);
-  transition: color 0.38s ease, text-shadow 0.38s ease;
+  transition:
+    color 0.38s ease,
+    text-shadow 0.38s ease;
 }
 
 .fibonacci-whisper:hover {
@@ -111,6 +113,17 @@ body {
     linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 28px 28px;
+}
+
+/* CODEX · retícula de puntos táctica sobre #050505 */
+.codex-dot-grid {
+  background-color: #050505;
+  background-image: radial-gradient(
+    circle at center,
+    rgba(255, 255, 255, 0.055) 0.55px,
+    transparent 0.6px
+  );
+  background-size: 15px 15px;
 }
 
 .verdict-hit {
@@ -150,4 +163,8 @@ body {
   100% {
     filter: saturate(125%) hue-rotate(5deg);
   }
+}
+
+.mnemosyne-panel {
+  position: relative;
 }

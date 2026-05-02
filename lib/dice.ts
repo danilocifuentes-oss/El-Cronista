@@ -1,4 +1,4 @@
-/** Motor Cainita simplificado — alineado con reglas demo del prompt Mnemósine */
+/** Tiradas V5 de pool cliente (PROYECTO_SERENO). */
 
 export interface DieRoll {
   face: number;
@@ -6,6 +6,12 @@ export interface DieRoll {
 }
 
 export type PlayerOutcomeLabel = "ÉXITO" | "FRACASO" | "CONSECUENCIAS DE LA BESTIA";
+
+export function outcomeCode(o: PlayerOutcomeLabel): "[ÉXITO]" | "[FRACASO]" | "[BESTIA]" {
+  if (o === "ÉXITO") return "[ÉXITO]";
+  if (o === "FRACASO") return "[FRACASO]";
+  return "[BESTIA]";
+}
 
 export interface V5RollResult {
   dice: DieRoll[];
@@ -94,22 +100,13 @@ export function rollPoolV5(pool: number, hungerDice: number, difficulty: number)
   return evaluatePoolV5(ordered, difficulty);
 }
 
-/** Resumen sólo narrador — incluye tirada discriminada por color */
+/** Resumen estilo línea de log — discriminación N/H + marcas opcionales. */
 export function summarizeRollNarrator(r: V5RollResult): string {
-  const blacks = r.dice
-    .map((d, i) => (d.hunger ? null : `[${i + 1}]=${d.face}`))
-    .filter(Boolean)
-    .join(" ");
-  const reds = r.dice
-    .map((d, i) => (d.hunger ? `[H${i + 1}]=${d.face}` : null))
-    .filter(Boolean)
-    .join(" ");
-  const extras = [
-    r.criticalNormal ? "Éxito crítico (≥2 ×10 negros)" : "",
-    r.messyCritical ? "Crítico sucio (10 en sangre durante crítico)" : "",
-    r.fracasoBestial ? "Fracaso bestial (1 rojo sin superar DF)" : "",
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  return `Negros: ${blacks || "—"} | Rojos: ${reds || "—"} · Éxitos ${r.successes}/${r.difficulty} → ${extras || "sin marca especial"}`;
+  const marks = [
+    r.criticalNormal ? "[CRIT:N]" : "",
+    r.messyCritical ? "[CRIT:CAOS]" : "",
+    r.fracasoBestial ? "[F:BEST]" : "",
+  ].filter(Boolean);
+  const nm = marks.length ? `${marks.join("")} ` : "";
+  return `[TRACE:N:${r.normalDice.join("|") || "∅"}│H:${r.hungerDice.join("|") || "∅"}] XS:${r.successes}/${r.difficulty} ${nm}${outcomeCode(r.outcome)}`.trimEnd();
 }

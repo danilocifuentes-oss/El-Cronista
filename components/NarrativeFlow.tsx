@@ -19,48 +19,44 @@ type Props = {
 
 export function NarrativeFlow({ logs, composer, onComposer, onSend, accent }: Props) {
   return (
-    <section className="flex min-h-0 flex-1 flex-col sharp-border-inner border-neutral-800 bg-neutral-950/70">
-      <header
-        className="shrink-0 border-b border-neutral-800 px-5 py-3 font-mono text-xs uppercase tracking-[0.35em]"
-        style={{ color: accent }}
-      >
-        El flujo narrativo — canal seguro SchreckNet
+    <section className="flex min-h-0 flex-1 flex-col border border-[#161616] bg-black/25 lg:min-h-[320px]">
+      <header className="shrink-0 border-b border-[#161616] px-4 py-2 font-mono text-[9px] uppercase tracking-[0.32em]" style={{ color: accent }}>
+        {"//_STREAM"}
       </header>
-      <div className="min-h-[320px] flex-1 overflow-y-auto px-5 py-4 space-y-4">
+      <div className="min-h-[200px] flex-1 overflow-y-auto space-y-3 px-4 py-3">
         <AnimatePresence mode="popLayout">
           {logs.map((entry) => (
             <motion.article
               key={entry.id}
               layout
-              initial={{ opacity: 0, x: entry.role === "narrador" ? -8 : 8 }}
-              animate={{ opacity: 1, x: 0 }}
-              className={`max-w-[95%] text-sm leading-relaxed ${
-                entry.role === "narrador"
-                  ? "narrador-bubble italic"
-                  : entry.role === "sistema"
-                    ? "border border-neutral-800 bg-black/70 px-3 py-2 font-mono text-xs text-neutral-500"
-                    : "border px-4 py-3 font-sans text-neutral-200"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`max-w-[96%] font-mono text-[10px] leading-relaxed ${
+                entry.role === "sistema"
+                  ? "text-neutral-600"
+                  : entry.role === "narrador"
+                    ? "border-l border-[#252525] pl-3 text-neutral-500"
+                    : "text-neutral-400"
               }`}
-              style={
-                entry.role === "jugador"
-                  ? { borderColor: `${accent}66`, boxShadow: `inset 0 0 0 1px ${accent}22` }
-                  : undefined
-              }
             >
-              {entry.role === "narrador" && (
-                <span className="mb-1 block font-mono text-[10px] not-italic uppercase tracking-[0.3em] text-[var(--terminal)]/70">
-                  Narrador / Cronista
-                </span>
+              {entry.role !== "sistema" ? (
+                <>
+                  <span className="mr-2 text-[8px] uppercase text-neutral-700">
+                    {entry.role === "jugador" ? "//_IN" : "//_OUT"}
+                  </span>
+                  <span className="whitespace-pre-wrap">{entry.text}</span>
+                </>
+              ) : (
+                <span className="whitespace-pre-wrap text-[var(--terminal)]/55">{entry.text}</span>
               )}
-              <p className="whitespace-pre-wrap">{entry.text}</p>
-              <span className="mt-2 block font-mono text-[9px] text-neutral-600">
-                {new Date(entry.ts).toLocaleTimeString("es")}
+              <span className="mt-1 block font-mono text-[8px] text-neutral-700">
+                @{new Date(entry.ts).toISOString().slice(11, 23)}
               </span>
             </motion.article>
           ))}
         </AnimatePresence>
       </div>
-      <div className="shrink-0 border-t border-neutral-800 p-4">
+      <div className="shrink-0 border-t border-[#161616] p-3">
         <textarea
           value={composer}
           onChange={(e) => onComposer(e.target.value)}
@@ -70,9 +66,9 @@ export function NarrativeFlow({ logs, composer, onComposer, onSend, accent }: Pr
               onSend();
             }
           }}
-          placeholder="Declarar acción al Cronista..."
-          rows={3}
-          className="w-full resize-none border border-neutral-700 bg-black/80 px-3 py-2 font-sans text-sm text-neutral-200 sharp-border-inner focus:border-[var(--terminal)] focus:outline-none"
+          placeholder="//_INJECT..."
+          rows={2}
+          className="w-full resize-none border border-[#161616] bg-black/50 px-2 py-2 font-mono text-[10px] text-neutral-400 focus:border-[var(--terminal)]/35 focus:outline-none"
         />
         <div className="mt-2 flex justify-end">
           <motion.button
@@ -80,14 +76,10 @@ export function NarrativeFlow({ logs, composer, onComposer, onSend, accent }: Pr
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={onSend}
-            className="border px-6 py-2 font-mono text-xs font-bold uppercase tracking-[0.2em] sharp-border-inner"
-            style={{
-              borderColor: accent,
-              color: accent,
-              boxShadow: `inset 0 0 16px ${accent}22`,
-            }}
+            className="border px-4 py-1.5 font-mono text-[9px] uppercase tracking-[0.25em] opacity-90 hover:opacity-100"
+            style={{ borderColor: `${accent}55`, color: accent }}
           >
-            Transmitir
+            TX
           </motion.button>
         </div>
       </div>

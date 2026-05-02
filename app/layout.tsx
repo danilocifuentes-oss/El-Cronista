@@ -13,8 +13,8 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "El Cronista de las Sombras",
-  description: "Mesa SchreckNet — Vampiro: La Mascarada (demo SPAs)",
+  title: "PROYECTO_SERENO · NEXO_LATAM",
+  description: "Interfaz Schreck_NET · CODEX_V · simulación V5 cliente.",
 };
 
 export default function RootLayout({

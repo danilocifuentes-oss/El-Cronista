@@ -3,17 +3,28 @@
 type Props = {
   value: number;
   max?: number;
-  /** Mínimo permitido al bajar pulsando el mismo dot (ej. atributos = 1) */
   min?: number;
   onChange?: (v: number) => void;
-  accent: string;
+  accent?: string;
   disabled?: boolean;
+  /** true: gris monocromo; false: puntos acentados (vista CRT) */
+  minimal?: boolean;
 };
 
-export function DotTrack({ value, max = 5, min = 0, onChange, accent, disabled }: Props) {
+export function DotTrack({
+  value,
+  max = 5,
+  min = 0,
+  onChange,
+  disabled,
+  accent = "var(--terminal)",
+  minimal = true,
+}: Props) {
   const n = Math.min(max, Math.max(min, value));
   return (
-    <div className="flex items-center gap-1 font-mono text-sm tracking-widest select-none">
+    <div
+      className={`flex items-center gap-px font-mono text-[11px] tracking-tight select-none ${minimal ? "text-neutral-300" : ""}`}
+    >
       {Array.from({ length: max }, (_, i) => {
         const filled = i < n;
         return (
@@ -21,22 +32,28 @@ export function DotTrack({ value, max = 5, min = 0, onChange, accent, disabled }
             key={i}
             type="button"
             disabled={disabled}
-            aria-label={`Puntos ${i + 1}`}
+            aria-label={`${i + 1}`}
             onClick={() => {
               const target = i + 1;
               if (target === n) onChange?.(Math.max(min, n - 1));
               else onChange?.(target);
             }}
-            className={`h-7 w-7 border transition-colors sharp-border-inner ${
-              filled ? "opacity-100" : "opacity-35"
-            } ${disabled ? "cursor-default" : "cursor-pointer hover:opacity-100"}`}
-            style={{
-              borderColor: accent,
-              color: filled ? accent : `${accent}55`,
-              boxShadow: filled ? `inset 0 0 12px ${accent}33` : undefined,
-            }}
+            className={`rounded-sm px-[1px] leading-none disabled:opacity-40 ${
+              disabled ? "cursor-default" : "cursor-pointer"
+            } ${
+              minimal
+                ? filled
+                  ? "text-neutral-200"
+                  : "text-neutral-700"
+                : filled
+                  ? ""
+                  : "text-neutral-600"
+            } ${!minimal && !disabled ? "hover:opacity-90" : ""}`}
+            style={
+              !minimal && filled ? { color: accent, textShadow: `0 0 8px ${accent}55` } : undefined
+            }
           >
-            <span className="block translate-y-[1px] text-center">{filled ? "●" : "○"}</span>
+            {filled ? "●" : "○"}
           </button>
         );
       })}
