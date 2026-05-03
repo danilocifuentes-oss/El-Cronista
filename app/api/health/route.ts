@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 
+import { isGeminiConfigured, whichGeminiEnvName } from "@/lib/geminiEnv";
 import type { NarradorRequestBody } from "@/lib/narrativeTypes";
 
 export const runtime = "nodejs";
 
 /**
- * Comprobación rápida en producción (Vercel): servidor vivo y presencia de GEMINI_API_KEY.
+ * Comprobación rápida en producción (Vercel): servidor vivo y presencia de clave Gemini (ver geminiEnv).
  * No expone la clave ni llama a Google.
  */
 export async function GET() {
-  const geminiConfigured = Boolean(process.env.GEMINI_API_KEY?.trim());
+  const geminiConfigured = isGeminiConfigured();
+  const geminiEnvNameUsed = whichGeminiEnvName();
 
   const bodyExample: NarradorRequestBody = {
     playerAction: "Entro al antro con la capucha baja y busco al camarero.",
@@ -31,10 +33,13 @@ export async function GET() {
     ok: true,
     service: "el-cronista-de-las-sombras",
     geminiConfigured,
-    envExpected: "GEMINI_API_KEY",
+    /** Qué variable detectó el servidor (sin valor). Ausente si ninguna está definida. */
+    geminiEnvNameUsed,
+    envCanonical: "GEMINI_API_KEY",
+    envAliasesAccepted: ["GOOGLE_GENERATIVE_AI_API_KEY"],
     /** Solo comprueba que la variable exista en runtime; no valida la clave contra Google. */
     note:
-      "Si geminiConfigured es false en producción: Vercel → tu proyecto → Settings → Environment Variables → añade GEMINI_API_KEY para Environment Production (y Preview si hace falta) → Redeploy. Desarrollo local: .env.local copiado de .env.example.",
+      "El nombre «Gemini API Key» en Google AI Studio es solo etiqueta. En Vercel debe llamarse la variable GEMINI_API_KEY (o alias GOOGLE_GENERATIVE_AI_API_KEY). Marca Production y Redeploy.",
     endpoints: {
       health: "GET /api/health",
       narrador: "POST /api/narrador (canal TX — requiere GEMINI_API_KEY)",

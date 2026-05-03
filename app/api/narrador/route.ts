@@ -12,6 +12,7 @@ import {
   resolveGeminiModels,
   withExponentialBackoff,
 } from "@/lib/geminiRetry";
+import { resolveGeminiApiKey } from "@/lib/geminiEnv";
 import { formatNexoApiFailure } from "@/lib/nexoErrors";
 import { isNarrativeStrand, STRAND_LABEL, type NarrativeStrand } from "@/lib/narrativeStrands";
 import type { ChroniclePayload, NarradorRequestBody } from "@/lib/narrativeTypes";
@@ -223,12 +224,12 @@ async function generateNarradorJson(
 }
 
 export async function POST(req: Request) {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key?.trim()) {
+  const key = resolveGeminiApiKey();
+  if (!key) {
     return NextResponse.json(
       {
         error:
-          "GEMINI_API_KEY no está definida. Configura .env.local (desarrollo) o Vercel → Environment Variables → GEMINI_API_KEY (producción) y redeploy.",
+          "Sin clave Gemini en el servidor. Define GEMINI_API_KEY en .env.local o en Vercel → Environment Variables (Production), redeploy.",
       },
       { status: 503 },
     );
