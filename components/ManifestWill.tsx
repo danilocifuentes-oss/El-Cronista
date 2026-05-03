@@ -14,9 +14,21 @@ type Props = {
   accent: string;
   onManifest: (payload: { roll: V5RollResult; intent: string; ledgerLine: string }) => void | Promise<void>;
   isProcessing?: boolean;
+  /** Penalización Letargo / Anacronismo (−1 a la reserva, mín. 1 dado). */
+  poolPenalty?: number;
+  /** Sin UI — bloquea manifestar. */
+  impulseBlocked?: boolean;
 };
 
-export function ManifestWill({ sheet, hungerLevel, accent, onManifest, isProcessing }: Props) {
+export function ManifestWill({
+  sheet,
+  hungerLevel,
+  accent,
+  onManifest,
+  isProcessing,
+  poolPenalty = 0,
+  impulseBlocked = false,
+}: Props) {
   const { isNarrator, rollDifficulty, setRollDifficulty } = useGameSession();
 
   const [attrKey, setAttrKey] = useState<(typeof ATTRIBUTE_KEYS)[number]["key"]>("wit");
@@ -29,17 +41,18 @@ export function ManifestWill({ sheet, hungerLevel, accent, onManifest, isProcess
   const pool = useMemo(() => {
     const a = sheet.attributes[attrKey];
     const s = typeof sheet.skills[skillKey] === "number" ? sheet.skills[skillKey] : 0;
-    return Math.max(1, a + s);
-  }, [sheet.attributes, sheet.skills, attrKey, skillKey]);
+    return Math.max(1, a + s - Math.max(0, poolPenalty));
+  }, [sheet.attributes, sheet.skills, attrKey, skillKey, poolPenalty]);
 
   const hungerDicePool = Math.min(pool, hungerLevel);
 
   function manifest(e: React.FormEvent) {
     e.preventDefault();
-    if (isProcessing) return;
+    if (isProcessing || impulseBlocked) return;
     const r = rollPoolV5(pool, hungerDicePool, rollDifficulty);
     const ledger = summarizeRollNarrator(r);
-    const detail = `[MANIFEST]: sujeto emite voluntad · ${attrKey}+${skillKey} · pool:${pool}(Σh:${hungerDicePool}) · DF:${rollDifficulty} · ${ledger}`;
+    const pen = poolPenalty > 0 ? ` · LETARGO:-${poolPenalty}` : "";
+    const detail = `[MANIFEST]: sujeto emite voluntad · ${attrKey}+${skillKey} · pool:${pool}(Σh:${hungerDicePool}) · DF:${rollDifficulty}${pen} · ${ledger}`;
     setLastPlayerLabel(r.outcome);
     void onManifest({ roll: r, intent: intent.trim(), ledgerLine: detail });
   }
@@ -101,12 +114,16 @@ export function ManifestWill({ sheet, hungerLevel, accent, onManifest, isProcess
         </label>
       </div>
 
-      {isNarrator ? (
-        <p className="mt-3 border border-[#161616] bg-black/40 px-2 py-1.5 text-[var(--terminal)]">
+      {impulseBlocked ? (
+        <p className="mt-3 border border-[#7f1d1d]/50 bg-black/50 px-2 py-1.5 text-[var(--blood)]/90">
+          [IMPULSE_LOCK]: sin UI — espera el ciclo o interactúa en el canal.
+        </p>
+      ) : isNarrator ? (
+        <p className="mt-3 border border-[#222] bg-black/40 px-2 py-1.5 text-[var(--terminal)]">
           VECTOR:{pool} · N:{Math.max(0, pool - hungerDicePool)} · Σh:{hungerDicePool}
         </p>
       ) : (
-        <p className="mt-3 border border-[#161616] bg-black/40 px-2 py-1.5 opacity-75">[&gt;_PIPE_LOCAL]</p>
+        <p className="mt-3 border border-[#222] bg-black/40 px-2 py-1.5 opacity-75">[&gt;_PIPE_LOCAL]</p>
       )}
 
       {isNarrator && (
@@ -127,7 +144,7 @@ export function ManifestWill({ sheet, hungerLevel, accent, onManifest, isProcess
       <form onSubmit={manifest} className="mt-5 flex flex-col items-center gap-2">
         <motion.button
           type="submit"
-          disabled={isProcessing}
+          disabled={isProcessing || impulseBlocked}
           whileHover={{ scale: isProcessing ? 1 : 1.01 }}
           whileTap={{ scale: isProcessing ? 1 : 0.99 }}
           className="border px-14 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.4em] disabled:opacity-45"

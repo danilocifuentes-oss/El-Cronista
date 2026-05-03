@@ -41,7 +41,6 @@ import {
   classicAttrPresetSummary,
   classicSkillPresetSummary,
   coerceClassicAttrPresetForClan,
-  clanLockedAttrPrimaryEs,
   HABILIDADES_SCHEMA,
   summarizeClassicTotals,
   validateClassicAttributeSpread,
@@ -386,7 +385,11 @@ export function CharacterCreation({ initial, onSave, viewOnly }: Props) {
 
   return (
     <div
-      className="codex-dot-grid crt-wrap min-h-screen pb-20 text-neutral-300"
+      className={
+        vo
+          ? "min-h-screen bg-black pb-20 text-neutral-300"
+          : "codex-dot-grid crt-wrap min-h-screen pb-20 text-neutral-300"
+      }
       style={{ ["--clan-accent"]: accent } as CSSProperties}
     >
       {codexHint && (
@@ -480,41 +483,7 @@ export function CharacterCreation({ initial, onSave, viewOnly }: Props) {
               readOnly={vo}
             />
 
-            <div className="md:col-span-12">
-              <label className="mb-1 block text-[8px] uppercase tracking-widest text-neutral-600">Transfondo</label>
-              <textarea
-                value={sheet.transfondo ?? ""}
-                disabled={vo}
-                onChange={(e) =>
-                  setSheet((s) => ({ ...s, transfondo: e.target.value.slice(0, 16000) }))
-                }
-                rows={5}
-                placeholder="Historia previa, vínculos, lo que el narrador IA puede asumir como hecho en la crónica…"
-                className="w-full resize-y border border-[#161616] bg-black/50 px-3 py-2 text-xs leading-relaxed text-neutral-300 placeholder:text-neutral-700 focus:border-[var(--terminal)]/50 focus:outline-none disabled:opacity-50"
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 md:col-span-12 md:border-t md:border-[#161616] md:pt-4">
-              <span className="text-[9px] text-neutral-600">MOTOR CODEX</span>
-              <label className={`flex items-center gap-2 font-mono text-[10px] ${vo ? "" : "cursor-pointer"}`}>
-                <input
-                  type="radio"
-                  disabled={vo}
-                  checked={sheet.chargenMotor === "v5_sereno"}
-                  onChange={() => setSheet((s) => ({ ...s, chargenMotor: "v5_sereno" }))}
-                />
-                SERENO V5 (cliente)
-              </label>
-              <label className={`flex items-center gap-2 font-mono text-[10px] ${vo ? "" : "cursor-pointer"}`}>
-                <input
-                  type="radio"
-                  disabled={vo}
-                  checked={sheet.chargenMotor === "classic_rev"}
-                  onChange={() => setSheet((s) => ({ ...s, chargenMotor: "classic_rev" }))}
-                />
-                REVISED (fusión papel)
-              </label>
-              <span className="hidden h-3 w-px bg-[#161616] sm:block" aria-hidden />
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 md:col-span-12 md:border-t md:border-[#222] md:pt-4">
               <span className="text-[9px] text-neutral-600">GENERACIÓN</span>
               <label className={`flex items-center gap-2 font-mono text-[10px] ${vo ? "" : "cursor-pointer"}`}>
                 <input
@@ -589,20 +558,18 @@ export function CharacterCreation({ initial, onSave, viewOnly }: Props) {
                     }
                     className={`${inputBase} max-w-[6rem]`}
                   />
-                  <p className="max-w-xl font-mono text-[8px] leading-relaxed text-neutral-600">
-                    Contador opcional de freebies para la mesa. El reparto de puntos se hace con los selectores de
-                    categorías abajo.
-                  </p>
                 </div>
               </div>
             )}
 
-            <div className="border-t border-[#161616] pt-6 md:col-span-12">
+            <div className="border-t border-[#222] pt-6 md:col-span-12">
               <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0 space-y-0.5">
-                  <p className="text-[9px] font-medium uppercase tracking-[0.24em] text-neutral-600">Reparto</p>
-                  <p className="font-mono text-[10px] leading-snug text-neutral-500">
-                    Elige la prioridad física · social · mental y los carriles de habilidad; cada combinación muestra los cupos.
+                  <p
+                    className="text-[9px] font-medium uppercase tracking-[0.24em] text-neutral-600"
+                    title="Prioridad física/social/mental y carriles de habilidad; cada preset muestra cupos."
+                  >
+                    Reparto
                   </p>
                 </div>
                 {!vo ? (
@@ -648,16 +615,6 @@ export function CharacterCreation({ initial, onSave, viewOnly }: Props) {
                       </option>
                     ))}
                   </select>
-                  {clanLockedAttrPrimaryEs(sheet.clan) ? (
-                    <p className="font-mono text-[9px] leading-relaxed text-neutral-600">
-                      Linaje CODEX prioriza siempre los <span style={{ color: accent }}>{clanLockedAttrPrimaryEs(sheet.clan)}</span>{" "}
-                      para el nivel alto.
-                    </p>
-                  ) : (
-                    <p className="font-mono text-[9px] text-neutral-600">
-                      Todas las permutaciones 7‑5‑3 están permitidas.
-                    </p>
-                  )}
                 </div>
                 <div className="min-w-0 space-y-2">
                   <label className="block font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-600">
@@ -680,7 +637,6 @@ export function CharacterCreation({ initial, onSave, viewOnly }: Props) {
                       </option>
                     ))}
                   </select>
-                  <p className="font-mono text-[9px] text-neutral-600">Talentos, técnicas y conocimientos se reparten según el preset.</p>
                 </div>
               </div>
               <div className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -785,16 +741,16 @@ export function CharacterCreation({ initial, onSave, viewOnly }: Props) {
           </section>
 
           <section className={`border border-[#161616] bg-black/25 ${ring(discOk)}`}>
-            <h2 className="border-b border-[#161616] px-3 py-2 font-mono text-[9px] uppercase tracking-[0.32em] text-neutral-600">
-              Disciplinas
-            </h2>
-            <p className="border-b border-[#161616] px-3 py-1 font-mono text-[8px] leading-snug text-neutral-500">
-              {TEXTO_SUMA_DISC(
+            <h2
+              className="border-b border-[#222] px-3 py-2 font-mono text-[9px] uppercase tracking-[0.32em] text-neutral-600"
+              title={TEXTO_SUMA_DISC(
                 discDotsSum,
                 classicMode ? timeline.classicDisciplineBudget : timeline.v5DisciplineBudget,
                 classicMode ? timeline.classicMaxPerDot : timeline.v5MaxPerDot,
               )}
-            </p>
+            >
+              Disciplinas
+            </h2>
             <div className="space-y-3 p-4">
               {(sheet.clan === "caitiff" || sheet.clan === "other") && (
                 <div className="grid gap-2">
@@ -858,6 +814,25 @@ export function CharacterCreation({ initial, onSave, viewOnly }: Props) {
                   disciplinas activas (ahora hay {discDotsSum}).
                 </p>
               ) : null}
+            </div>
+          </section>
+
+          <section className="border border-[#222] bg-black/25 lg:col-span-3">
+            <h2 className="border-b border-[#222] px-3 py-2 font-mono text-[9px] uppercase tracking-[0.32em] text-neutral-600">
+              Trasfondo
+            </h2>
+            <div className="p-4">
+              <textarea
+                value={sheet.transfondo ?? ""}
+                disabled={vo}
+                onChange={(e) =>
+                  setSheet((s) => ({ ...s, transfondo: e.target.value.slice(0, 16000) }))
+                }
+                rows={6}
+                title="Historia previa, vínculos y hechos que el Cronista puede asumir."
+                placeholder="Méritos narrativos, alianzas, recursos, vínculos…"
+                className="w-full resize-y border border-[#222] bg-black/50 px-3 py-2 text-xs leading-relaxed text-neutral-300 placeholder:text-neutral-700 focus:border-[var(--terminal)]/50 focus:outline-none disabled:opacity-50"
+              />
             </div>
           </section>
         </div>

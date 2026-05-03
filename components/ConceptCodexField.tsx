@@ -48,6 +48,16 @@ export function ConceptCodexField({ concept, conceptPresetId, onPatch, inputBase
         <option value={CONCEPT_SELECT_CUSTOM}>Otro (texto)</option>
       </select>
 
+      {presetRow && selectValue !== CONCEPT_SELECT_CUSTOM ? (
+        <div
+          className="mt-3 border border-[#222] bg-black/60 px-3 py-2.5 font-mono text-[10px] leading-relaxed text-neutral-400"
+          role="region"
+          aria-label="Descripción del concepto"
+        >
+          {presetRow.descripcion}
+        </div>
+      ) : null}
+
       {selectValue === CONCEPT_SELECT_CUSTOM ? (
         <input
           value={concept}

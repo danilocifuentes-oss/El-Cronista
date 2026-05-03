@@ -11,7 +11,13 @@ type Props = {
   onLogout: () => void;
 };
 
+/** Solo personajes de jugador en el registro (NPC quedan en Centro de Mando / narrador). */
+function playerProfiles(list: ProfileSummary[]) {
+  return list.filter((p) => p.isNPC !== true);
+}
+
 export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout }: Props) {
+  const visible = playerProfiles(profiles);
   return (
     <div className="relative flex min-h-screen flex-col bg-[#050505] px-4 py-10 font-mono text-neutral-300 crt-wrap techno-grid">
       <div className="mx-auto w-full max-w-lg space-y-8">
@@ -60,7 +66,7 @@ export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout 
 
         <section className="space-y-3">
           <p className="text-[9px] uppercase tracking-[0.32em] text-neutral-600">Últimos Vástagos Registrados</p>
-          {profiles.length === 0 ? (
+          {visible.length === 0 ? (
             <p className="border border-[#161616] bg-black/40 px-4 py-8 text-center text-[11px] leading-relaxed text-neutral-500">
               Aquí aparecerán tus personajes. Pulsa{" "}
               <span className="text-[var(--terminal)]/90">«Nuevo personaje»</span> para abrir el CODEX y sellar tu primera
@@ -68,7 +74,7 @@ export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout 
             </p>
           ) : (
             <ul className="space-y-2">
-              {profiles.map((p) => {
+              {visible.map((p) => {
                 const accent = CLAN_ACCENTS[p.clan];
                 const clanLabel = CLAN_OPTIONS.find((c) => c.id === p.clan)?.label ?? p.clan;
                 return (

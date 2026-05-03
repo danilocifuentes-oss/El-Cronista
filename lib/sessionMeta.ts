@@ -13,7 +13,36 @@ export type SessionMeta = {
   lastFamineTickAt: number;
   /** Intervalo configurable (narrador), en minutos reales */
   famineIntervalMinutes: number;
+  /** Unidades de impulso (máx. 2). */
+  impulseUnits: number;
+  /** Ancla del ciclo diario de UI. */
+  lastImpulseRefillAt: number;
+  /** Última acción significativa (manifestar, canal, etc.). */
+  lastSignificantActionAt: number;
 };
+
+/** Completa campos nuevos en bundles antiguos. */
+export function normalizeSessionMeta(p: Partial<SessionMeta> | undefined): SessionMeta {
+  const now = Date.now();
+  const famine =
+    typeof p?.famineIntervalMinutes === "number"
+      ? Math.max(5, Math.min(240, p.famineIntervalMinutes))
+      : 60;
+  const impulseUnits =
+    typeof p?.impulseUnits === "number" ? Math.max(0, Math.min(2, Math.round(p.impulseUnits))) : 2;
+  const lastImpulseRefillAt =
+    typeof p?.lastImpulseRefillAt === "number" ? p.lastImpulseRefillAt : now;
+  const lastSignificantActionAt =
+    typeof p?.lastSignificantActionAt === "number" ? p.lastSignificantActionAt : now;
+  return {
+    sheetLocked: Boolean(p?.sheetLocked),
+    lastFamineTickAt: typeof p?.lastFamineTickAt === "number" ? p.lastFamineTickAt : now,
+    famineIntervalMinutes: famine,
+    impulseUnits,
+    lastImpulseRefillAt,
+    lastSignificantActionAt,
+  };
+}
 
 export type XpLogEntry = { ts: number; text: string };
 
@@ -22,25 +51,22 @@ export function loadMeta(): SessionMeta {
   try {
     const raw = localStorage.getItem(META_KEY);
     if (!raw) return defaultMeta();
-    const p = JSON.parse(raw) as SessionMeta;
-    return {
-      sheetLocked: Boolean(p.sheetLocked),
-      lastFamineTickAt: typeof p.lastFamineTickAt === "number" ? p.lastFamineTickAt : Date.now(),
-      famineIntervalMinutes:
-        typeof p.famineIntervalMinutes === "number"
-          ? Math.max(5, Math.min(240, p.famineIntervalMinutes))
-          : 60,
-    };
+    const p = JSON.parse(raw) as Partial<SessionMeta>;
+    return normalizeSessionMeta(p);
   } catch {
     return defaultMeta();
   }
 }
 
 export function defaultMeta(): SessionMeta {
+  const now = Date.now();
   return {
     sheetLocked: false,
-    lastFamineTickAt: Date.now(),
+    lastFamineTickAt: now,
     famineIntervalMinutes: 60,
+    impulseUnits: 2,
+    lastImpulseRefillAt: now,
+    lastSignificantActionAt: now,
   };
 }
 

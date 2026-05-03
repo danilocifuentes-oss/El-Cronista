@@ -56,11 +56,11 @@ export function NarrativeFlow({
       aria-busy={processing ? true : undefined}
     >
       <header
-        className="shrink-0 space-y-2 border-b border-[#161616] px-4 py-2.5 font-mono text-[9px] uppercase tracking-[0.32em]"
+        className="shrink-0 space-y-2 border-b border-[#222] px-4 py-2.5 font-mono text-[9px] uppercase tracking-[0.32em]"
         style={{ color: accent }}
       >
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <span>{"//_STREAM"}</span>
+          <span>{"//_STREAM · CRÓNICA"}</span>
           {identityHint ? (
             <span className="max-w-[min(100%,22rem)] truncate text-[9px] normal-case tracking-normal text-neutral-500">
               {identityHint}

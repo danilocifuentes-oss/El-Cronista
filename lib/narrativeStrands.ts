@@ -5,20 +5,20 @@ export type RollingByStrand = Record<NarrativeStrand, string>;
 
 export const STRAND_LABEL: Record<NarrativeStrand, string> = {
   principal: "Principal",
-  paralela: "Paralela",
+  paralela: "Incursión individual",
   vivo: "En vivo",
 };
 
 /** Etiqueta corta para chips de UI. */
 export const STRAND_TAG: Record<NarrativeStrand, string> = {
   principal: "PRIN",
-  paralela: "PAR",
+  paralela: "INC",
   vivo: "IRL",
 };
 
 export const STRAND_HELPLINE: Record<NarrativeStrand, string> = {
   principal: "Arco central / sesiones SchreckNet habituales.",
-  paralela: "Subtramas, PBP, escenas alternas sin romper el arco.",
+  paralela: "Chat paralelo: trasfondo, contactos y escenas privadas con el Cronista.",
   vivo: "Mesa física — mismo CV; tono presente, continuidad enlazada.",
 };
 

@@ -36,6 +36,12 @@ import {
   loadXpLog,
   saveMeta,
 } from "@/lib/sessionMeta";
+import {
+  completeImpulseSpend,
+  letargoPoolPenalty,
+  tickImpulseRefill,
+  touchSignificantAction,
+} from "@/lib/impulseUnits";
 import { formatNexoApiFailure } from "@/lib/nexoErrors";
 import { buildSheetSummaryLite } from "@/lib/sheetSummary";
 import type { NarrativeLogEntry } from "@/lib/narrativeTypes";
@@ -145,6 +151,8 @@ function CronistaAppInner() {
     typeof window === "undefined" ? [] : loadXpLog(),
   );
   const [profileIndexTick, setProfileIndexTick] = useState(0);
+  /** Re-render impulsos / letargo tras gastar o pasar el ciclo. */
+  const [impulseRev, setImpulseRev] = useState(0);
   const [ideasRepo, setIdeasRepo] = useState("");
   const [activeStrand, setActiveStrand] = useState<NarrativeStrand>(() =>
     typeof window === "undefined" ? "principal" : loadActiveStrand(),
@@ -220,6 +228,20 @@ function CronistaAppInner() {
         : 60,
     );
   }, [phase, setFamineIntervalMinutesCtx]);
+
+  useEffect(() => {
+    if (phase !== "nexus") return;
+    const sync = () => {
+      const next = tickImpulseRefill(loadMeta());
+      saveMeta(next);
+      const aid = getActiveProfileId();
+      if (aid) syncActiveBundleFromGlobals(aid);
+      setImpulseRev((n) => n + 1);
+    };
+    sync();
+    const id = window.setInterval(sync, 60_000);
+    return () => window.clearInterval(id);
+  }, [phase]);
 
   useEffect(() => {
     if (!beastPulse) return;
@@ -372,6 +394,10 @@ function CronistaAppInner() {
       });
       pushLog({ role: "narrador", text: out.narration });
       if (out.rollingSummary) saveRollingSummary(out.rollingSummary);
+      saveMeta(touchSignificantAction(loadMeta()));
+      const aid = getActiveProfileId();
+      if (aid) syncActiveBundleFromGlobals(aid);
+      setImpulseRev((n) => n + 1);
     } catch (e) {
       pushLog({
         role: "sistema",
@@ -391,6 +417,21 @@ function CronistaAppInner() {
 
   const handleManifestMotor = useCallback(
     async ({ roll, intent, ledgerLine }: { roll: V5RollResult; intent: string; ledgerLine: string }) => {
+      if (!isNarrator) {
+        const metaNow = tickImpulseRefill(loadMeta());
+        if (metaNow.impulseUnits <= 0) {
+          pushLog({
+            role: "sistema",
+            text: "[IMPULSE_LOCK]: Sin Unidades de Impulso — espera el ciclo de 24 h o mantén actividad en el canal.",
+          });
+          return;
+        }
+        saveMeta(completeImpulseSpend(metaNow));
+        const aid0 = getActiveProfileId();
+        if (aid0) syncActiveBundleFromGlobals(aid0);
+        setImpulseRev((n) => n + 1);
+      }
+
       pushLog({ role: "sistema", text: ledgerLine });
       if (roll.fracasoBestial || sheet.hunger >= 5) setBeastPulse(true);
 
@@ -455,7 +496,7 @@ function CronistaAppInner() {
         setCronistaProcessing(false);
       }
     },
-    [sheet, ideasRepo],
+    [sheet, ideasRepo, isNarrator],
   );
 
   const tweakRemoteSimulation = () => {
@@ -476,8 +517,16 @@ function CronistaAppInner() {
 
   const ravenousVisual = sheet.hunger >= 5 || beastPulse;
   const mainFrameClass = ravenousVisual
-    ? "flex min-h-screen flex-col crt-wrap ravenous-frame"
-    : "flex min-h-screen flex-col crt-wrap";
+    ? "flex min-h-screen flex-col crt-wrap ravenous-frame bg-black"
+    : "flex min-h-screen flex-col bg-black";
+
+  const impulseMeta = useMemo(() => {
+    void impulseRev;
+    return tickImpulseRefill(loadMeta());
+  }, [impulseRev, phase]);
+
+  const manifestPenalty = letargoPoolPenalty(impulseMeta);
+  const impulseBlocked = !isNarrator && impulseMeta.impulseUnits <= 0;
 
   const goToLogin = () => {
     persistActiveProfile();
@@ -579,8 +628,8 @@ function CronistaAppInner() {
 
   if (phase === "sheetReview") {
     return (
-      <div className="flex min-h-screen flex-col bg-[var(--void)] techno-grid">
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[#161616] bg-black/70 px-4 py-3 font-mono text-[10px] text-neutral-400">
+      <div className="flex min-h-screen flex-col bg-black">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[#222] bg-black px-4 py-3 font-mono text-[10px] text-neutral-400">
           <p className="tracking-[0.25em] text-[var(--terminal)]/90">{"//_CODEX · MATRIZ"}</p>
           <button
             type="button"
@@ -604,7 +653,7 @@ function CronistaAppInner() {
 
   return (
     <div
-      className={`${mainFrameClass} techno-grid bg-[var(--void)] text-neutral-200`}
+      className={`${mainFrameClass} text-neutral-200`}
       style={{ ["--accent-clan"]: accent } as CSSProperties}
     >
       <ForcedDestinyOverlay
@@ -619,9 +668,9 @@ function CronistaAppInner() {
         }}
       />
 
-      <header className="flex shrink-0 flex-col gap-3 border-b border-[#161616] bg-black/55 px-4 py-4 font-mono text-[10px] sm:gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:px-6">
+      <header className="flex shrink-0 flex-col gap-3 border-b border-[#222] bg-black px-4 py-4 font-mono text-[10px] sm:gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:px-6">
         <div className="min-w-0 flex-1 space-y-2 text-neutral-500">
-          <p className="text-[var(--terminal)]/90 tracking-[0.25em]">CANAL SCHRECK_NET · NEXO_LATAM</p>
+          <p className="tracking-[0.28em] text-neutral-400">PROTOCOLO_ACTIVO · SCHRECK_NET</p>
           <p className="truncate font-sans text-[12px] font-medium tracking-tight text-neutral-200">
             <span style={{ color: accent }}>{sheet.name?.trim() || "Sin nombre"}</span>
             <span className="text-neutral-600"> · </span>
@@ -637,10 +686,13 @@ function CronistaAppInner() {
             ) : null}
           </p>
           <p className="text-neutral-600">
-            [CLOCK]={famineIntervalMinutes}min · [MJ]={isNarrator ? "1" : "0"}
+            [UI]={impulseMeta.impulseUnits}/2 · [CLOCK]={famineIntervalMinutes}min · [MJ]={isNarrator ? "1" : "0"}
+            {manifestPenalty > 0 ? (
+              <span className="ml-2 text-neutral-500"> · [LETARGO:−1 pool]</span>
+            ) : null}
           </p>
         </div>
-        <div className="flex w-full flex-wrap items-center justify-between gap-3 border-t border-[#161616]/60 pt-3 sm:gap-4 lg:w-auto lg:border-t-0 lg:pt-0">
+        <div className="flex w-full flex-wrap items-center justify-between gap-3 border-t border-[#222] pt-3 sm:gap-4 lg:w-auto lg:border-t-0 lg:pt-0">
           <TechnicalHud healthFilled={healthHudFilled} healthMax={HEALTH_MAX_UI} hunger={sheet.hunger} />
           <div className="flex flex-wrap gap-2 sm:ml-auto lg:ml-0">
             <button
@@ -650,19 +702,6 @@ function CronistaAppInner() {
             >
               HOJA
             </button>
-            {isNarrator && (
-              <button
-                type="button"
-                onClick={() => {
-                  persistActiveProfile();
-                  setPhase("commandCenter");
-                }}
-                className="border px-3 py-2 text-[9px] uppercase tracking-widest text-[#b91c1c]/95 hover:bg-[#b91c1c]/10"
-                style={{ borderColor: "#b91c1c88" }}
-              >
-                CENTRO_MANDO
-              </button>
-            )}
             {(!sheetLocked || isNarrator) && (
               <button
                 type="button"
@@ -723,12 +762,14 @@ function CronistaAppInner() {
             onStrandChange={commitStrand}
           />
           <ManifestWill
-            key={`${sheet.hunger}-${sheet.name}`}
+            key={`${sheet.hunger}-${sheet.name}-${impulseRev}`}
             sheet={sheet}
             hungerLevel={sheet.hunger}
             accent={accent}
             onManifest={handleManifestMotor}
             isProcessing={cronistaProcessing}
+            poolPenalty={isNarrator ? 0 : manifestPenalty}
+            impulseBlocked={impulseBlocked}
           />
         </div>
 

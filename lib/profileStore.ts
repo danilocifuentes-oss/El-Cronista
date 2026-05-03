@@ -20,7 +20,15 @@ import {
   saveRollingByStrand,
 } from "@/lib/narrativeMemory";
 import type { NarrativeLogEntry } from "@/lib/narrativeTypes";
-import { loadMeta, loadXpLog, saveMeta, saveXpLog, type SessionMeta, type XpLogEntry } from "@/lib/sessionMeta";
+import {
+  loadMeta,
+  loadXpLog,
+  normalizeSessionMeta,
+  saveMeta,
+  saveXpLog,
+  type SessionMeta,
+  type XpLogEntry,
+} from "@/lib/sessionMeta";
 import {
   defaultRollingByStrand,
   normalizeRollingByStrand,
@@ -105,15 +113,7 @@ export function loadBundle(id: string): ProfileBundle | null {
     const p = JSON.parse(raw) as ProfileBundle;
     if (p.version !== 1 || !p.sheet) return null;
     const metaIn = p.meta as Partial<SessionMeta> | undefined;
-    const meta: SessionMeta = {
-      sheetLocked: Boolean(metaIn?.sheetLocked),
-      lastFamineTickAt:
-        typeof metaIn?.lastFamineTickAt === "number" ? metaIn.lastFamineTickAt : Date.now(),
-      famineIntervalMinutes:
-        typeof metaIn?.famineIntervalMinutes === "number"
-          ? Math.max(5, Math.min(240, metaIn.famineIntervalMinutes))
-          : 60,
-    };
+    const meta = normalizeSessionMeta(metaIn);
     return {
       version: 1,
       sheet: normalizeCharacterSheet(p.sheet),
@@ -283,11 +283,11 @@ export function createBlankProfile(): string {
 
   const id = newId();
   const sheet = emptySheet();
-  const meta: SessionMeta = {
+  const meta: SessionMeta = normalizeSessionMeta({
     sheetLocked: false,
     lastFamineTickAt: Date.now(),
     famineIntervalMinutes: loadMeta().famineIntervalMinutes,
-  };
+  });
   const bundle: ProfileBundle = {
     version: 1,
     sheet,
@@ -356,11 +356,11 @@ export function createProfileEntity(isNPC: boolean): string {
     sheet.concept = "NPC · borrador operador.";
   }
   const norm = normalizeCharacterSheet(sheet);
-  const meta: SessionMeta = {
+  const meta: SessionMeta = normalizeSessionMeta({
     sheetLocked: false,
     lastFamineTickAt: Date.now(),
     famineIntervalMinutes: loadMeta().famineIntervalMinutes,
-  };
+  });
   const bundle: ProfileBundle = {
     version: 1,
     sheet: norm,
@@ -403,11 +403,11 @@ export function ensureShadowPackNpcs(): void {
   for (const template of SHADOW_PACK_SHEETS) {
     const id = newId();
     const norm = normalizeCharacterSheet(template);
-    const meta: SessionMeta = {
+    const meta: SessionMeta = normalizeSessionMeta({
       sheetLocked: true,
       lastFamineTickAt: Date.now(),
       famineIntervalMinutes: typeof fam === "number" ? Math.max(5, Math.min(240, fam)) : 60,
-    };
+    });
     const bundle: ProfileBundle = {
       version: 1,
       sheet: norm,
