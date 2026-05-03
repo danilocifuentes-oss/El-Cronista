@@ -1,3 +1,4 @@
+import { parseFetchJson } from "@/lib/parseFetchJson";
 import type { NarradorApiResponse, NarradorRequestBody } from "@/lib/narrativeTypes";
 
 /**
@@ -10,7 +11,7 @@ export async function askCronista(body: NarradorRequestBody): Promise<NarradorAp
     body: JSON.stringify(body),
   });
 
-  const data = (await res.json()) as NarradorApiResponse & { error?: string; raw?: string };
+  const data = await parseFetchJson<NarradorApiResponse & { error?: string; raw?: string }>(res);
 
   if (!res.ok) {
     throw new Error(data.error || `narrador HTTP ${res.status}`);

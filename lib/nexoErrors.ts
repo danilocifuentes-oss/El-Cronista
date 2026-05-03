@@ -32,6 +32,10 @@ export function formatNexoApiFailure(raw: string): string {
     return "[ERR_RELÉ]: El canal SchreckNet perdió pulso momentáneo. Reintenta en unos segundos.";
   }
 
+  if (/no devolvió JSON|Respuesta no JSON|no JSON/i.test(msg)) {
+    return "[ERR_RELÉ]: El servidor respondió con texto/HTML en lugar de JSON (caída, timeout o proxy). Abre /api/health y revisa el deploy en Vercel.";
+  }
+
   const short = msg.length > 280 ? `${msg.slice(0, 280)}…` : msg;
   return `[PIPE_ERR]: ${short}`;
 }

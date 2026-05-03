@@ -2,6 +2,7 @@ import type { CharacterSheet } from "@/lib/character";
 import type { ChroniclePayload } from "@/lib/narrativeTypes";
 import type { SerializedV5Roll } from "@/lib/dice";
 import type { NarrativeStrand } from "@/lib/narrativeStrands";
+import { parseFetchJson } from "@/lib/parseFetchJson";
 
 export type CronistaRecentLine = { role: string; text: string };
 
@@ -24,7 +25,7 @@ export async function fetchCronistaJson(body: CronistaMotorBody): Promise<{ narr
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...body, stream: false }),
   });
-  const data = (await res.json()) as { narration?: string; error?: string };
+  const data = await parseFetchJson<{ narration?: string; error?: string }>(res);
   if (!res.ok) throw new Error(data.error || `cronista HTTP ${res.status}`);
   const narration = typeof data.narration === "string" ? data.narration.trim() : "";
   if (!narration) throw new Error(data.error || "Sin narración.");
@@ -43,14 +44,20 @@ export async function streamCronistaMotor(
   });
 
   if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
+    const text = await res.text();
+    let detail: string;
     try {
-      const j = (await res.json()) as { error?: string };
-      if (j.error) msg = j.error;
+      const j = JSON.parse(text) as { error?: string };
+      detail =
+        typeof j.error === "string" && j.error.trim()
+          ? j.error.trim()
+          : `HTTP ${res.status}${text.trim() ? `: ${text.trim().slice(0, 240)}` : ""}`;
     } catch {
-      /* texto plano */
+      detail = text.trim()
+        ? `HTTP ${res.status}: ${text.trim().slice(0, 280)}`
+        : `HTTP ${res.status}`;
     }
-    throw new Error(msg);
+    throw new Error(detail);
   }
 
   const reader = res.body?.getReader();
