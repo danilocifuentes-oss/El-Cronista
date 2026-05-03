@@ -11,17 +11,26 @@ import {
 } from "@/lib/character";
 import { askCronista } from "@/lib/narrativeApi";
 import {
+  appendMjDirective,
+  loadMjDirectives,
+  loadNarrativeLog,
+  loadRollingSummary,
+  saveNarrativeLog,
+  saveRollingSummary,
+} from "@/lib/narrativeMemory";
+import {
   appendXpLog,
   loadMeta,
   loadXpLog,
   saveMeta,
 } from "@/lib/sessionMeta";
+import { buildSheetSummary } from "@/lib/sheetSummary";
+import type { NarrativeLogEntry } from "@/lib/narrativeTypes";
 import { CharacterCreation } from "./CharacterCreation";
 import { CharacterStatusPanel } from "./CharacterStatusPanel";
 import type { ConclaveMate } from "./ConclavePanel";
 import { ConclavePanel } from "./ConclavePanel";
 import { AdminConsole } from "./AdminConsole";
-import type { LogEntry } from "./NarrativeFlow";
 import { NarrativeFlow } from "./NarrativeFlow";
 import { SchreckNetLogin } from "./SchreckNetLogin";
 import { GameSessionProvider, useGameSession } from "@/context/GameSessionContext";
@@ -49,6 +58,13 @@ function famineSealWallClock(): number {
   return Date.now();
 }
 
+const BOOT_STREAM: NarrativeLogEntry = {
+  id: "0",
+  role: "sistema",
+  text: "[BOOT]: Nexo_standby · buffer vacío.",
+  ts: 0,
+};
+
 function mergeStoredSheet(raw: CharacterSheet): CharacterSheet {
   return normalizeCharacterSheet(raw);
 }
@@ -67,14 +83,7 @@ function CronistaAppInner() {
   const [sheetLocked, setSheetLocked] = useState<boolean>(() =>
     typeof window === "undefined" ? false : loadMeta().sheetLocked,
   );
-  const [logs, setLogs] = useState<LogEntry[]>([
-    {
-      id: "0",
-      role: "sistema",
-      text: "[BOOT]: Nexo_standby · buffer vacío.",
-      ts: 0,
-    },
-  ]);
+  const [logs, setLogs] = useState<NarrativeLogEntry[]>(() => [BOOT_STREAM]);
   const [composer, setComposer] = useState("");
   const [adminOpen, setAdminOpen] = useState(false);
   const [inquisitionThreat, setInquisitionThreat] = useState(2);
@@ -98,6 +107,14 @@ function CronistaAppInner() {
   const accent = useMemo(() => CLAN_ACCENTS[sheet.clan], [sheet.clan]);
 
   const refreshXpLog = useCallback(() => setXpLog(loadXpLog()), []);
+
+  useEffect(() => {
+    const saved = loadNarrativeLog();
+    if (saved.length === 0) return;
+    queueMicrotask(() => {
+      setLogs(saved);
+    });
+  }, []);
 
   const handleSheetMutation = useCallback(
     (next: CharacterSheet, logLine?: string) => {
@@ -176,14 +193,18 @@ function CronistaAppInner() {
     return () => window.clearInterval(id);
   }, [refreshXpLog]);
 
-  function pushLog(part: Omit<LogEntry, "id" | "ts"> & { ts?: number }) {
-    const entry: LogEntry = {
+  function pushLog(part: Omit<NarrativeLogEntry, "id" | "ts"> & { ts?: number }) {
+    const entry: NarrativeLogEntry = {
       id: uid(),
       ts: part.ts ?? Date.now(),
       role: part.role,
       text: part.text,
     };
-    setLogs((prev) => [...prev, entry]);
+    setLogs((prev) => {
+      const next = [...prev, entry];
+      saveNarrativeLog(next);
+      return next;
+    });
   }
 
   const sendPlayer = async () => {
@@ -192,20 +213,33 @@ function CronistaAppInner() {
     setComposer("");
     pushLog({ role: "jugador", text: t });
 
+    const prior = logs.slice(-28).map(({ role, text }) => ({ role, text }));
+    const recentLogs = [...prior, { role: "jugador" as const, text: t }];
+
     try {
-      const whisper = await askCronista(t, `amenaza:${inquisitionThreat}`);
-      pushLog({
-        role: "narrador",
-        text: whisper,
+      const out = await askCronista({
+        playerAction: t,
+        recentLogs,
+        sheetSummary: buildSheetSummary(sheet),
+        inquisitionThreat,
+        mjDirectives: loadMjDirectives(),
+        rollingSummary: loadRollingSummary() || undefined,
       });
-    } catch {
-      pushLog({ role: "sistema", text: "[PIPE_ERR]: downstream_narrative · timeout/mock." });
+      pushLog({ role: "narrador", text: out.narration });
+      if (out.rollingSummary) saveRollingSummary(out.rollingSummary);
+    } catch (e) {
+      pushLog({
+        role: "sistema",
+        text: `[PIPE_ERR]: ${e instanceof Error ? e.message : String(e)}`,
+      });
     }
   };
 
   const emitMj = () => {
-    if (!mjCmd.trim() || !isNarrator) return;
-    pushLog({ role: "sistema", text: `[MJ_PIPE]: ${mjCmd.trim()}` });
+    const cmd = mjCmd.trim();
+    if (!cmd || !isNarrator) return;
+    appendMjDirective(cmd);
+    pushLog({ role: "sistema", text: `[MJ_PIPE]: ${cmd}` });
     setMjCmd("");
     setAdminOpen(false);
   };
@@ -376,7 +410,7 @@ function CronistaAppInner() {
         command={mjCmd}
         onCommand={setMjCmd}
         onEmitCommand={emitMj}
-        remoteSheetHint="//_PERSIST: datos solo en almacenamiento local (cronista-sheet / meta / audit). Servidor pendiente."
+        remoteSheetHint="//_PERSIST: hoja y bitácora en localStorage. Narrador: POST /api/narrador (Gemini) — clave en .env.local"
         onStressHunger={tweakRemoteSimulation}
         onForcedFrenesy={() => requestForcedRoll("frenesy", rollDifficulty)}
         onForcedRage={() => requestForcedRoll("enardecimiento", rollDifficulty)}

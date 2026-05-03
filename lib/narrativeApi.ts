@@ -1,16 +1,27 @@
-/**
- * Placeholder Cronista de las Sombras: cuando exista servidor, integrar aquí la llamada HTTP o al LLM.
- */
+import type { NarradorApiResponse, NarradorRequestBody } from "@/lib/narrativeTypes";
 
-export async function askCronista(
-  playerAction: string,
-  contextSummary: string,
-): Promise<string> {
-  void playerAction;
-  void contextSummary;
-  await new Promise((r) => setTimeout(r, 400));
-  return (
-    "[MOTOR IA — pendiente]\nLa red SchreckNet no devuelve aún texto del Narrador automatizado.\n" +
-    "Este servicio debería recibir la acción del jugador y el estado de la sala y devolver una continuación narrativa segura para Vampire: The Masquerade."
-  );
+/**
+ * Llama al narrador Gemini vía `/api/narrador` (clave solo en servidor).
+ */
+export async function askCronista(body: NarradorRequestBody): Promise<NarradorApiResponse> {
+  const res = await fetch("/api/narrador", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const data = (await res.json()) as NarradorApiResponse & { error?: string; raw?: string };
+
+  if (!res.ok) {
+    throw new Error(data.error || `narrador HTTP ${res.status}`);
+  }
+
+  if (!data.narration?.trim()) {
+    throw new Error(data.error || "Respuesta sin narración.");
+  }
+
+  return {
+    narration: data.narration.trim(),
+    rollingSummary: data.rollingSummary?.trim(),
+  };
 }

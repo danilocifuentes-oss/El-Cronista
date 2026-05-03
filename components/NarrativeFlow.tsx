@@ -1,16 +1,12 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
+import type { NarrativeLogEntry } from "@/lib/narrativeTypes";
 
-export type LogEntry = {
-  id: string;
-  role: "narrador" | "jugador" | "sistema";
-  text: string;
-  ts: number;
-};
+export type { NarrativeLogEntry as LogEntry } from "@/lib/narrativeTypes";
 
 type Props = {
-  logs: LogEntry[];
+  logs: NarrativeLogEntry[];
   composer: string;
   onComposer: (v: string) => void;
   onSend: () => void;
