@@ -15,6 +15,10 @@ export const runtime = "nodejs";
  * Comprobación rápida en producción (Vercel): servidor vivo y presencia de clave Gemini (ver geminiEnv).
  * No expone la clave ni llama a Google.
  */
+function isUpstashRedisConfigured(): boolean {
+  return Boolean(process.env.UPSTASH_REDIS_REST_URL?.trim() && process.env.UPSTASH_REDIS_REST_TOKEN?.trim());
+}
+
 export async function GET() {
   const geminiConfigured = isGeminiConfigured();
   const geminiEnvNameUsed = whichGeminiEnvName();
@@ -31,6 +35,7 @@ export async function GET() {
     rollingSummary: "El PJ está en un bar del centro, de noche.",
     ideasRepository: "Arco: reunión con el Sheriff el viernes. NPC recurrente: la camarera mortal.",
     narrativeStrand: "principal" as const,
+    orchestrationNpcKey: "pj:ejemplo-canal",
     crossStrandContext:
       "· Paralela: negocios con el barón del barrio bajo.\n· En vivo: la mesa del sábado dejó un rumor sobre cazadores.",
   };
@@ -62,6 +67,14 @@ export async function GET() {
     operatorEnvHints: {
       NEXO_FORCE_INTERNAL_ONLY: "1 fuerza solo motor interno (sin Gemini/OpenAI).",
       NEXO_CHANNEL_PAUSED: "1 pausa canal jugador (narrador + manifestar).",
+      UPSTASH_REDIS:
+        "UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN — campaña multijugador y orquestación persistente (global).",
+      NEXO_ORCH_DISK:
+        "1 opcional en self-hosted: JSON local .data/nexo-orchestration.json además de Redis.",
+    },
+    orchestration: {
+      redisConfigured: isUpstashRedisConfigured(),
+      nexoOrchestration: "POST /api/nexo-orchestration — misma clave operador · get|reset|raid|…",
     },
     /** Solo comprueba que la variable exista en runtime; no valida la clave contra Google. */
     note:
@@ -74,6 +87,8 @@ export async function GET() {
       operatorSettings: "POST /api/operator-settings — clave 245285 · action get|save",
       campaignEntry:
         "GET|POST /api/campaign/entry — cola mesa multijugador (requiere UPSTASH_REDIS_REST_URL + TOKEN en servidor)",
+      nexoOrchestration:
+        "POST /api/nexo-orchestration — estado narrativo servidor (opcional cliente; Centro de Mando)",
     },
     ejemploPostNarrador: {
       url: "/api/narrador",

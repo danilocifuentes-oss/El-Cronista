@@ -1,6 +1,6 @@
 import { CLAN_OPTIONS, type ClanId } from "@/lib/character";
 import type { SerializedV5Roll } from "@/lib/dice";
-import { STRAND_LABEL, type NarrativeStrand } from "@/lib/narrativeStrands";
+import type { NarrativeStrand } from "@/lib/narrativeStrands";
 
 function clanLabel(id: ClanId | string): string {
   return CLAN_OPTIONS.find((c) => c.id === id)?.label ?? String(id);
@@ -15,55 +15,42 @@ export function generateInternalCronista(opts: {
   clan: ClanId | string;
   synapticDisruption?: string;
 }): string {
-  const { tirada, hambre, input, narrativeStrand, sheetName, clan, synapticDisruption } = opts;
+  const { tirada, hambre, input, sheetName, clan, synapticDisruption } = opts;
   const clanNice = clanLabel(clan);
-  const strand = STRAND_LABEL[narrativeStrand];
 
   let outcomeLine: string;
   if (tirada.fracasoBestial) {
     outcomeLine =
-      "La Bestia arrastra el resultado: lo que creías controlado se vuelve rumor en arterias y destello rojo en el rabillo del ojo.";
+      "La Bestia arrastra el resultado: lo que creías controlado se vuelve rumor en arterias y un destello rojo en el rabillo del ojo.";
   } else if (tirada.messyCritical) {
     outcomeLine =
-      "Éxito cruel: lo que logras pagado en sangre ajena o vergüenza pública — la ciudad lo registra antes que tú.";
+      "Éxito cruel: lo que logras viene pagado en sangre ajena o en vergüenza pública; la ciudad lo registra antes que tú.";
   } else if (tirada.passed && tirada.criticalNormal) {
     outcomeLine =
-      "Golpe limpio: la escena cede donde la empujas; el tiempo se inclina a tu favor un segundo de más.";
+      "Golpe limpio: la escena cede donde la empujas; el tiempo se inclina un segundo más a tu favor.";
   } else if (tirada.passed) {
     outcomeLine =
-      `Marca suficiente (${tirada.successes} éxitos vs DF ${tirada.difficulty}): la consecuencia narrativa queda sellada sin fisuras obvias.`;
+      `Te alcanza la marca suficiente (${tirada.successes} éxitos frente a dificultad ${tirada.difficulty}); la consecuencia queda sellada sin fisuras evidentes.`;
   } else {
-    outcomeLine =
-      `La tirada no alcanza la dificultad: quedas expuesto/a en el espacio entre lo intentado y lo permitido (margen ${tirada.margin}).`;
+    outcomeLine = `La tirada no alcanza: te quedás en el hueco entre el gesto y lo permitido (margen ${tirada.margin}).`;
   }
 
   const hungerLine =
     hambre >= 5
-      ? "Hambre Σ al máximo: cada textura huele a cobre; la autopista del instinto está despejada."
+      ? "La sed está al ras: cada superficie huele a cobre y el instinto pide autopista libre."
       : hambre >= 3
-        ? "La Sangre aprieta el pulso del gesto; control — sí, pero caro."
-        : "La Sangre murmura sin mandar — todavía eres tú quien firma el gesto.";
+        ? "La Sangre aprieta el pulso del gesto; sí, control — pero tiene precio audible."
+        : "La Sangre murmura en segundo plano; todavía firmas vos el gesto.";
 
   const intentEcho =
     input.trim().slice(0, 400) ||
-    "Sin intención explícita: el Cronista interno deduce solo desde la tirada y el ancla urbano.";
+    "La intención llega apenas insinuada: la escena debe leer más en tu cuerpo que en tus palabras.";
 
   const disrupt = synapticDisruption?.trim()
-    ? `\n\nPrioridad: ${synapticDisruption.trim().slice(0, 900)}`
+    ? `\n\nHay un tirón en lo esperado: ${synapticDisruption.trim().slice(0, 900)}`
     : "";
 
-  return [
-    `═══ Motor interno · ${strand} ═══`,
-    `${sheetName || "Sujeto"} · ${clanNice}`,
-    "",
-    outcomeLine,
-    hungerLine,
-    "",
-    `Eco de intención: ${intentEcho}`,
-    disrupt,
-    "",
-    "El Nexo registra la escena — hasta que otro motor la sobrescriba con carne y diálogo.",
-  ]
+  return [outcomeLine, "", hungerLine, "", `${sheetName || "Tu personaje"} · ${clanNice}`, "", intentEcho.trim(), disrupt]
     .join("\n")
     .trim();
 }

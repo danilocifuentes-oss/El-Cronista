@@ -1,4 +1,4 @@
-import { normalizeStrand, STRAND_LABEL, type NarrativeStrand } from "@/lib/narrativeStrands";
+import { normalizeStrand, type NarrativeStrand } from "@/lib/narrativeStrands";
 import type { NarradorRequestBody } from "@/lib/narrativeTypes";
 
 function clip(s: string, max: number): string {
@@ -73,44 +73,12 @@ function threatTone(n: number): string {
   return tiers[idx]!;
 }
 
-function strandFlavor(strand: NarrativeStrand, strandSeed: number): string {
-  if (strand === "paralela") {
-    return pick(
-      [
-        "Este hilo es tu incursión lateral: detalle íntimo o contacto, sin pisar la escena grande.",
-        "Paralela: piezas íntimas o negociaciones privadas que no están en foco público.",
-        "Hilo privado — lo que hagas puede no salir del monitor, hasta que sí salga.",
-      ],
-      strandSeed,
-      0,
-    );
-  }
-  if (strand === "vivo") {
-    return pick(
-      [
-        "Continuidad de mesa física: tacto presente y reglas cercanas.",
-        "Mesa viva — prioriza claridad física antes que florituras de terminal.",
-      ],
-      strandSeed,
-      1,
-    );
-  }
-  return pick(
-    [
-      "Crónica principal: el tablero compartido registra tus piezas públicas.",
-      "Canal Principal — lo que hagas cuenta para la ciudad vista desde el Nexo.",
-    ],
-    strandSeed,
-    2,
-  );
-}
-
 /** Banco de párrafos por intención; el hash elige combinaciones cada turno. */
 const OPENERS: Record<Intent, readonly string[]> = {
   greeting: [
-    "Alguien (o algo) marca tu presencia en el canal antes de que completes el ritual de saludo.",
-    "El Nexo amortigua tu ‘hola’ con estática casi amable; igual queda hueco donde deberían ir datos.",
-    "La ciudad no contesta verbalmente — pero reorganiza tus prioridades: saludaste, ahora qué quieres.",
+    "Algo en la habitación — o en la calle — nota tu saludo antes de que puedas hacerlo insignificante.",
+    "Tu palabra queda suspendida entre neón viejo y aire cargado de metal húmedo.",
+    "No hay respuesta clara todavía, pero el tiempo se reparte igual: después del saludo sigue otro borde.",
   ],
   survival_probe: [
     "Cuerpo en aviso: la Sangre y el agua corriente compiten por tu atención en el mismo mapa mental.",
@@ -141,20 +109,20 @@ const OPENERS: Record<Intent, readonly string[]> = {
     "El don estira lo visible hacia registros prohibidos — sombras con memoria, tiempo que tropieza y quien observa desde afuera toma apuntes.",
   ],
   ambient: [
-    "El Cronista interno registra superficies húmedas, neón anémico y el silencio de una radio jamás encendida del todo.",
+    "Superficies húmedas reverberan despacio; un neón agoniza en el marco del escaparate y ninguna radio termina de encenderse.",
   ],
 };
 
 const MID: Record<Intent, readonly string[]> = {
   greeting: [
-    "Si buscas trabajo real, no te quedarás solo con formalidades: dime qué pisas o qué evitas.",
-    "Este canal no perdona vaguedad cuando la Bestia anda cerca.",
-    "Puedes abrir tema o seguir con el eco; la escena necesita un vector.",
+    "Si buscas trabajo de verdad, no te quedarás en formalidades: qué pisas importa tanto como a quién miras.",
+    "La ciudad no perdona vaguedad cuando la Bestia pisa de cerca.",
+    "Puedes abrir tema o dejar que el eco haga hueco — la escena sigue igual de hambrienta.",
   ],
   survival_probe: [
     "Tres frentes útiles: agua/pan en sitios anónimos · refugios con ‘dueño’ taciturno · rutas donde la cámara tiene mala vista.",
     "Antes del detalle gastronómico, decide riesgo: ¿exponerte al público o negociar con intermediarios?",
-    "Si tienes Clan o contacto cercano en el CODEX, apóyate en ese ancla antes de lanzarte a zonas nuevas.",
+    "Si tu linaje arrastra vínculos o favores cercanos en la ciudad, usa ese ancla antes de explorar zonas nuevas.",
   ],
   localization: [
     "Esboza un radio desde tu punto (barrio nombre o punto de vista) si quieres que el siguiente tick sea táctico, no cosmético.",
@@ -166,7 +134,9 @@ const MID: Record<Intent, readonly string[]> = {
   ],
   move: ["Las esquinas son bifurcaciones morales antes que cartográficas: eliges peso sobre la nuca o silencios que te guían."],
   social: ["La máscara social sostiene la escena; debajo la Bestia vota sí sin consultar tus modales."],
-  violence: ["La mesa marcó alcance ético antes; aquí solo queda el desgaste de lo que no se puede deshacer del todo."],
+  violence: [
+    "Lo que empujaste deja textura en el aire: sangre, vergüenza o silencio pactado demasiado alto.",
+  ],
   flee: ["El refugio es temporal; la ciudad archiva tu trayectoria como quien archiva deudas mal liquidadas."],
   magic: ["El poder deja olor a ozono y reglas rotas; quien mira sin entender a veces llama a quien sí entiende."],
   ambient: [
@@ -174,32 +144,132 @@ const MID: Record<Intent, readonly string[]> = {
   ],
 };
 
-const HOOKS_BY_INTENT: Record<Intent, readonly string[]> = {
+/** Ritmos jugables — primera persona, sin manual de mesa. */
+const PLAYER_BEATS_COMMON: readonly string[] = [
+  "Cuento tres respiraciones y vuelvo a mirar antes de moverme otro metro.",
+  "Afino los hombros; el silencio en la calle pesa igual que cualquier insulto.",
+  "Dejo pasar dos figuras antes de ocupar yo el hueco donde no quiero ser visto.",
+  "Me detengo un instante donde el vidrio deforma la luz hasta volverla sospecha.",
+  "Humedezco labios ya secos sin abrir tema; primero necesito ubicar el sonido nuevo.",
+];
+
+function uniqueLines(xs: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of xs) {
+    const t = raw.trim();
+    if (!t || seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+  }
+  return out;
+}
+
+/** Devuelve exactamente hasta 3 líneas distintas, evitando repeticiones de arrays cortos. */
+function pickThreeActionLines(primary: readonly string[], h: number, common: readonly string[]): string[] {
+  const cand = uniqueLines([...primary, ...common]);
+  if (cand.length === 0) return [];
+  const n = cand.length;
+  if (n === 1) return [clip(cand[0]!, 118)];
+  let step = 1 + (Math.abs(h >> 5) % (n > 2 ? n - 1 : 1));
+  if (step >= n) step = Math.max(1, n - 1) || 1;
+  let i = Math.abs(h * 7919) % n;
+  const picks: string[] = [];
+  for (let tries = 0; tries < n * 4 && picks.length < 3; tries += 1) {
+    const line = cand[i % n]!;
+    const clipped = clip(line, 118);
+    if (!picks.includes(clipped)) picks.push(clipped);
+    i += step;
+  }
+  while (picks.length < 3 && picks.length < n) {
+    const line = cand[picks.length % n]!;
+    const clipped = clip(line, 118);
+    if (!picks.includes(clipped)) picks.push(clipped);
+  }
+  return picks.slice(0, 3);
+}
+
+const PLAYER_BEATS: Record<Intent, readonly string[]> = {
   greeting: [
-    "Declara intención: ¿explorar, negociar o esconderte?",
-    "Arma un movimiento concreto (lugar o persona) y el Cronista lo amarra a la calle.",
-    "¿Qué quieres averiguar con una sola acción física?",
+    "Asiento la gorra o la capucha y espero quién mueve antes la barbilla.",
+    "Dejo un saludo medio en el aire como cebo cortés y mido cómo cae.",
+    "Enciendo un cigarro apenas para tener excusa si me miran desde el décimo.",
+    "Deslizo la vista hacia una salida secundaria antes de terminar de hablar.",
   ],
   survival_probe: [
-    "Elige uno: registrar un local humilde · sondear rumor en feria informal · llamar favorecido CODEX cercano.",
-    "Prueba establecer orden de urgencia: ¿agua antes que techo?",
-    "Escribe cómo mueves el mapa una cuadra sin ser visto.",
+    "Priorizo donde venden pan barato antes de llamar favores caros.",
+    "Sondeo con el codo apoyado en el mostrador si el agua corriente es potable o teatro.",
+    "Sigo un olor a fritanga que promete comida y testigos de carne y hueso.",
+    "Pregunto por un techo sin dar nombre claro; quiero ver si el silencio se alarga.",
+    "Trazo un círculo de tres cuadras alrededor del refugio sin repetir calle.",
   ],
   localization: [
-    "Nombra un hito cercano al refugio o al último encuentro importante.",
-    "Decide si vas a pie o usando transporte; la escena lo traduce en vectores diferentes.",
-    "¿Prefieres ruta rápida (exposición) o ruta lateral (Tiempo perdido ≠ seguridad)?",
+    "Me guío por el zumbido del transformador que siempre marca el mismo cruce.",
+    "Elijo el pasillo de servicio que huele a detergente caro y permiso falso.",
+    "Subo una estación antes y camino atrás hasta que mapa mental calce con el físico.",
+    "Le pido tiempo a una parada de taxis para ver desde dónde me siguen mejor.",
+    "Ubico dos hitos brillantes antes de moverme; si uno desaparezco corro cancelan ambos.",
   ],
-  examine: ["Afina el foco sensualmente: ¿vista olfato tacto archivo digital?", "Localiza objeto o marca que sospechas manipulado."],
-  move: ["Especifica destino incluso vago (‘hacia Providencia’ sirve mejor que solo ‘salgo’).", "¿Entras frontal o esperas ciclo peatonal menos expuesto?"],
-  social: ["Define postura táctica: ¿mentir estable, medio verdad brutal o chantaje suave?", "Nombre o arquetipo si hablas con un tercero."],
-  violence: ["Confirma escala: ¿estrés menor o escena alta sangre MJ?", "Señala qué recurso llevas antes de lanzar tirada física/manifestación."],
-  flee: ["Trazamos salida rápida, lateral u ocultamiento en mismo escenario?", "¿Dejas cebo o llevas evidencia sensible?"],
-  magic: ["Especifica don y consecuencias aceptadas por la mesa si falla.", "¿Actúas rápido o preparas símbolo físico cercano?"],
+  examine: [
+    "Fijo dedos en una mota que no debería estar ahí y la huelo al ras.",
+    "Dejo pasar el reflejo de un rostro medio segundo después del mío.",
+    "Leo etiquetas medio borradas en un envase que juraría estar demasiado limpio.",
+    "Meto el volumen muy bajo y localizo donde el vidrio tiembla igual que el pecho.",
+    "Pasó un dedo en el borde del felpudo; alguien trajo algo húmedo recién.",
+    "Intercepto vibración vieja del portón que no cuadra con la hora de cierre oficial.",
+    "Anoto memoria táctil antes que visual porque la luz puede mentir mejor.",
+    "Me agacho un grado más donde la cámara finge no tener.",
+  ],
+  move: [
+    "Cruce la primera sombra proyectada desde el alto edificio; no voy por el medio.",
+    "Entro después de otro peatón hasta que nuestras pisadas parezcan uno solo.",
+    "Subo pisos en ascensor ocupado porque el espejo me delata menos que el hueco.",
+    "Bajo por escalera de incendios sin prisa falsa; el metal suena demasiado si corro.",
+    "Cambio acera cuando el farol parpadea dos veces seguidas.",
+    "Paso el semáforo en amarillo largo y aprieto el paso sin correr de verdad.",
+  ],
+  social: [
+    "Dejo caer la pregunta más incómoda entre dos tragos de aire acondicionado barato.",
+    "Mantengo la sonrisa un milímetro más de lo que el otro aguanta.",
+    "Invento un nombre falso con apellido que suene de barrio conocido aquí.",
+    "Reconozco medio segundo tarde cuando me mienten; no lo digo; lo guardo.",
+    "Uso mi hombro para ocupar medio paso más de espacio cercano.",
+    "Hablo bajito porque obligo a inclinarse hasta oler mi pulso contenido.",
+    "Pregunto por alguien que no existe sólo para medir cómo corrigen la mentira.",
+    "Susurro un favor que suena a deuda sin firmar todavía.",
+    "Cambio de idioma un par de palabras para ver si pestañean distinto.",
+    "Dejo que el silencio me crea espacio antes de volver a hablar.",
+  ],
+  violence: [
+    "Cierro el radio del codo hasta que el aire chirríe entre nosotros.",
+    "Deslizo el pie para cortar línea de retirada sin anunciarlo.",
+    "Leo dónde guarda el peso real antes de que levante la mano del bolsillo.",
+    "Hago contacto visual con un tercero que no debería estar mirando todavía.",
+    "Ralentizo el gesto para que parezca accidente si alguien graba.",
+    "Insinúo el filo del objeto sin mostrarlo entero todavía.",
+    "Preparo hombro y cadera como si fuera a empujar una puerta pesada, no un cuerpo.",
+  ],
+  flee: [
+    "Elijo la bajada con olor a orina vieja porque nadie mira allí con ganas.",
+    "Cruzo entre dos autos apretados hasta que el metal me araña el abrigo.",
+    "Tiro moneda falsa al suelo para que alguien se agache y me tape un segundo.",
+    "Subo a bus que no es el mío y bajo dos paradas después caminando tranquilo.",
+    "Entro a farmacia con excusa de pastillas y salgo por la trastienda si abre.",
+  ],
+  magic: [
+    "Dejo que el don suba por la nuca hasta erizar el vello sin mostrar diente.",
+    "Amplifico un detalle visual hasta que el otro parpadea tarde.",
+    "Olor a ozono breve; finjo estornudar para encubrirlo.",
+    "Compro tiempo con una frase hueca mientras el poder hace el trabajo sucio.",
+    "Inclino sombra bajo mis pies un grado imposible para el ojo mortal apurado.",
+  ],
   ambient: [
-    "¿Qué micro-acción lanzas ante la ciudad indiferente?",
-    "Propón rumor o infraestructura incómoda que quieras anclar antes del próximo tirón.",
-    "Si hay ideas en Repositorio, referencia una línea específica de allí.",
+    "Sigo el olor a churrasco quemado que viene de un ventilador roto.",
+    "Dejo que el viento me empuje un paso hacia la luz amarilla equivocada.",
+    "Le hago caso a la radio que vuelve a la misma canción como advertencia estúpida.",
+    "Toco el metal oxidado hasta que sangro un poco y el dolor ordena pensamiento.",
+    "Cuento vagones en paralelo porque el tic-tac coincide con algo que espero.",
+    "Intercepto rumor de matrimonio peleándose tras ventana medio abierta.",
   ],
 };
 
@@ -224,34 +294,18 @@ export function generateInternalNarrador(body: NarradorRequestBody): {
 
   const opener = pick(OPENERS[intent], hBase, 0);
   const mid = pick(MID[intent], hBase, 3);
-  const hookA = pick(HOOKS_BY_INTENT[intent], hBase, 7);
-  const hookB = pick(HOOKS_BY_INTENT[intent], hBase, 17);
-  const hookC = pick(HOOKS_BY_INTENT[intent], hBase, 27);
-  const sugerencias = [clip(hookA, 120), clip(hookB, 120), clip(hookC, 120)].filter(Boolean);
+  const sugerencias = pickThreeActionLines(PLAYER_BEATS[intent], hBase, PLAYER_BEATS_COMMON);
 
-  const disruptBlock = disrupt ? `\n\nDisrupción sináptica activa: ${disrupt.slice(0, 900)}` : "";
+  const disruptBlock = disrupt
+    ? `\n\nAlgo irrumpió en lo previsto — ${disrupt.slice(0, 900)}`
+    : "";
 
-  const narracion = [
-    `[${STRAND_LABEL[strand]}]`,
-    strandFlavor(strand, hBase >>> 5),
-    "",
-    opener,
-    mid,
-    "",
-    threatTone(body.inquisitionThreat),
-    "",
-    "› Impulso (motor interno) — mismo contenido que verás como sugerencias pulsables en el cliente:",
-    `  · ${hookA}`,
-    `  · ${hookB}`,
-    `  · ${hookC}`,
-    "",
-    `Eco de la acción: ${clip(body.playerAction, 520)}`,
-    disruptBlock,
-  ]
-    .join("\n")
-    .trim();
+  const narracion = [opener, mid, "", threatTone(body.inquisitionThreat), disruptBlock].join("\n").trim();
 
-  const resumen_actualizado = clip(`${STRAND_LABEL[strand]} · ${intent}: ${clip(body.playerAction, 110)} · σ${body.inquisitionThreat}`, 340);
+  const resumen_actualizado = clip(
+    `${clip(body.playerAction, 120)} · ${intent} · tensión ciudad ${body.inquisitionThreat}`,
+    300,
+  );
 
   return { narracion, resumen_actualizado, sugerencias };
 }

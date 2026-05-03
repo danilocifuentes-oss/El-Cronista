@@ -8,8 +8,7 @@ import type { ChronicleConfig } from "@/lib/chronicleConfig";
 import { loadChronicle, saveChronicle, setPendingSynapticDisruption } from "@/lib/chronicleConfig";
 import { parseFetchJson } from "@/lib/parseFetchJson";
 import { MasterSheetEditor } from "./MasterSheetEditor";
-
-const MOTOR_CIPHER_STORAGE = "cronista-motor-cipher";
+import { ROOT_OPERATOR_CIPHER } from "@/lib/sessionMeta";
 
 const ROOT = "#b91c1c";
 
@@ -17,7 +16,7 @@ function motorSnapshot(ext: boolean, paused: boolean, seed: string) {
   return JSON.stringify({ ext, paused, seed });
 }
 
-type Tab = "sheets" | "genesis" | "synaptic" | "motor";
+type Tab = "sheets" | "genesis" | "synaptic" | "motor" | "orquestacion";
 
 type Props = {
   profiles: ProfileSummary[];
@@ -40,7 +39,6 @@ export function NarratorCommandCenter({
   const [synInput, setSynInput] = useState("");
   const [synStatus, setSynStatus] = useState<string | null>(null);
 
-  const [motorCipher, setMotorCipher] = useState("");
   const [motorExtLlm, setMotorExtLlm] = useState(true);
   const [motorPaused, setMotorPaused] = useState(false);
   const [motorSeed, setMotorSeed] = useState("");
@@ -48,6 +46,11 @@ export function NarratorCommandCenter({
   const [motorLoading, setMotorLoading] = useState(false);
   const [genesisLastSaved, setGenesisLastSaved] = useState(() => JSON.stringify(loadChronicle()));
   const [motorLastSynced, setMotorLastSynced] = useState(() => motorSnapshot(true, false, ""));
+  const [orchDisplay, setOrchDisplay] = useState<string>("");
+  const [orchBusy, setOrchBusy] = useState(false);
+  const [orchStatusLine, setOrchStatusLine] = useState<string | null>(null);
+  const [raidIntensity, setRaidIntensity] = useState(4);
+  const [threatDelta, setThreatDelta] = useState(1);
 
   const genesisDirty = useMemo(
     () => JSON.stringify(chronicle) !== genesisLastSaved,
@@ -68,27 +71,71 @@ export function NarratorCommandCenter({
   }, [genesisDirty, motorDirty]);
 
   useEffect(() => {
-    try {
-      const c = sessionStorage.getItem(MOTOR_CIPHER_STORAGE);
-      if (c) setMotorCipher(c);
-    } catch {
-      /* privado */
-    }
+    void pullMotorSettingsBootstrap();
   }, []);
 
-  async function pullMotorSettings() {
-    const cipher = motorCipher.trim();
-    if (!cipher) {
-      setMotorStatus("Introduce la clave raíz para leer el estado del servidor.");
-      return;
+  useEffect(() => {
+    if (tab !== "orquestacion") return;
+    void refreshOrchestration();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al entrar en la pestaña
+  }, [tab]);
+
+  async function refreshOrchestration() {
+    setOrchBusy(true);
+    setOrchStatusLine(null);
+    try {
+      const probe = await fetch("/api/nexo-orchestration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cipher: ROOT_OPERATOR_CIPHER, action: "get" }),
+      });
+      const data = await parseFetchJson<{ ok?: boolean; world?: unknown; error?: string }>(probe);
+      if (!probe.ok) {
+        setOrchStatusLine(data.error ?? `HTTP ${probe.status}`);
+        return;
+      }
+      setOrchDisplay(JSON.stringify(data.world ?? {}, null, 2));
+      setOrchStatusLine("Estado de orquestación sincronizado.");
+      window.setTimeout(() => setOrchStatusLine(null), 2600);
+    } catch (e) {
+      setOrchStatusLine(e instanceof Error ? e.message : String(e));
+    } finally {
+      setOrchBusy(false);
     }
+  }
+
+  async function runOrchestrationAction(action: string, extras?: Record<string, unknown>) {
+    setOrchBusy(true);
+    setOrchStatusLine(null);
+    try {
+      const probe = await fetch("/api/nexo-orchestration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cipher: ROOT_OPERATOR_CIPHER, action, ...extras }),
+      });
+      const data = await parseFetchJson<{ ok?: boolean; world?: unknown; error?: string }>(probe);
+      if (!probe.ok) {
+        setOrchStatusLine(data.error ?? `HTTP ${probe.status}`);
+        return;
+      }
+      setOrchDisplay(JSON.stringify(data.world ?? {}, null, 2));
+      setOrchStatusLine(`OK · ${action}`);
+      window.setTimeout(() => setOrchStatusLine(null), 3200);
+    } catch (e) {
+      setOrchStatusLine(e instanceof Error ? e.message : String(e));
+    } finally {
+      setOrchBusy(false);
+    }
+  }
+
+  async function pullMotorSettingsBootstrap() {
     setMotorLoading(true);
     setMotorStatus(null);
     try {
       const res = await fetch("/api/operator-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cipher, action: "get" }),
+        body: JSON.stringify({ cipher: ROOT_OPERATOR_CIPHER, action: "get" }),
       });
       const data = await parseFetchJson<{
         ok?: boolean;
@@ -108,11 +155,6 @@ export function NarratorCommandCenter({
       setMotorPaused(paused);
       setMotorSeed(seed);
       setMotorLastSynced(motorSnapshot(ext, paused, seed));
-      try {
-        sessionStorage.setItem(MOTOR_CIPHER_STORAGE, cipher);
-      } catch {
-        /* */
-      }
       setMotorStatus("Estado del Motor Nexo sincronizado.");
       window.setTimeout(() => setMotorStatus(null), 3200);
     } catch (e) {
@@ -122,12 +164,11 @@ export function NarratorCommandCenter({
     }
   }
 
+  async function pullMotorSettings() {
+    return pullMotorSettingsBootstrap();
+  }
+
   async function pushMotorSettings() {
-    const cipher = motorCipher.trim();
-    if (!cipher) {
-      setMotorStatus("Clave raíz requerida para guardar.");
-      return;
-    }
     setMotorLoading(true);
     setMotorStatus(null);
     try {
@@ -135,7 +176,7 @@ export function NarratorCommandCenter({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cipher,
+          cipher: ROOT_OPERATOR_CIPHER,
           action: "save",
           externalLlmEnabled: motorExtLlm,
           narratorChannelPaused: motorPaused,
@@ -148,11 +189,6 @@ export function NarratorCommandCenter({
         return;
       }
       setMotorLastSynced(motorSnapshot(motorExtLlm, motorPaused, motorSeed));
-      try {
-        sessionStorage.setItem(MOTOR_CIPHER_STORAGE, cipher);
-      } catch {
-        /* */
-      }
       setMotorStatus("Motor Nexo guardado en el servidor.");
       window.setTimeout(() => setMotorStatus(null), 3800);
     } catch (e) {
@@ -164,11 +200,6 @@ export function NarratorCommandCenter({
 
   /** Un clic: mismo payload que Guardar pero fija solo `externalLlmEnabled` (mando IA). */
   async function aplicarMandoIa(remoto: boolean) {
-    const cipher = motorCipher.trim();
-    if (!cipher) {
-      setMotorStatus("Introduce la clave raíz para activar o desactivar la IA remota.");
-      return;
-    }
     setMotorLoading(true);
     setMotorStatus(null);
     try {
@@ -176,7 +207,7 @@ export function NarratorCommandCenter({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cipher,
+          cipher: ROOT_OPERATOR_CIPHER,
           action: "save",
           externalLlmEnabled: remoto,
           narratorChannelPaused: motorPaused,
@@ -190,11 +221,6 @@ export function NarratorCommandCenter({
       }
       setMotorExtLlm(remoto);
       setMotorLastSynced(motorSnapshot(remoto, motorPaused, motorSeed));
-      try {
-        sessionStorage.setItem(MOTOR_CIPHER_STORAGE, cipher);
-      } catch {
-        /* */
-      }
       setMotorStatus(remoto ? "IA remota activada (Gemini/OpenAI si hay claves)." : "IA remota desactivada · solo motor interno.");
       window.setTimeout(() => setMotorStatus(null), 4200);
     } catch (e) {
@@ -234,6 +260,7 @@ export function NarratorCommandCenter({
     { id: "genesis", label: "Génesis" },
     { id: "synaptic", label: "Disrupción" },
     { id: "motor", label: "Motor Nexo" },
+    { id: "orquestacion", label: "Orquestación" },
   ];
 
   return (
@@ -259,8 +286,9 @@ export function NarratorCommandCenter({
             </p>
             <h1 className="mt-1 text-lg font-normal tracking-[0.18em] text-neutral-100">CENTRO_DE_MANDO</h1>
             <p className="mt-2 max-w-xl text-[10px] leading-relaxed text-neutral-500">
-              Gestión de fichas, Génesis, disrupción y control del Motor Nexo (APIs / pausa / contexto de campaña). Memoria
-              de servidor en instancia; para cortes duros usa también variables en Vercel.
+              Gestión de fichas, Génesis, disrupción, Motor Nexo y orquestación global (Redis Upstash opcional igual que
+              la cola multijugador; sin Redis el estado narrativo del servidor puede perderse en cold start salvo disco
+              en self-hosted).
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -318,9 +346,9 @@ export function NarratorCommandCenter({
                 ) : null}
                 {motorDirty ? (
                   <li>
-                    <strong className="font-normal text-neutral-200">Motor Nexo:</strong> la IA / pausa / contexto global
-                    no quedan en el servidor hasta «Guardar en servidor» con clave válida (o usar los botones «Activar /
-                    Desactivar IA», que también guardan).
+                    <strong className="font-normal text-neutral-200">Motor Nexo:</strong> la IA · pausa · contexto global
+                    no quedan en la instancia hasta pulsar «Guardar en servidor» (los botones «Activar / Desactivar IA»
+                    también sincronizan estado).
                   </li>
                 ) : null}
               </ul>
@@ -480,13 +508,116 @@ export function NarratorCommandCenter({
           </div>
         ) : null}
 
+        {tab === "orquestacion" ? (
+          <div className="space-y-4">
+            <p className="text-[10px] leading-relaxed text-neutral-500">
+              Estado servidor de facciones, crisis, arco y memoria agregada (inyectado en prompts del narrador / Cronista).
+              Requiere clave operador ya validada por esta sesión. Con{" "}
+              <code className="text-neutral-400">UPSTASH_REDIS_*</code> el estado sobrevive entre despliegues y réplicas.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={orchBusy}
+                onClick={() => void refreshOrchestration()}
+                className="border px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-300 disabled:opacity-40"
+                style={{ borderColor: ROOT }}
+              >
+                Refrescar
+              </button>
+              <button
+                type="button"
+                disabled={orchBusy}
+                onClick={() => void runOrchestrationAction("raid", { intensity: raidIntensity })}
+                className="border px-3 py-2 text-[9px] uppercase tracking-widest disabled:opacity-40"
+                style={{ borderColor: ROOT, color: ROOT }}
+              >
+                Raid Inquisición
+              </button>
+              <label className="flex items-center gap-1 text-[10px] text-neutral-500">
+                i
+                <input
+                  type="number"
+                  min={1}
+                  max={5}
+                  value={raidIntensity}
+                  onChange={(e) => setRaidIntensity(Math.min(5, Math.max(1, Number(e.target.value) || 4)))}
+                  className="w-12 border bg-black/80 px-1 py-0.5 text-neutral-200"
+                  style={{ borderColor: ROOT }}
+                />
+              </label>
+              <button
+                type="button"
+                disabled={orchBusy}
+                onClick={() => void runOrchestrationAction("bump_threat", { delta: threatDelta })}
+                className="border px-3 py-2 text-[9px] uppercase tracking-widest disabled:opacity-40"
+                style={{ borderColor: ROOT }}
+              >
+                Subir amenaza
+              </button>
+              <label className="flex items-center gap-1 text-[10px] text-neutral-500">
+                Δ
+                <input
+                  type="number"
+                  step={0.25}
+                  min={-2}
+                  max={2}
+                  value={threatDelta}
+                  onChange={(e) => setThreatDelta(Number(e.target.value) || 1)}
+                  className="w-14 border bg-black/80 px-1 py-0.5 text-neutral-200"
+                  style={{ borderColor: ROOT }}
+                />
+              </label>
+              <button
+                type="button"
+                disabled={orchBusy}
+                onClick={() => void runOrchestrationAction("advance_night")}
+                className="border px-3 py-2 text-[9px] uppercase tracking-widest disabled:opacity-40"
+                style={{ borderColor: ROOT }}
+              >
+                +Noche
+              </button>
+              <button
+                type="button"
+                disabled={orchBusy}
+                onClick={() => void runOrchestrationAction("purge_events")}
+                className="border px-3 py-2 text-[9px] uppercase tracking-widest disabled:opacity-40"
+                style={{ borderColor: ROOT }}
+              >
+                Purgar eventos
+              </button>
+              <button
+                type="button"
+                disabled={orchBusy}
+                onClick={() => {
+                  if (!window.confirm("¿Resetear orquestación a valores iniciales?")) return;
+                  void runOrchestrationAction("reset");
+                }}
+                className="border px-3 py-2 text-[9px] uppercase tracking-widest text-red-400/90 disabled:opacity-40"
+                style={{ borderColor: "#7f1d1d" }}
+              >
+                Reset
+              </button>
+            </div>
+            {orchStatusLine ? (
+              <p className="border px-3 py-2 text-[10px] text-neutral-400" style={{ borderColor: ROOT }}>
+                {orchStatusLine}
+              </p>
+            ) : null}
+            <pre
+              className="max-h-[min(420px,55vh)] overflow-auto border bg-black/80 p-3 text-[10px] leading-relaxed text-neutral-300"
+              style={{ borderColor: ROOT }}
+            >
+              {orchDisplay.trim() ? orchDisplay : orchBusy ? "…" : "(pulsa Refrescar)"}
+            </pre>
+          </div>
+        ) : null}
+
         {tab === "motor" ? (
           <div className="space-y-5">
             <p className="text-[10px] leading-relaxed text-neutral-500">
-              Control global del pipeline narrativo (transparente para jugadores). La clave raíz es la misma que abre este
-              centro. Tras un reinicio en frío del servidor (Vercel), vuelve a cargar o define{" "}
-              <span className="text-neutral-400">NEXO_FORCE_INTERNAL_ONLY</span> /{" "}
-              <span className="text-neutral-400">NEXO_CHANNEL_PAUSED</span> en el deploy.
+              El motor se autentica con la misma sesión que abrió el Centro: al entrar se carga el último estado guardado;
+              pulsa «Guardar en servidor» para fijar cambios.
             </p>
 
             <section
@@ -497,7 +628,7 @@ export function NarratorCommandCenter({
                 Mando · IA remota
               </p>
               <p className="mt-1.5 text-[10px] text-neutral-500">
-                Activar o cortar Gemini/OpenAI sin tocar pausa ni contexto. Requiere clave y guardado en servidor.
+                IA remota opcional: si está desactivada el pipeline sigue con reglas internas y plantillas.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
@@ -533,19 +664,6 @@ export function NarratorCommandCenter({
               </p>
             </section>
 
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[9px] uppercase tracking-widest text-neutral-500">Clave operador (245285…)</span>
-              <input
-                type="password"
-                autoComplete="off"
-                value={motorCipher}
-                onChange={(e) => setMotorCipher(e.target.value)}
-                className="border bg-black/80 px-3 py-2 text-[11px] text-neutral-200"
-                style={{ borderColor: ROOT }}
-                placeholder="••••••"
-              />
-            </label>
-
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"
@@ -566,17 +684,6 @@ export function NarratorCommandCenter({
                 Guardar en servidor
               </button>
             </div>
-
-            <label className="flex items-center gap-2 text-[10px] text-neutral-400">
-              <input
-                type="checkbox"
-                checked={motorExtLlm}
-                onChange={(e) => setMotorExtLlm(e.target.checked)}
-                disabled={motorLoading}
-              />
-              Permitir APIs externas (Gemini / OpenAI). Si se desactiva, solo motor interno — bitácora y canal usan
-              reglas locales.
-            </label>
 
             <label className="flex items-center gap-2 text-[10px] text-neutral-400">
               <input

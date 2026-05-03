@@ -1,5 +1,8 @@
-import type { NarradorRequestBody } from "@/lib/narrativeTypes";
+import type { NarradorRequestBody, NarradorRollPrompt } from "@/lib/narrativeTypes";
+import { inferRollPrompt } from "@/lib/narrativeRollHint";
 import { isNarratorChannelPaused } from "@/lib/operatorRuntimeSettings";
+
+import { formatOrchestrationForPrompt, orchestrateChannelTurn } from "@/lib/gameWorld";
 
 import { resolveDriverChain, type LlmDriverId } from "./config";
 import { generateNarradorWithGemini } from "./geminiNarrador";
@@ -11,6 +14,7 @@ export type NarradorSuccess = {
   narration: string;
   rollingSummary?: string;
   suggestions?: string[];
+  rollPrompt?: NarradorRollPrompt;
   /** Solo diagnóstico en logs servidor; no se envía al cliente. */
   driverUsed?: LlmDriverId;
 };
@@ -23,9 +27,17 @@ export async function executeNarradorPipeline(body: NarradorRequestBody): Promis
   if (isNarratorChannelPaused()) {
     throw new Error("OPERATOR_CHANNEL_PAUSED");
   }
-  const userPrompt = buildNarradorUserPrompt(body);
+  const worldOrch = await orchestrateChannelTurn({
+    inquisitionThreat: body.inquisitionThreat,
+    actionSummary: body.playerAction.slice(0, 220),
+    tag: body.narrativeStrand ?? "principal",
+    npcMemoryKey: body.orchestrationNpcKey,
+  });
+  const orchText = formatOrchestrationForPrompt(worldOrch);
+  const userPrompt = buildNarradorUserPrompt(body, orchText);
   const chain = resolveDriverChain();
   let lastErr: unknown;
+  const rollPrompt = inferRollPrompt(body);
 
   for (const driver of chain) {
     try {
@@ -35,6 +47,7 @@ export async function executeNarradorPipeline(body: NarradorRequestBody): Promis
           narration: r.narracion,
           rollingSummary: r.resumen_actualizado,
           suggestions: r.sugerencias,
+          rollPrompt,
           driverUsed: "gemini",
         };
       }
@@ -44,6 +57,7 @@ export async function executeNarradorPipeline(body: NarradorRequestBody): Promis
           narration: r.narracion,
           rollingSummary: r.resumen_actualizado,
           suggestions: r.sugerencias,
+          rollPrompt,
           driverUsed: "openai",
         };
       }
@@ -52,6 +66,7 @@ export async function executeNarradorPipeline(body: NarradorRequestBody): Promis
         narration: r.narracion,
         rollingSummary: r.resumen_actualizado,
         suggestions: r.sugerencias,
+        rollPrompt,
         driverUsed: "internal",
       };
     } catch (e) {

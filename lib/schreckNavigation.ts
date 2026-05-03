@@ -10,7 +10,6 @@ const VIEW_BY_PHASE: Record<Phase, string | null> = {
   profileHub: "hub",
   chargen: "codex",
   nexus: "nexo",
-  sheetReview: "hoja",
   commandCenter: "mando",
 };
 

@@ -58,14 +58,17 @@ export function ManifestWill({
   }
 
   return (
-    <section className="nexo-gothic-shell relative shrink-0 overflow-hidden rounded-xl border border-[#2f2f36]/90 bg-gradient-to-b from-black/50 to-black/30 p-4 font-mono text-[10px] text-neutral-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-5">
+    <section
+      data-manifest-zone
+      className="nexo-gothic-shell relative shrink-0 overflow-hidden rounded-xl border border-[#2f2f36]/90 bg-gradient-to-b from-black/50 to-black/30 p-4 font-mono text-[10px] text-neutral-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-5"
+    >
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-60"
         style={{ background: `linear-gradient(90deg, transparent, ${accent}66, transparent)` }}
         aria-hidden
       />
       <header className="mb-4 border-b border-[#2a2a30] pb-3 font-sans text-[10px] font-medium tracking-[0.18em] text-neutral-400">
-        Voluntad · motor del Cronista
+        Voluntad · tirada
       </header>
 
       <label className="mb-3 block">

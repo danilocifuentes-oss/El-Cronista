@@ -3,6 +3,12 @@ import type { NarrativeStrand } from "@/lib/narrativeStrands";
 /** Rol en el canal SchreckNet del Nexo. */
 export type NarrativeRole = "narrador" | "jugador" | "sistema";
 
+/** Señal heurística: conviene lanzar tirada antes de improvisar consecuencias finales (apoya V5 sobre tu CODEX). */
+export type NarradorRollPrompt = {
+  nivel: "opcional" | "recomendada" | "urgente";
+  enfoque: string;
+};
+
 export type NarrativeLogEntry = {
   id: string;
   role: NarrativeRole;
@@ -14,6 +20,7 @@ export type NarrativeLogEntry = {
   cronistaOut?: boolean;
   /** Pistas opcionales del narrador IA (motor canal jugador); no Cronista MANIFESTAR. */
   suggestions?: string[];
+  rollPrompt?: NarradorRollPrompt;
 };
 
 export type NarradorRecentLine = {
@@ -56,6 +63,11 @@ export type NarradorRequestBody = {
    * Lo genera el cliente desde `nexusWorldState` + hilo activo.
    */
   worldNexusContext?: string;
+  /**
+   * Clave opcional (ASCII) para memoria servidor de orquestación: PJ o NPC (`pj:Lucas`, `npc:Mercader`).
+   * Si falta, el pulso registra tensión/arco pero no segmenta memorias por entidad.
+   */
+  orchestrationNpcKey?: string;
 };
 
 /** Respuesta API → cliente */
@@ -64,4 +76,6 @@ export type NarradorApiResponse = {
   rollingSummary?: string;
   /** 2–4 ideas de siguiente paso para el jugador (opcional). */
   suggestions?: string[];
+  /** Presente cuando el motor estima tirada antes de improvisar consecuencias. */
+  rollPrompt?: NarradorRollPrompt;
 };

@@ -1,21 +1,16 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import type { CharacterSheet } from "@/lib/character";
 import { CLAN_ACCENTS, CLAN_OPTIONS } from "@/lib/character";
-import type { XpLogEntry } from "@/lib/sessionMeta";
 
 type Props = {
   sheet: CharacterSheet;
   onChange: (next: CharacterSheet, logLine?: string) => void;
-  xpLog?: XpLogEntry[];
   sheetLocked?: boolean;
   isNarrator?: boolean;
-  /** Solo lectura: sin ajustes tácticos (vista hoja ampliada). */
+  /** Solo lectura: sin ajustes tácticos (vista ampliada eventual). */
   readOnlyMode?: boolean;
-  /** Pie del panel lateral (p. ej. memoria narrativa). */
-  footer?: ReactNode;
 };
 
 const HEALTH_MAX = 7;
@@ -23,11 +18,9 @@ const HEALTH_MAX = 7;
 export function CharacterStatusPanel({
   sheet,
   onChange,
-  xpLog = [],
   sheetLocked = false,
   isNarrator = false,
   readOnlyMode = false,
-  footer,
 }: Props) {
   const accent = CLAN_ACCENTS[sheet.clan];
   const wpPct = sheet.willpowerMax ? (sheet.willpowerCur / sheet.willpowerMax) * 100 : 0;
@@ -35,41 +28,9 @@ export function CharacterStatusPanel({
   const linajeLabel = CLAN_OPTIONS.find((c) => c.id === sheet.clan)?.label ?? sheet.clan;
 
   return (
-    <aside className="flex h-full min-h-0 flex-col gap-5 overflow-y-auto border-[#161616] bg-black/30 p-3 font-mono text-[10px] text-neutral-500 lg:w-64 lg:shrink-0">
-      <div>
-        <p className="text-[9px] uppercase tracking-[0.38em] text-neutral-700">{"//_CV"}</p>
-        <p className="mt-2 font-sans text-sm tracking-tight text-neutral-300">{sheet.name || "—"}</p>
-        <p className={`mt-1 text-[10px] ${sheet.antitribu ? "line-through opacity-50" : ""}`} style={{ color: accent }}>
-          {linajeLabel}
-        </p>
-        {isNarrator ? (
-          <p className="mt-2 text-[9px] text-neutral-600" title="Sólo MJ">
-            PS{sheet.bloodPotency}_HUM{sheet.humanity}_FB{sheet.freebiePool}_{sheet.resonance?.slice(0, 3) || "—"}
-          </p>
-        ) : null}
-        <details className="mt-3 space-y-1 border border-[#161616] bg-black/25 p-2 open:pb-3">
-          <summary className="cursor-pointer select-none font-mono text-[8px] uppercase tracking-[0.22em] text-neutral-600">
-            Transfondo y notas jugables
-          </summary>
-          <label htmlFor="cv-transfondo" className="mt-2 block text-[8px] uppercase tracking-widest text-neutral-700 sr-only">
-            Transfondo
-          </label>
-          <textarea
-            id="cv-transfondo"
-            rows={4}
-            value={sheet.transfondo ?? ""}
-            disabled={readOnlyMode && !isNarrator}
-            onChange={(e) =>
-              onChange({ ...sheet, transfondo: e.target.value.slice(0, 16000) })
-            }
-            placeholder="Historia, vínculos, objetivos…"
-            className="mt-2 w-full resize-y border border-[#161616] bg-black/40 px-2 py-1.5 text-[10px] leading-relaxed text-neutral-400 placeholder:text-neutral-700 focus:border-neutral-600 focus:outline-none disabled:opacity-60"
-          />
-        </details>
-      </div>
-
-      {/* SU/SV táctico — texto mínimo; integridad física reflejada en HUD */}
-      <div className="space-y-5 border-y border-[#161616] py-4">
+    <aside className="flex h-full min-h-0 flex-col gap-5 overflow-y-auto border-[#161616] bg-black/24 p-3 font-mono text-[10px] text-neutral-500 lg:w-60 lg:shrink-0">
+      {/* SU/SV táctico; transfondo sólo en Codex */}
+      <div className="border-b border-[#161616] pb-4">
         <div title="Índice de integridad física (no salud audible)">
           {readOnlyMode ? (
             <p className="text-[9px] text-neutral-600">
@@ -107,7 +68,11 @@ export function CharacterStatusPanel({
             </span>
           </div>
           <div className="mt-1.5 h-1.5 border border-[#161616] bg-black">
-            <motion.div className="h-full bg-[var(--terminal)]/70" animate={{ width: `${wpPct}%` }} transition={{ stiffness: 180, damping: 22 }} />
+            <motion.div
+              className="h-full bg-[var(--terminal)]/70"
+              animate={{ width: `${wpPct}%` }}
+              transition={{ stiffness: 180, damping: 22 }}
+            />
           </div>
           {!readOnlyMode ? (
             <div className="mt-2 flex gap-4 text-neutral-600">
@@ -145,10 +110,8 @@ export function CharacterStatusPanel({
               }
               className="mt-2 w-full accent-[var(--blood)]"
             />
-          ) : readOnlyMode ? (
-            <p className="mt-2 text-[9px] text-neutral-500">Σh {sheet.hunger}/5</p>
           ) : (
-            <p className="text-[9px] leading-snug opacity-65">[&gt;_CLOCK_READONLY]</p>
+            <p className="mt-2 text-[9px] text-neutral-500">Hambre {sheet.hunger}/5</p>
           )}
           {!readOnlyMode && isNarrator && sheetLocked ? (
             <button
@@ -162,22 +125,14 @@ export function CharacterStatusPanel({
         </div>
       </div>
 
-      {footer}
-
-      {isNarrator && (sheetLocked || xpLog.length > 0) && (
-        <div className="mt-auto flex min-h-[6rem] flex-col border border-[#161616] bg-black/40 p-2">
-          <p className="mb-1.5 text-[8px] uppercase tracking-[0.35em] text-neutral-700">Auditoría MJ</p>
-          <div className="max-h-36 space-y-0.5 overflow-y-auto pr-1 text-[9px] leading-relaxed text-neutral-500">
-            {xpLog.slice(-40).length === 0 ? (
-              <span className="text-neutral-700">Sin entradas</span>
-            ) : (
-              xpLog.slice(-40).map((line, i) => (
-                <p key={`${line.ts}-${i}-${line.text.slice(0, 12)}`}>{line.text}</p>
-              ))
-            )}
-          </div>
-        </div>
-      )}
+      {isNarrator ? (
+        <p className="text-[8px] leading-relaxed text-neutral-700" style={{ color: accent }}>
+          {sheet.name || "—"} · {linajeLabel}
+          <span className="mt-2 block font-mono tabular-nums text-neutral-600">
+            PS{sheet.bloodPotency}_HUM{sheet.humanity}_FB{sheet.freebiePool}_{sheet.resonance?.slice(0, 3) || "—"}
+          </span>
+        </p>
+      ) : null}
     </aside>
   );
 }

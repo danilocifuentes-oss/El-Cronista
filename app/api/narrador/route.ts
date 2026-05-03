@@ -25,6 +25,14 @@ function clampStr(s: unknown, max: number): string {
   return s.length <= max ? s : `${s.slice(0, max)}\n[…]`;
 }
 
+/** Clave memoria servidor: ASCII seguro, ≤64 caracteres. */
+function clampOrchestrationNpcKey(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const t = raw.trim().slice(0, 64);
+  if (!t || !/^[a-zA-Z0-9_:.\-]+$/.test(t)) return undefined;
+  return t;
+}
+
 function normalizeBody(raw: unknown): NarradorRequestBody | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -78,6 +86,7 @@ function normalizeBody(raw: unknown): NarradorRequestBody | null {
   const narrativeStrand: NarrativeStrand = isNarrativeStrand(narrativeStrandRaw) ? narrativeStrandRaw : "principal";
   const crossStrandContext = o.crossStrandContext ? clampStr(o.crossStrandContext, MAX_CROSS) : "";
   const worldNexusContext = o.worldNexusContext ? clampStr(o.worldNexusContext, MAX_NEXUS) : "";
+  const orchestrationNpcKey = clampOrchestrationNpcKey(o.orchestrationNpcKey);
 
   return {
     playerAction,
@@ -92,6 +101,7 @@ function normalizeBody(raw: unknown): NarradorRequestBody | null {
     narrativeStrand,
     crossStrandContext: crossStrandContext.trim() || undefined,
     worldNexusContext: worldNexusContext.trim() || undefined,
+    ...(orchestrationNpcKey ? { orchestrationNpcKey } : {}),
   };
 }
 
@@ -114,6 +124,7 @@ export async function POST(req: Request) {
       narration: out.narration,
       rollingSummary: out.rollingSummary,
       ...(out.suggestions?.length ? { suggestions: out.suggestions } : {}),
+      ...(out.rollPrompt ? { rollPrompt: out.rollPrompt } : {}),
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

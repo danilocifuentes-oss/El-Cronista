@@ -1,1 +1,1 @@
-export type Phase = "login" | "profileHub" | "chargen" | "nexus" | "sheetReview" | "commandCenter";
+export type Phase = "login" | "profileHub" | "chargen" | "nexus" | "commandCenter";

@@ -5,12 +5,16 @@ import { useEffect, useRef } from "react";
 import {
   NARRATIVE_STRANDS,
   STRAND_ACCENT,
-  STRAND_HELPLINE,
   STRAND_LABEL,
   STRAND_TAG,
   type NarrativeStrand,
 } from "@/lib/narrativeStrands";
 import type { NarrativeLogEntry } from "@/lib/narrativeTypes";
+
+function scrollToManifestZone(): void {
+  if (typeof document === "undefined") return;
+  document.querySelector("[data-manifest-zone]")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
 
 export type { NarrativeLogEntry as LogEntry } from "@/lib/narrativeTypes";
 
@@ -79,16 +83,17 @@ export function NarrativeFlow({
         style={{ color: accent }}
       >
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <span
-            className={`gothic-title font-medium normal-case tracking-tight ${showTechnicalAnchors ? "text-[10px]" : "text-[11px] text-neutral-300"}`}
-          >
-            {showTechnicalAnchors ? "//_STREAM · CRÓNICA" : "Canal de la crónica"}
-          </span>
-          {identityHint ? (
-            <span className="max-w-[min(100%,22rem)] truncate text-[9px] normal-case tracking-normal text-neutral-500 xl:hidden">
+          {showTechnicalAnchors ? (
+            <span className="gothic-title text-[10px] font-medium normal-case tracking-tight text-neutral-400">
+              //_STREAM · CRÓNICA
+            </span>
+          ) : identityHint ? (
+            <span className="max-w-[min(100%,28rem)] truncate font-sans text-[11px] font-normal normal-case tracking-tight text-neutral-400">
               {identityHint}
             </span>
-          ) : null}
+          ) : (
+            <span className="sr-only">Escena activa</span>
+          )}
         </div>
         <div className="flex flex-wrap gap-1.5 normal-case tracking-normal">
           {NARRATIVE_STRANDS.map((s) => {
@@ -97,7 +102,8 @@ export function NarrativeFlow({
               <button
                 key={s}
                 type="button"
-                title={STRAND_HELPLINE[s]}
+                title={undefined}
+                aria-label={STRAND_LABEL[s]}
                 onClick={() => onStrandChange(s)}
                 className={`rounded border px-2 py-1 text-[8px] font-mono transition-colors ${
                   on ? "text-neutral-100" : "border-[#2a2a2a] text-neutral-500 hover:border-neutral-600 hover:text-neutral-300"
@@ -123,15 +129,13 @@ export function NarrativeFlow({
           <div className="shrink-0 border-b border-[var(--neon)]/20 bg-black/50 px-4 py-2 font-mono text-[9px] tracking-[0.2em] text-[color:var(--neon)]">
             <span className="animate-pulse uppercase tracking-[0.35em]">PROCESANDO</span>
             <span className="ml-2 inline-block min-w-[0.6rem] animate-pulse">█</span>
-            <span className="mt-1 block normal-case tracking-normal text-[8px] text-neutral-500">
-              El Cronista está escribiendo…
-            </span>
+            <span className="mt-1 block normal-case tracking-normal text-[8px] text-neutral-500">Procesando respuesta…</span>
           </div>
         ) : (
           <div className="shrink-0 border-b border-[#2a2a30]/90 bg-black/35 px-4 py-3 font-sans text-[13px] leading-snug tracking-wide text-neutral-400">
             <span className="inline-flex items-center gap-2">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--neon)] shadow-[0_0_10px_var(--neon)]" />
-              La crónica se actualiza…
+              Un momento…
             </span>
           </div>
         )
@@ -184,19 +188,51 @@ export function NarrativeFlow({
                     {entry.text}
                   </span>
                   {entry.role === "narrador" && !entry.cronistaOut && entry.suggestions?.length ? (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {entry.suggestions.map((s, i) => (
-                        <button
-                          key={`${entry.id}-sug-${i}`}
-                          type="button"
-                          onClick={() => onPickSuggestion?.(s)}
-                          className={`max-w-full rounded-md border border-[color:var(--neon)]/35 bg-[color:var(--paper)]/80 px-2 py-1 text-left font-sans leading-snug tracking-tight text-neutral-300 transition hover:border-[color:var(--neon)]/60 hover:bg-[color:var(--paper)] hover:text-neutral-100 ${showTechnicalAnchors ? "text-[9px]" : "text-[11px] tracking-[0.02em]"}`}
-                          title="Insertar sugerencia en el campo de escena"
-                        >
-                          {s}
-                        </button>
-                      ))}
+                    <div className="mt-3 space-y-1.5 border-t border-white/[0.04] pt-3">
+                      <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-neutral-600">
+                        Posibles siguientes pasos
+                      </p>
+                      <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap">
+                        {entry.suggestions.map((s, i) => (
+                          <button
+                            key={`${entry.id}-sug-${i}`}
+                            type="button"
+                            onClick={() => onPickSuggestion?.(s)}
+                            className={`max-w-full rounded-lg border border-white/[0.08] bg-black/45 px-2.5 py-2 text-left font-sans text-neutral-200 transition hover:border-white/15 hover:bg-black/60 ${showTechnicalAnchors ? "text-[9px] leading-snug" : "text-[12px] leading-snug tracking-[0.02em]"}`}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
                     </div>
+                  ) : null}
+                  {entry.role === "narrador" && entry.rollPrompt ? (
+                    <aside
+                      className={`mt-3 rounded-xl border px-3 py-2.5 font-sans ${
+                        entry.rollPrompt.nivel === "urgente"
+                          ? "border-[color:var(--blood)]/35 bg-[color:var(--blood)]/[0.07]"
+                          : entry.rollPrompt.nivel === "recomendada"
+                            ? "border-amber-900/35 bg-amber-950/20"
+                            : "border-white/[0.06] bg-black/40"
+                      }`}
+                    >
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-neutral-500">
+                        {entry.rollPrompt.nivel === "urgente"
+                          ? "La escena pide tirada"
+                          : entry.rollPrompt.nivel === "recomendada"
+                            ? "Sería mejor con tirada"
+                            : "Podés apoyarte con tirada"}
+                      </p>
+                      <p className="mt-1 text-[12px] leading-snug text-neutral-400">{entry.rollPrompt.enfoque}</p>
+                      <button
+                        type="button"
+                        onClick={() => scrollToManifestZone()}
+                        className="mt-2 text-left text-[11px] underline decoration-neutral-700 underline-offset-[3px] transition hover:text-neutral-200 hover:decoration-neutral-500"
+                        style={{ color: accent }}
+                      >
+                        Ir a Voluntad y armar pool con tu CODEX
+                      </button>
+                    </aside>
                   ) : null}
                 </>
               ) : (
@@ -214,8 +250,8 @@ export function NarrativeFlow({
       <div className="shrink-0 border-t border-[#1c1c22] bg-black/35 p-3 sm:p-4">
         {!showTechnicalAnchors && !processing ? (
           <details className="mb-2 rounded-md border border-[#2a2a30]/80 bg-black/30">
-            <summary className="cursor-pointer px-2.5 py-1.5 font-mono text-[8px] uppercase tracking-[0.22em] text-neutral-600">
-              Gestos de escena (+)
+            <summary className="cursor-pointer px-2.5 py-1.5 font-sans text-[10px] tracking-wide text-neutral-600">
+              Atajos (+)
             </summary>
             <div className="flex flex-wrap gap-1.5 border-t border-[#252525]/80 px-2 py-2">
               {QUICK_SCENE_OPENERS.map((q) => (
@@ -243,8 +279,8 @@ export function NarrativeFlow({
           }}
           placeholder={
             showTechnicalAnchors
-              ? `Escena en «${STRAND_LABEL[activeStrand]}»… (Enter envía · Shift+Enter línea nueva)`
-              : `¿Qué haces en «${STRAND_LABEL[activeStrand]}»?`
+              ? `Escena · ${STRAND_TAG[activeStrand]} (Enter envía · Shift+Enter nueva línea)`
+              : "Describe qué haces, qué dices o hacia dónde te mueves."
           }
           rows={showTechnicalAnchors ? 3 : 4}
           className={`w-full resize-y border border-[#26262e] bg-black/55 px-3 py-2.5 placeholder:text-neutral-600 focus:border-[var(--terminal)]/40 focus:outline-none focus:ring-1 focus:ring-[var(--terminal)]/12 ${showTechnicalAnchors ? "font-mono text-[11px] leading-relaxed text-neutral-300" : "font-sans text-[13px] leading-relaxed tracking-[0.02em] text-neutral-200"}`}

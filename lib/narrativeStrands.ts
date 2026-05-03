@@ -4,23 +4,22 @@ export type NarrativeStrand = (typeof NARRATIVE_STRANDS)[number];
 export type RollingByStrand = Record<NarrativeStrand, string>;
 
 export const STRAND_LABEL: Record<NarrativeStrand, string> = {
-  principal: "Mesa grupal",
-  paralela: "Incursión en solitario",
-  vivo: "Mesa física (IRL)",
+  principal: "Nexo",
+  paralela: "Campaña solitaria",
+  vivo: "Acción en vivo",
 };
 
 /** Etiqueta corta para chips de UI. */
 export const STRAND_TAG: Record<NarrativeStrand, string> = {
-  principal: "PRIN",
-  paralela: "INC",
-  vivo: "IRL",
+  principal: "NEX",
+  paralela: "SOL",
+  vivo: "VIV",
 };
 
 export const STRAND_HELPLINE: Record<NarrativeStrand, string> = {
-  principal: "Narrativa compartida: turnos implícitos, consecuencias que pesan para todos.",
-  paralela:
-    "Ritmo rápido y más acotado: tu ángulo personal; no debe copiar escena por escena el hilo grupal.",
-  vivo: "Mesa cara a cara: mismo CV enlazado, tono presente.",
+  principal: "Crónica común: interacción entre jugadores y motor.",
+  paralela: "Corre solo por el mundo sin imponer hechos al Nexo; coherente con tu ficha.",
+  vivo: "Reservado.",
 };
 
 /** Color CSS (borde / acento del stream). */

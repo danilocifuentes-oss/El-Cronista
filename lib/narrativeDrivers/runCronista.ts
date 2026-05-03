@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { formatOrchestrationForPrompt, orchestrateManifestTurn } from "@/lib/gameWorld";
 import { isNarratorChannelPaused } from "@/lib/operatorRuntimeSettings";
 import { formatNexoApiFailure } from "@/lib/nexoErrors";
 import { isQuotaOrRateLimitError } from "@/lib/geminiRetry";
@@ -11,6 +12,25 @@ import { jsonCronistaGemini, streamCronistaGemini } from "./geminiCronista";
 import { generateInternalCronista } from "./internalCronista";
 import { jsonCronistaOpenAi, streamCronistaOpenAiReadable } from "./openAiCronista";
 import { buildCronistaUserPrompt } from "./prompts";
+
+async function buildCronistaPromptFromParsed(parsed: NormalizedCronistaBody): Promise<string> {
+  const world = await orchestrateManifestTurn(parsed.input.slice(0, 200), parsed.narrativeStrand);
+  const orchestrationBlock = formatOrchestrationForPrompt(world);
+  return buildCronistaUserPrompt({
+    codexJson: compactCodex(parsed.codex),
+    tirada: parsed.tirada,
+    hambre: parsed.hambre,
+    input: parsed.input,
+    recentLogs: parsed.recentLogs,
+    chronicle: parsed.chronicle,
+    synapticDisruption: parsed.synapticDisruption,
+    ideasRepository: parsed.ideasRepository,
+    narrativeStrand: parsed.narrativeStrand,
+    crossStrandContext: parsed.crossStrandContext,
+    worldNexusContext: parsed.worldNexusContext,
+    orchestrationBlock,
+  });
+}
 
 const STREAM_HEADERS = {
   "Content-Type": "text/plain; charset=utf-8",
@@ -57,20 +77,7 @@ function parseNarracionJson(raw: string): string | null {
 }
 
 async function cronistaJsonResponse(parsed: NormalizedCronistaBody): Promise<Response> {
-  const codexJson = compactCodex(parsed.codex);
-  const userPrompt = buildCronistaUserPrompt({
-    codexJson,
-    tirada: parsed.tirada,
-    hambre: parsed.hambre,
-    input: parsed.input,
-    recentLogs: parsed.recentLogs,
-    chronicle: parsed.chronicle,
-    synapticDisruption: parsed.synapticDisruption,
-    ideasRepository: parsed.ideasRepository,
-    narrativeStrand: parsed.narrativeStrand,
-    crossStrandContext: parsed.crossStrandContext,
-    worldNexusContext: parsed.worldNexusContext,
-  });
+  const userPrompt = await buildCronistaPromptFromParsed(parsed);
 
   const chain = resolveDriverChain();
   let lastErr: unknown;
@@ -107,20 +114,7 @@ async function cronistaJsonResponse(parsed: NormalizedCronistaBody): Promise<Res
 }
 
 async function cronistaStreamResponse(parsed: NormalizedCronistaBody): Promise<Response> {
-  const codexJson = compactCodex(parsed.codex);
-  const userPrompt = buildCronistaUserPrompt({
-    codexJson,
-    tirada: parsed.tirada,
-    hambre: parsed.hambre,
-    input: parsed.input,
-    recentLogs: parsed.recentLogs,
-    chronicle: parsed.chronicle,
-    synapticDisruption: parsed.synapticDisruption,
-    ideasRepository: parsed.ideasRepository,
-    narrativeStrand: parsed.narrativeStrand,
-    crossStrandContext: parsed.crossStrandContext,
-    worldNexusContext: parsed.worldNexusContext,
-  });
+  const userPrompt = await buildCronistaPromptFromParsed(parsed);
 
   const chain = resolveDriverChain();
   let lastErr: unknown;

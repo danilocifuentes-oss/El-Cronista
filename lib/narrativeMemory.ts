@@ -214,8 +214,8 @@ export function resetNarrativeChannel(opts?: NarrativeResetOptions): NarrativeLo
     saveRollingByStrand(rb);
     const boot: NarrativeLogEntry = {
       id: `boot_${Date.now()}`,
-      role: "sistema",
-      text: `[HILO_RESET]: ${only} — buffer del hilo reiniciado (log global conserva otros hilos).`,
+      role: "narrador",
+      text: "Aquí empieza otra página de esta noche.",
       ts: Date.now(),
       strand: only,
     };
@@ -226,8 +226,8 @@ export function resetNarrativeChannel(opts?: NarrativeResetOptions): NarrativeLo
 
   const boot: NarrativeLogEntry = {
     id: `boot_${Date.now()}`,
-    role: "sistema",
-    text: "[BOOT]: Nexo_standby · memoria del canal reiniciada.",
+    role: "narrador",
+    text: "La página queda abierta esperando nuevo calor.",
     ts: Date.now(),
     strand: loadActiveStrand(),
   };

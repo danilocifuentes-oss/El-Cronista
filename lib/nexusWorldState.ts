@@ -34,24 +34,7 @@ export type NexusWorldState = {
 };
 
 function defaultQuests(): MainQuestBeat[] {
-  return [
-    {
-      id: "mq-sombra-ciudad",
-      title: "Sombra que cobra forma",
-      briefing:
-        "La ciudad lleva cicatrices vivas por decisiones previas — avanza causa/efecto; no resets genéricos. NPC con agendas propias pueden presionar.",
-      phase: "activa",
-      strandHint: "principal",
-    },
-    {
-      id: "mq-incursion-red",
-      title: "Cable caliente",
-      briefing:
-        "Incursiones paralelas cortas: consecuencias personales rápidas, sin igualar necesariamente la escena grupal.",
-      phase: "latente",
-      strandHint: "paralela",
-    },
-  ];
+  return [];
 }
 
 export function defaultNexusWorldState(): NexusWorldState {
@@ -147,25 +130,21 @@ export function formatWorldNexusPromptBlock(state: NexusWorldState, strand: Narr
 
   const questBlock = activas.length
     ? activas
-        .map((q) => `· [${q.phase}] ${q.title}: ${q.briefing.slice(0, 220)}${q.briefing.length > 220 ? "…" : ""}`)
-        .join("\n")
+        .map((q) => `${q.title}: ${q.briefing.slice(0, 160)}${q.briefing.length > 160 ? "…" : ""}`)
+        .join(" · ")
     : "";
 
   const flags =
-    state.worldFlags.length > 0 ? `Marcadores diegéticos: ${state.worldFlags.slice(0, 16).join(" · ")}` : "";
+    state.worldFlags.length > 0 ? state.worldFlags.slice(0, 12).join(" · ") : "";
 
-  const beat = state.lastBeat.trim()
-    ? `Ecos persistentes del mundo (honrar; no reiniciar campaña genérica si esto ya muestra historia):\n${state.lastBeat.trim().slice(0, 900)}`
-    : "";
+  const beat = state.lastBeat.trim() ? state.lastBeat.trim().slice(0, 800) : "";
 
   const chunks = [
     modo,
-    `Era / fase narrativa: ${state.eraLabel}`,
-    beat,
-    flags,
-    questBlock ? `Línea misional y arcos (priorizar coherencia, ramificar posibles desenlaces):\n${questBlock}` : "",
-    "Directriz: los jugadores son personas y vampiros jugables; los NPC deben sentirse vivos (voz, amenaza, interés) sin confundirlos con el PJ.",
-    "Directriz: no forzar la misma escena de bienvenida / «primera noche» si el contexto y el resumen indican continuidad.",
+    `Fase: ${state.eraLabel}`,
+    beat ? `Continuidad reciente: ${beat}` : "",
+    flags ? `Marcas: ${flags}` : "",
+    questBlock ? `Arcos: ${questBlock}` : "",
   ];
   return chunks.filter(Boolean).join("\n\n");
 }

@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# orquestación Nexo en disco local (solo si NEXO_ORCH_DISK=1)
+/.data/

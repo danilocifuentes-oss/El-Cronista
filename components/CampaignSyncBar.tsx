@@ -36,15 +36,16 @@ export function CampaignSyncBar({ value, onChange, remoteStoreReady }: Props) {
             onChange={(e) => bump({ enabled: e.target.checked })}
             className="accent-[var(--terminal)]"
           />
-          <span className={remoteStoreReady ? "" : "text-neutral-600"}>
-            Sala remota · misma campaña ({remoteStoreReady ? "Redis OK" : "requiere Upstash"})
+          <span className={remoteStoreReady ? "text-neutral-500" : "text-neutral-600"}>
+            Sincronizar varios equipos · usa el mismo identificador de sala que definiste en despliegue
+            {!remoteStoreReady ? " (no disponible en este servidor)" : null}
           </span>
         </label>
 
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           <input
             type="text"
-            placeholder="id-sala-compartida"
+            placeholder="Identificador de sala"
             value={value.campaignId}
             disabled={!remoteStoreReady}
             onChange={(e) => bump({ campaignId: e.target.value.slice(0, 52) })}
@@ -54,9 +55,10 @@ export function CampaignSyncBar({ value, onChange, remoteStoreReady }: Props) {
             type="button"
             disabled={!remoteStoreReady}
             onClick={genId}
-            className="shrink-0 border border-[#38383f] px-2 py-1 text-[8px] uppercase tracking-wider text-neutral-500 hover:border-neutral-600 hover:text-neutral-300 disabled:opacity-40"
+            className="shrink-0 border border-[#38383f] px-2 py-1 text-[8px] uppercase tracking-wider text-neutral-600 hover:border-neutral-600 hover:text-neutral-400 disabled:opacity-40"
+            title="Genera un id temporal sólo si la mesa no te dio ninguno"
           >
-            Nueva sala
+            Borrador ID
           </button>
           <input
             type="text"
@@ -76,8 +78,7 @@ export function CampaignSyncBar({ value, onChange, remoteStoreReady }: Props) {
         </div>
 
         <p className="max-w-xl text-[8px] leading-snug text-neutral-600 lg:text-right">
-          Opcional: todos usan el mismo ID + etiqueta distinta; el hilo <strong className="font-normal text-neutral-500">Mesa grupal</strong> fusiona
-          turnos para el narrador.
+          Uso de operador: misma sala, etiqueta distinta por jugador. Los jugadores no necesitan tocar esto.
         </p>
       </div>
     </div>
