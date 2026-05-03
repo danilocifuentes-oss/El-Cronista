@@ -7,6 +7,12 @@ import {
 import { NextResponse } from "next/server";
 
 import { formatChronicleForPrompt } from "@/lib/chroniclePrompt";
+import {
+  isQuotaOrRateLimitError,
+  resolveGeminiModels,
+  withExponentialBackoff,
+} from "@/lib/geminiRetry";
+import { formatNexoApiFailure } from "@/lib/nexoErrors";
 import type { ChroniclePayload } from "@/lib/narrativeTypes";
 import type { CharacterSheet } from "@/lib/character";
 import type { SerializedV5Roll } from "@/lib/dice";
@@ -14,9 +20,10 @@ import type { SerializedV5Roll } from "@/lib/dice";
 export const runtime = "nodejs";
 export const maxDuration = 90;
 
-const MAX_INPUT = 4000;
-const MAX_LOG = 28;
-const MAX_CODEX_JSON = 28000;
+const MAX_INPUT = 3500;
+/** Contexto reciente acotado (tokens). */
+const MAX_LOG = 5;
+const MAX_CODEX_JSON = 14000;
 const MAX_CHRON = 12000;
 const MAX_SYNAPTIC = 4000;
 
@@ -64,7 +71,7 @@ function normalizeCronistaBody(raw: unknown): {
         if (!row || typeof row !== "object") return null;
         const r = row as Record<string, unknown>;
         const role = typeof r.role === "string" ? r.role.slice(0, 24) : "?";
-        const text = clampStr(r.text, 3500);
+        const text = clampStr(r.text, 1600);
         return text.trim() ? { role, text } : null;
       })
       .filter((x): x is { role: string; text: string } => Boolean(x));
@@ -166,7 +173,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "codex y tirada son obligatorios." }, { status: 400 });
   }
 
-  const modelName = process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash";
+  const { primary, fallback } = resolveGeminiModels();
   const genAI = new GoogleGenerativeAI(key);
   const codexJson = compactCodex(parsed.codex);
   const userPrompt = buildCronistaPrompt({
@@ -179,7 +186,7 @@ export async function POST(req: Request) {
     synapticDisruption: parsed.synapticDisruption,
   });
 
-  if (parsed.stream) {
+  async function streamGenerate(modelName: string) {
     const model = genAI.getGenerativeModel({
       model: modelName,
       systemInstruction: `${CRONISTA_SYSTEM}\n\n(Responde en texto plano continuo, sin JSON ni markdown de bloque.)`,
@@ -189,11 +196,55 @@ export async function POST(req: Request) {
         maxOutputTokens: 1536,
       },
     });
+    return model.generateContentStream({
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    });
+  }
 
+  async function jsonGenerate(modelName: string) {
+    const model = genAI.getGenerativeModel({
+      model: modelName,
+      systemInstruction: CRONISTA_SYSTEM,
+      safetySettings: SAFETY,
+      generationConfig: {
+        temperature: 0.84,
+        maxOutputTokens: 1536,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: SchemaType.OBJECT,
+          properties: {
+            narracion: {
+              type: SchemaType.STRING,
+              description: "Consecuencias narrativas de la tirada, tono Cronista.",
+            },
+          },
+          required: ["narracion"],
+        },
+      },
+    });
+    return model.generateContent({
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    });
+  }
+
+  if (parsed.stream) {
     try {
-      const streamResult = await model.generateContentStream({
-        contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-      });
+      let streamResult: Awaited<ReturnType<typeof streamGenerate>>;
+      try {
+        streamResult = await withExponentialBackoff(() => streamGenerate(primary), {
+          maxAttempts: 3,
+          baseDelayMs: 2000,
+          label: primary,
+        });
+      } catch (e1) {
+        if (!isQuotaOrRateLimitError(e1) || primary === fallback) throw e1;
+        console.warn("[api/cronista stream] fallback →", fallback);
+        streamResult = await withExponentialBackoff(() => streamGenerate(fallback), {
+          maxAttempts: 3,
+          baseDelayMs: 2000,
+          label: fallback,
+        });
+      }
 
       const encoder = new TextEncoder();
       const readable = new ReadableStream({
@@ -219,35 +270,31 @@ export async function POST(req: Request) {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error("[api/cronista stream]", msg);
-      return NextResponse.json({ error: msg }, { status: 502 });
+      return NextResponse.json(
+        { error: formatNexoApiFailure(msg) },
+        { status: isQuotaOrRateLimitError(e) ? 503 : 502 },
+      );
     }
   }
 
-  const model = genAI.getGenerativeModel({
-    model: modelName,
-    systemInstruction: CRONISTA_SYSTEM,
-    safetySettings: SAFETY,
-    generationConfig: {
-      temperature: 0.84,
-      maxOutputTokens: 1536,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: SchemaType.OBJECT,
-        properties: {
-          narracion: {
-            type: SchemaType.STRING,
-            description: "Consecuencias narrativas de la tirada, tono Cronista.",
-          },
-        },
-        required: ["narracion"],
-      },
-    },
-  });
-
   try {
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-    });
+    let result: Awaited<ReturnType<typeof jsonGenerate>>;
+    try {
+      result = await withExponentialBackoff(() => jsonGenerate(primary), {
+        maxAttempts: 3,
+        baseDelayMs: 1800,
+        label: primary,
+      });
+    } catch (e1) {
+      if (!isQuotaOrRateLimitError(e1) || primary === fallback) throw e1;
+      console.warn("[api/cronista json] fallback →", fallback);
+      result = await withExponentialBackoff(() => jsonGenerate(fallback), {
+        maxAttempts: 3,
+        baseDelayMs: 1800,
+        label: fallback,
+      });
+    }
+
     const raw = result.response.text().trim();
     if (!raw) {
       return NextResponse.json({ error: "El modelo no devolvió texto." }, { status: 422 });
@@ -266,6 +313,9 @@ export async function POST(req: Request) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[api/cronista]", msg);
-    return NextResponse.json({ error: msg }, { status: 502 });
+    return NextResponse.json(
+      { error: formatNexoApiFailure(msg) },
+      { status: isQuotaOrRateLimitError(e) ? 503 : 502 },
+    );
   }
 }

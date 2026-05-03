@@ -26,7 +26,8 @@ import {
   loadXpLog,
   saveMeta,
 } from "@/lib/sessionMeta";
-import { buildSheetSummary } from "@/lib/sheetSummary";
+import { formatNexoApiFailure } from "@/lib/nexoErrors";
+import { buildSheetSummaryLite } from "@/lib/sheetSummary";
 import type { NarrativeLogEntry } from "@/lib/narrativeTypes";
 import { CharacterCreation } from "./CharacterCreation";
 import { CharacterStatusPanel } from "./CharacterStatusPanel";
@@ -294,14 +295,14 @@ function CronistaAppInner() {
     setComposer("");
     pushLog({ role: "jugador", text: t });
 
-    const prior = logs.slice(-28).map(({ role, text }) => ({ role, text }));
+    const prior = logs.slice(-4).map(({ role, text }) => ({ role, text }));
     const recentLogs = [...prior, { role: "jugador" as const, text: t }];
 
     try {
       const out = await askCronista({
         playerAction: t,
         recentLogs,
-        sheetSummary: buildSheetSummary(sheet),
+        sheetSummary: buildSheetSummaryLite(sheet),
         inquisitionThreat,
         mjDirectives: loadMjDirectives(),
         rollingSummary: loadRollingSummary() || undefined,
@@ -313,7 +314,7 @@ function CronistaAppInner() {
     } catch (e) {
       pushLog({
         role: "sistema",
-        text: `[PIPE_ERR]: ${e instanceof Error ? e.message : String(e)}`,
+        text: formatNexoApiFailure(e instanceof Error ? e.message : String(e)),
       });
     }
   };
@@ -340,7 +341,7 @@ function CronistaAppInner() {
       ]);
 
       const recentLogs = [...logsRef.current.map(({ role, text }) => ({ role, text })), { role: "sistema", text: ledgerLine }].slice(
-        -20,
+        -5,
       );
 
       try {
@@ -374,7 +375,7 @@ function CronistaAppInner() {
         setLogs((prev) => prev.filter((e) => e.id !== streamId));
         pushLog({
           role: "sistema",
-          text: `[CRONISTA_ERR]: ${e instanceof Error ? e.message : String(e)}`,
+          text: formatNexoApiFailure(e instanceof Error ? e.message : String(e)),
         });
       } finally {
         setCronistaProcessing(false);

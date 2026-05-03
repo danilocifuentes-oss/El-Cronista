@@ -17,7 +17,7 @@ export function buildSheetSummary(sheet: CharacterSheet): string {
     .map(([k, v]) => `${k}:${v}`)
     .join(", ");
 
-  return [
+  const lines = [
     `Nombre: ${sheet.name?.trim() || "—"}`,
     `Linaje: ${clanLabel}${sheet.antitribu ? " (antitribu)" : ""}`,
     `Concepto: ${sheet.concept?.trim() || "—"}`,
@@ -31,7 +31,14 @@ export function buildSheetSummary(sheet: CharacterSheet): string {
     `Resonancia: ${sheet.resonance?.trim() || "—"}`,
     topSkills ? `Habilidades destacadas: ${topSkills}` : null,
     topDisc ? `Disciplinas: ${topDisc}` : null,
-  ]
-    .filter((line): line is string => Boolean(line))
-    .join("\n");
+  ];
+  return lines.filter((line): line is string => Boolean(line)).join("\n");
+}
+
+/** Resumen más corto para peticiones API (menos tokens). */
+export function buildSheetSummaryLite(sheet: CharacterSheet): string {
+  const full = buildSheetSummary(sheet);
+  const max = 3800;
+  if (full.length <= max) return full;
+  return `${full.slice(0, max)}\n[…CV_compacto_NEXO]`;
 }

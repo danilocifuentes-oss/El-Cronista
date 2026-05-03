@@ -7,15 +7,23 @@ import {
 import { NextResponse } from "next/server";
 
 import { formatChronicleForPrompt } from "@/lib/chroniclePrompt";
+import {
+  isQuotaOrRateLimitError,
+  resolveGeminiModels,
+  withExponentialBackoff,
+} from "@/lib/geminiRetry";
+import { formatNexoApiFailure } from "@/lib/nexoErrors";
 import type { ChroniclePayload, NarradorRequestBody } from "@/lib/narrativeTypes";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const MAX_ACTION = 4500;
-const MAX_LINE = 3500;
-const MAX_LOG_LINES = 35;
-const MAX_CHRON = 12000;
+const MAX_LINE = 1800;
+/** Solo los últimos turnos al motor (ahorra tokens y presión de cuota). */
+const NEXO_RECENT_TURNS = 5;
+const MAX_SHEET_SUMMARY = 4500;
+const MAX_CHRON = 8000;
 const MAX_SYNAPTIC = 4000;
 
 function clampStr(s: unknown, max: number): string {
@@ -29,7 +37,7 @@ function normalizeBody(raw: unknown): NarradorRequestBody | null {
   const playerAction = clampStr(o.playerAction, MAX_ACTION);
   if (!playerAction.trim()) return null;
 
-  const sheetSummary = clampStr(o.sheetSummary, 12000);
+  const sheetSummary = clampStr(o.sheetSummary, MAX_SHEET_SUMMARY);
   const threat = Number(o.inquisitionThreat);
   const inquisitionThreat =
     Number.isFinite(threat) ? Math.max(0, Math.min(5, Math.round(threat))) : 0;
@@ -37,7 +45,7 @@ function normalizeBody(raw: unknown): NarradorRequestBody | null {
   let recentLogs: NarradorRequestBody["recentLogs"] = [];
   if (Array.isArray(o.recentLogs)) {
     recentLogs = o.recentLogs
-      .slice(-MAX_LOG_LINES)
+      .slice(-NEXO_RECENT_TURNS)
       .map((row) => {
         if (!row || typeof row !== "object") return null;
         const r = row as Record<string, unknown>;
@@ -125,34 +133,8 @@ Reglas:
 - "narracion": 1–4 párrafos breves, ritmo diegético, sin rodapiés meta salvo que el canal lo requiera.
 - No otorgues éxitos automáticos en reglas: puedes describir tensiones y pedir tiradas al MJ si hace falta, sin números inventados concretos salvo que la mesa los haya declarado.`;
 
-export async function POST(req: Request) {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key?.trim()) {
-    return NextResponse.json(
-      {
-        error:
-          "GEMINI_API_KEY no está definida. Añade la clave en .env.local y reinicia el servidor.",
-      },
-      { status: 503 },
-    );
-  }
-
-  let rawJson: unknown;
-  try {
-    rawJson = await req.json();
-  } catch {
-    return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
-  }
-
-  const body = normalizeBody(rawJson);
-  if (!body) {
-    return NextResponse.json({ error: "playerAction requerido o vacío." }, { status: 400 });
-  }
-
-  const modelName = process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash";
-
-  const genAI = new GoogleGenerativeAI(key);
-  const model = genAI.getGenerativeModel({
+function getNarradorModel(genAI: GoogleGenerativeAI, modelName: string) {
+  return genAI.getGenerativeModel({
     model: modelName,
     systemInstruction: SYSTEM_INSTRUCTION,
     safetySettings: [
@@ -182,48 +164,91 @@ export async function POST(req: Request) {
       },
     },
   });
+}
 
+async function generateNarradorJson(
+  genAI: GoogleGenerativeAI,
+  modelName: string,
+  userPrompt: string,
+): Promise<{ narracion: string; resumen_actualizado?: string }> {
+  const model = getNarradorModel(genAI, modelName);
+  const result = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+  });
+  const raw = result.response.text().trim();
+  if (!raw) {
+    throw new Error("El modelo no devolvió texto (posible bloqueo de seguridad).");
+  }
+  let parsed: { narracion?: string; resumen_actualizado?: string };
+  try {
+    parsed = JSON.parse(raw) as { narracion?: string; resumen_actualizado?: string };
+  } catch {
+    throw new Error("No se pudo parsear JSON del modelo.");
+  }
+  const narration = typeof parsed.narracion === "string" ? parsed.narracion.trim() : "";
+  if (!narration) {
+    throw new Error("narracion vacía.");
+  }
+  return {
+    narracion: narration,
+    resumen_actualizado:
+      typeof parsed.resumen_actualizado === "string" ? parsed.resumen_actualizado.trim().slice(0, 2000) : undefined,
+  };
+}
+
+export async function POST(req: Request) {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key?.trim()) {
+    return NextResponse.json(
+      {
+        error:
+          "GEMINI_API_KEY no está definida. Añade la clave en .env.local y reinicia el servidor.",
+      },
+      { status: 503 },
+    );
+  }
+
+  let rawJson: unknown;
+  try {
+    rawJson = await req.json();
+  } catch {
+    return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
+  }
+
+  const body = normalizeBody(rawJson);
+  if (!body) {
+    return NextResponse.json({ error: "playerAction requerido o vacío." }, { status: 400 });
+  }
+
+  const { primary, fallback } = resolveGeminiModels();
+  const genAI = new GoogleGenerativeAI(key);
   const userPrompt = buildUserPrompt(body);
 
   try {
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-    });
-    const raw = result.response.text().trim();
-    if (!raw) {
-      return NextResponse.json(
-        { error: "El modelo no devolvió texto (posible bloqueo de seguridad)." },
-        { status: 422 },
-      );
-    }
-
-    let parsed: { narracion?: string; resumen_actualizado?: string };
+    let parsed: { narracion: string; resumen_actualizado?: string };
     try {
-      parsed = JSON.parse(raw) as { narracion?: string; resumen_actualizado?: string };
-    } catch {
-      return NextResponse.json(
-        { error: "No se pudo parsear JSON del modelo.", raw },
-        { status: 502 },
+      parsed = await withExponentialBackoff(
+        () => generateNarradorJson(genAI, primary, userPrompt),
+        { maxAttempts: 4, baseDelayMs: 1800, label: primary },
+      );
+    } catch (e1) {
+      if (!isQuotaOrRateLimitError(e1) || primary === fallback) throw e1;
+      console.warn("[api/narrador] fallback →", fallback);
+      parsed = await withExponentialBackoff(
+        () => generateNarradorJson(genAI, fallback, userPrompt),
+        { maxAttempts: 3, baseDelayMs: 1600, label: fallback },
       );
     }
-
-    const narration = typeof parsed.narracion === "string" ? parsed.narracion.trim() : "";
-    if (!narration) {
-      return NextResponse.json({ error: "narracion vacía.", raw }, { status: 502 });
-    }
-
-    const rolling =
-      typeof parsed.resumen_actualizado === "string"
-        ? parsed.resumen_actualizado.trim().slice(0, 2000)
-        : "";
 
     return NextResponse.json({
-      narration,
-      rollingSummary: rolling || undefined,
+      narration: parsed.narracion,
+      rollingSummary: parsed.resumen_actualizado || undefined,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[api/narrador]", msg);
-    return NextResponse.json({ error: msg }, { status: 502 });
+    const immersive = formatNexoApiFailure(msg);
+    const status = isQuotaOrRateLimitError(e) ? 503 : 502;
+    return NextResponse.json({ error: immersive }, { status });
   }
 }
