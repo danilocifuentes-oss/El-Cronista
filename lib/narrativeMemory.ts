@@ -1,4 +1,4 @@
-import type { NarrativeLogEntry } from "@/lib/narrativeTypes";
+import type { NarrativeLogEntry, NarradorRollPrompt } from "@/lib/narrativeTypes";
 import {
   defaultRollingByStrand,
   normalizeRollingByStrand,
@@ -37,6 +37,16 @@ function parseLogs(raw: unknown): NarrativeLogEntry[] {
           Array.isArray(rawSug) && rawSug.every((x) => typeof x === "string")
             ? rawSug.map((s) => s.trim()).filter(Boolean).slice(0, 8)
             : undefined;
+        const rawRp = (row as NarrativeLogEntry).rollPrompt;
+        let rollPrompt: NarradorRollPrompt | undefined;
+        if (rawRp && typeof rawRp === "object" && typeof rawRp.enfoque === "string") {
+          const n = rawRp.nivel;
+          if (n === "opcional" || n === "recomendada" || n === "urgente") {
+            rollPrompt = { nivel: n, enfoque: rawRp.enfoque.trim() };
+          }
+        }
+        const sigmaGlitch = Boolean((row as NarrativeLogEntry).sigmaGlitch);
+        const beastTone = Boolean((row as NarrativeLogEntry).beastTone);
         out.push({
           id: (row as NarrativeLogEntry).id,
           role,
@@ -45,6 +55,9 @@ function parseLogs(raw: unknown): NarrativeLogEntry[] {
           strand,
           ...(cronistaOut ? { cronistaOut: true } : {}),
           ...(suggestions?.length ? { suggestions } : {}),
+          ...(rollPrompt ? { rollPrompt } : {}),
+          ...(sigmaGlitch ? { sigmaGlitch: true } : {}),
+          ...(beastTone ? { beastTone: true } : {}),
         });
       }
     }

@@ -21,6 +21,10 @@ export type NarrativeLogEntry = {
   /** Pistas opcionales del narrador IA (motor canal jugador); no Cronista MANIFESTAR. */
   suggestions?: string[];
   rollPrompt?: NarradorRollPrompt;
+  /** Pulso σ: UI puede aplicar jitter / glitch en mensajes `sistema`. */
+  sigmaGlitch?: boolean;
+  /** Hambre alta: acento «Bestia» en narración interna. */
+  beastTone?: boolean;
 };
 
 export type NarradorRecentLine = {
@@ -70,6 +74,12 @@ export type NarradorRequestBody = {
   orchestrationNpcKey?: string;
 };
 
+/** Extensión JSON solo cuando responde el motor interno Nexo v1 (sin LLM externo). */
+export type NexoInternalV1ApiPayload = {
+  sigmaTier: number;
+  systemWhispers: string[];
+};
+
 /** Respuesta API → cliente */
 export type NarradorApiResponse = {
   narration: string;
@@ -78,4 +88,6 @@ export type NarradorApiResponse = {
   suggestions?: string[];
   /** Presente cuando el motor estima tirada antes de improvisar consecuencias. */
   rollPrompt?: NarradorRollPrompt;
+  /** σ + susurros SchreckNet (motor interno). */
+  nexoInternalV1?: NexoInternalV1ApiPayload;
 };

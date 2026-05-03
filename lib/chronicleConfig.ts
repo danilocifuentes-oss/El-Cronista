@@ -21,6 +21,17 @@ function defaultChronicle(): ChronicleConfig {
   };
 }
 
+/** Génesis en blanco (reset global operador — cada navegador vuelve a plantilla vacía). */
+export function blankChronicleForServerReset(): ChronicleConfig {
+  return {
+    foundations: "",
+    AMBIENTE: "",
+    TENSION: "",
+    ESTADO_GLOBAL: "",
+    VINCULO_HILOS: "",
+  };
+}
+
 export function loadChronicle(): ChronicleConfig {
   if (typeof window === "undefined") return defaultChronicle();
   try {

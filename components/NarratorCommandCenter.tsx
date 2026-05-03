@@ -8,6 +8,7 @@ import type { ChronicleConfig } from "@/lib/chronicleConfig";
 import { loadChronicle, saveChronicle, setPendingSynapticDisruption } from "@/lib/chronicleConfig";
 import { wipeLocalNexoTranscript, wipeLocalRollingState } from "@/lib/narrativeMemory";
 import { wipeClientNexoWorld } from "@/lib/nexusWorldState";
+import { readLocalClientResetEpoch } from "@/lib/nexoSessionSync";
 import { parseFetchJson } from "@/lib/parseFetchJson";
 import { MasterSheetEditor } from "./MasterSheetEditor";
 import { ROOT_OPERATOR_CIPHER } from "@/lib/sessionMeta";
@@ -47,6 +48,7 @@ export function NarratorCommandCenter({
   const [motorExtLlm, setMotorExtLlm] = useState(true);
   const [motorPaused, setMotorPaused] = useState(false);
   const [motorSeed, setMotorSeed] = useState("");
+  const [motorClientEpoch, setMotorClientEpoch] = useState(0);
   const [motorStatus, setMotorStatus] = useState<string | null>(null);
   const [motorLoading, setMotorLoading] = useState(false);
   const [genesisLastSaved, setGenesisLastSaved] = useState(() => JSON.stringify(loadChronicle()));
@@ -147,6 +149,7 @@ export function NarratorCommandCenter({
         externalLlmEnabled?: boolean;
         narratorChannelPaused?: boolean;
         seedContext?: string;
+        clientResetEpoch?: number;
         error?: string;
       }>(res);
       if (!res.ok) {
@@ -159,6 +162,7 @@ export function NarratorCommandCenter({
       setMotorExtLlm(ext);
       setMotorPaused(paused);
       setMotorSeed(seed);
+      setMotorClientEpoch(typeof data.clientResetEpoch === "number" ? data.clientResetEpoch : 0);
       setMotorLastSynced(motorSnapshot(ext, paused, seed));
       setMotorStatus("Estado del Motor Nexo sincronizado.");
       window.setTimeout(() => setMotorStatus(null), 3200);
@@ -188,11 +192,16 @@ export function NarratorCommandCenter({
           seedContext: motorSeed,
         }),
       });
-      const data = await parseFetchJson<{ ok?: boolean; error?: string }>(res);
+      const data = await parseFetchJson<{
+        ok?: boolean;
+        clientResetEpoch?: number;
+        error?: string;
+      }>(res);
       if (!res.ok) {
         setMotorStatus(data.error || `HTTP ${res.status}`);
         return;
       }
+      if (typeof data.clientResetEpoch === "number") setMotorClientEpoch(data.clientResetEpoch);
       setMotorLastSynced(motorSnapshot(motorExtLlm, motorPaused, motorSeed));
       setMotorStatus("Motor Nexo guardado en el servidor.");
       window.setTimeout(() => setMotorStatus(null), 3800);
@@ -204,6 +213,44 @@ export function NarratorCommandCenter({
   }
 
   /** Un clic: mismo payload que Guardar pero fija solo `externalLlmEnabled` (mando IA). */
+  async function pushGlobalClientReset() {
+    setMotorLoading(true);
+    setMotorStatus(null);
+    try {
+      if (
+        !window.confirm(
+          "Nueva crónica GLOBAL: se incrementa la versión en el servidor. Todos los navegadores borrarán personajes, conversación, mundo Nexo y Génesis (vacío) al detectar el cambio (o al recargar). ¿Continuar?",
+        )
+      ) {
+        return;
+      }
+      const res = await fetch("/api/operator-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cipher: ROOT_OPERATOR_CIPHER, action: "reset_all_clients" }),
+      });
+      const data = await parseFetchJson<{
+        ok?: boolean;
+        clientResetEpoch?: number;
+        orchestrationReset?: boolean;
+        error?: string;
+      }>(res);
+      if (!res.ok) {
+        setMotorStatus(data.error || `HTTP ${res.status}`);
+        return;
+      }
+      setMotorClientEpoch(typeof data.clientResetEpoch === "number" ? data.clientResetEpoch : motorClientEpoch + 1);
+      setMotorStatus(
+        "Versión global incrementada · orquestación servidor reiniciada · los clientes limpiarán en segundos.",
+      );
+      window.setTimeout(() => setMotorStatus(null), 5200);
+    } catch (e) {
+      setMotorStatus(e instanceof Error ? e.message : String(e));
+    } finally {
+      setMotorLoading(false);
+    }
+  }
+
   async function aplicarMandoIa(remoto: boolean) {
     setMotorLoading(true);
     setMotorStatus(null);
@@ -226,7 +273,11 @@ export function NarratorCommandCenter({
       }
       setMotorExtLlm(remoto);
       setMotorLastSynced(motorSnapshot(remoto, motorPaused, motorSeed));
-      setMotorStatus(remoto ? "IA remota activada (Gemini/OpenAI si hay claves)." : "IA remota desactivada · solo motor interno.");
+      setMotorStatus(
+        remoto
+          ? "Canal remoto al núcleo narrativo activado (si hay enlace disponible)."
+          : "Canal remoto desactivado · sólo motor de sala.",
+      );
       window.setTimeout(() => setMotorStatus(null), 4200);
     } catch (e) {
       setMotorStatus(e instanceof Error ? e.message : String(e));
@@ -621,8 +672,7 @@ export function NarratorCommandCenter({
               <p className="text-[10px] leading-relaxed text-neutral-500">
                 Borra perfiles CV, bitácoras Nexo locales, resúmenes, misiones marcadas en el cliente y hoja activa. Conserva la{" "}
                 <strong className="text-neutral-400">Génesis</strong> (pestaña homónima) para que cada reinicio parte del mismo ancla
-                mundano hasta que vos la edites. El Motor Nexo (<code className="text-neutral-600">GET/POST operator-settings</code>) vive en
-                servidor independiente — no es reseteado desde aquí.
+                mundano hasta que vos la edites. La configuración del motor en servidor no se toca desde este reinicio.
               </p>
               <button
                 type="button"
@@ -800,6 +850,27 @@ export function NarratorCommandCenter({
               />
               Pausar canal del jugador (bloquea narrador + MANIFESTAR; no afecta esta consola).
             </label>
+
+            <section
+              className="rounded border border-amber-900/40 bg-amber-950/15 px-4 py-3"
+              aria-label="Reset vista global"
+            >
+              <p className="text-[9px] uppercase tracking-[0.28em] text-amber-200/90">Crónica · todos los equipos</p>
+              <p className="mt-1.5 text-[10px] leading-relaxed text-neutral-400">
+                Versión servidor: <span className="font-mono text-neutral-200">{motorClientEpoch}</span> · Este
+                navegador reconoce:{" "}
+                <span className="font-mono text-neutral-200">{readLocalClientResetEpoch()}</span>. Cuando el servidor
+                supere al local, se borra todo (incluida Génesis en blanco) y se recarga la página.
+              </p>
+              <button
+                type="button"
+                disabled={motorLoading}
+                onClick={() => void pushGlobalClientReset()}
+                className="mt-3 border border-amber-700/60 bg-black/50 px-4 py-2.5 text-[9px] uppercase tracking-[0.22em] text-amber-100 transition hover:border-amber-500/80 disabled:opacity-40"
+              >
+                Forzar nueva crónica (global)
+              </button>
+            </section>
 
             <label className="flex flex-col gap-2">
               <span className="text-[9px] uppercase tracking-widest text-neutral-500">

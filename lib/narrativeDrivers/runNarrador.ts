@@ -1,10 +1,12 @@
-import type { NarradorRequestBody, NarradorRollPrompt } from "@/lib/narrativeTypes";
+import type { NarradorRequestBody, NarradorRollPrompt, NexoInternalV1ApiPayload } from "@/lib/narrativeTypes";
 import { inferRollPrompt } from "@/lib/narrativeRollHint";
 import { isNarratorChannelPaused } from "@/lib/operatorRuntimeSettings";
 import { sanitizePlayerFacingNarration, sanitizeSuggestionLine } from "@/lib/playerFacingText";
 
 import { formatOrchestrationForPrompt, orchestrateChannelTurn } from "@/lib/gameWorld";
 
+import { applyDriverCircuitToChain, recordExternalDriverFailure, recordExternalDriverSuccess } from "./llmCircuitBreaker";
+import { acceptNarradorOutput } from "./llmOutputAcceptance";
 import { resolveDriverChain, type LlmDriverId } from "./config";
 import { generateNarradorWithGemini } from "./geminiNarrador";
 import { generateInternalNarrador } from "./internalNarrador";
@@ -16,6 +18,8 @@ export type NarradorSuccess = {
   rollingSummary?: string;
   suggestions?: string[];
   rollPrompt?: NarradorRollPrompt;
+  /** Motor interno Nexo v1 — susurros `sistema` en cliente. */
+  nexoInternalV1?: NexoInternalV1ApiPayload;
   /** Solo diagnóstico en logs servidor; no se envía al cliente. */
   driverUsed?: LlmDriverId;
 };
@@ -36,7 +40,7 @@ export async function executeNarradorPipeline(body: NarradorRequestBody): Promis
   });
   const orchText = formatOrchestrationForPrompt(worldOrch);
   const userPrompt = buildNarradorUserPrompt(body, orchText);
-  const chain = resolveDriverChain();
+  const chain = applyDriverCircuitToChain(resolveDriverChain());
   let lastErr: unknown;
   const rollPrompt = inferRollPrompt(body);
 
@@ -44,20 +48,44 @@ export async function executeNarradorPipeline(body: NarradorRequestBody): Promis
     try {
       if (driver === "gemini") {
         const r = await generateNarradorWithGemini(userPrompt);
+        const narration = sanitizePlayerFacingNarration(r.narracion);
+        const rollingSummary =
+          typeof r.resumen_actualizado === "string" ? r.resumen_actualizado.trim().slice(0, 2000) : undefined;
+        const suggestions = r.sugerencias?.map(sanitizeSuggestionLine);
+        const gate = acceptNarradorOutput(narration, { rollingSummary, suggestions });
+        if (!gate.ok) {
+          recordExternalDriverFailure("gemini");
+          lastErr = new Error(`Gemini · salida no aceptada (${gate.reason})`);
+          console.warn("[executeNarradorPipeline]", gate.reason);
+          continue;
+        }
+        recordExternalDriverSuccess("gemini");
         return {
-          narration: sanitizePlayerFacingNarration(r.narracion),
-          rollingSummary: r.resumen_actualizado,
-          suggestions: r.sugerencias?.map(sanitizeSuggestionLine),
+          narration,
+          rollingSummary,
+          suggestions,
           rollPrompt,
           driverUsed: "gemini",
         };
       }
       if (driver === "openai") {
         const r = await generateNarradorWithOpenAi(userPrompt);
+        const narration = sanitizePlayerFacingNarration(r.narracion);
+        const rollingSummary =
+          typeof r.resumen_actualizado === "string" ? r.resumen_actualizado.trim().slice(0, 2000) : undefined;
+        const suggestions = r.sugerencias?.map(sanitizeSuggestionLine);
+        const gate = acceptNarradorOutput(narration, { rollingSummary, suggestions });
+        if (!gate.ok) {
+          recordExternalDriverFailure("openai");
+          lastErr = new Error(`OpenAI · salida no aceptada (${gate.reason})`);
+          console.warn("[executeNarradorPipeline]", gate.reason);
+          continue;
+        }
+        recordExternalDriverSuccess("openai");
         return {
-          narration: sanitizePlayerFacingNarration(r.narracion),
-          rollingSummary: r.resumen_actualizado,
-          suggestions: r.sugerencias?.map(sanitizeSuggestionLine),
+          narration,
+          rollingSummary,
+          suggestions,
           rollPrompt,
           driverUsed: "openai",
         };
@@ -69,9 +97,20 @@ export async function executeNarradorPipeline(body: NarradorRequestBody): Promis
         suggestions: r.sugerencias?.map(sanitizeSuggestionLine),
         rollPrompt,
         driverUsed: "internal",
+        ...(r.nexoInternalV1
+          ? {
+              nexoInternalV1: {
+                sigmaTier: r.nexoInternalV1.sigmaTier,
+                systemWhispers: r.nexoInternalV1.systemWhispers.map((w) =>
+                  sanitizePlayerFacingNarration(w),
+                ),
+              },
+            }
+          : {}),
       };
     } catch (e) {
       lastErr = e;
+      if (driver === "gemini" || driver === "openai") recordExternalDriverFailure(driver);
       console.warn("[executeNarradorPipeline] driver falló:", driver, e);
     }
   }

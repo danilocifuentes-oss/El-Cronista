@@ -1,17 +1,19 @@
 import { NextResponse } from "next/server";
 
 import {
+  bumpClientResetEpoch,
   getOperatorRuntimeState,
   patchOperatorRuntimeState,
   type OperatorRuntimeState,
 } from "@/lib/operatorRuntimeSettings";
+import { resetOrchestrationWorld } from "@/lib/gameWorld";
 import { ROOT_OPERATOR_CIPHER } from "@/lib/sessionMeta";
 
 export const runtime = "nodejs";
 
 type Body = {
   cipher?: string;
-  action?: "get" | "save";
+  action?: "get" | "save" | "reset_all_clients";
   externalLlmEnabled?: boolean;
   narratorChannelPaused?: boolean;
   seedContext?: string;
@@ -43,5 +45,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true as const, ...next });
   }
 
-  return NextResponse.json({ error: 'Usa action "get" o "save".' }, { status: 400 });
+  if (body.action === "reset_all_clients") {
+    await resetOrchestrationWorld();
+    const next = bumpClientResetEpoch();
+    return NextResponse.json({
+      ok: true as const,
+      ...next,
+      orchestrationReset: true as const,
+    });
+  }
+
+  return NextResponse.json({ error: 'Usa action "get", "save" o "reset_all_clients".' }, { status: 400 });
 }

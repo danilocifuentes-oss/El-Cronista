@@ -16,6 +16,11 @@ export type OperatorRuntimeState = {
   narratorChannelPaused: boolean;
   /** Texto inyectado en prompts como directriz global (inicio o continuación de campaña). */
   seedContext: string;
+  /**
+   * Cada incremento manda a **todos** los navegadores a limpiar personajes, Nexo y Génesis local
+   * (polling en `/api/nexo-session`). Solo operador vía `reset_all_clients`.
+   */
+  clientResetEpoch: number;
   updatedAt: number;
 };
 
@@ -23,6 +28,7 @@ const defaults: OperatorRuntimeState = {
   externalLlmEnabled: true,
   narratorChannelPaused: false,
   seedContext: "",
+  clientResetEpoch: 0,
   updatedAt: 0,
 };
 
@@ -33,6 +39,8 @@ declare global {
 function slot(): OperatorRuntimeState {
   if (!globalThis.__operatorRuntime) {
     globalThis.__operatorRuntime = { ...defaults };
+  } else if (typeof globalThis.__operatorRuntime.clientResetEpoch !== "number") {
+    globalThis.__operatorRuntime.clientResetEpoch = 0;
   }
   return globalThis.__operatorRuntime;
 }
@@ -46,6 +54,17 @@ export function patchOperatorRuntimeState(partial: Partial<Omit<OperatorRuntimeS
   if (typeof partial.externalLlmEnabled === "boolean") s.externalLlmEnabled = partial.externalLlmEnabled;
   if (typeof partial.narratorChannelPaused === "boolean") s.narratorChannelPaused = partial.narratorChannelPaused;
   if (typeof partial.seedContext === "string") s.seedContext = partial.seedContext.slice(0, 12000);
+  if (typeof partial.clientResetEpoch === "number" && Number.isFinite(partial.clientResetEpoch)) {
+    s.clientResetEpoch = Math.max(0, Math.floor(partial.clientResetEpoch));
+  }
+  s.updatedAt = Date.now();
+  return { ...s };
+}
+
+/** Incrementa la versión de crónica global que observan los clientes (sin tocar otros flags). */
+export function bumpClientResetEpoch(): OperatorRuntimeState {
+  const s = slot();
+  s.clientResetEpoch = (s.clientResetEpoch ?? 0) + 1;
   s.updatedAt = Date.now();
   return { ...s };
 }

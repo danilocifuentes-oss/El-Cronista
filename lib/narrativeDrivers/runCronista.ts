@@ -8,6 +8,8 @@ import { isQuotaOrRateLimitError } from "@/lib/geminiRetry";
 
 import type { NormalizedCronistaBody } from "./cronistaPayload";
 import { compactCodex } from "./cronistaPayload";
+import { applyDriverCircuitToChain, recordExternalDriverFailure, recordExternalDriverSuccess } from "./llmCircuitBreaker";
+import { acceptCronistaNarration } from "./llmOutputAcceptance";
 import { resolveDriverChain } from "./config";
 import { jsonCronistaGemini, streamCronistaGemini } from "./geminiCronista";
 import { generateInternalCronista } from "./internalCronista";
@@ -77,10 +79,42 @@ function parseNarracionJson(raw: string): string | null {
   }
 }
 
+async function drainGeminiTextStream(stream: AsyncIterable<{ text(): string }>): Promise<string> {
+  let acc = "";
+  for await (const chunk of stream) {
+    const t = chunk.text();
+    if (t) acc += t;
+    if (acc.length > 36_000) break;
+  }
+  return acc;
+}
+
+async function drainUtf8ReadableStream(stream: ReadableStream<Uint8Array>): Promise<string> {
+  const reader = stream.getReader();
+  const dec = new TextDecoder();
+  let acc = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) acc += dec.decode(value, { stream: true });
+      if (acc.length > 36_000) break;
+    }
+  } finally {
+    try {
+      reader.releaseLock();
+    } catch {
+      /* ya liberado o stream en error */
+    }
+  }
+  acc += dec.decode();
+  return acc;
+}
+
 async function cronistaJsonResponse(parsed: NormalizedCronistaBody): Promise<Response> {
   const userPrompt = await buildCronistaPromptFromParsed(parsed);
 
-  const chain = resolveDriverChain();
+  const chain = applyDriverCircuitToChain(resolveDriverChain());
   let lastErr: unknown;
 
   for (const driver of chain) {
@@ -88,23 +122,34 @@ async function cronistaJsonResponse(parsed: NormalizedCronistaBody): Promise<Res
       if (driver === "gemini") {
         const raw = await jsonCronistaGemini(userPrompt);
         const narration = parseNarracionJson(raw);
-        if (narration) {
-          return NextResponse.json({ narration: sanitizePlayerFacingNarration(narration) });
+        const cleaned = narration ? sanitizePlayerFacingNarration(narration) : "";
+        if (cleaned && acceptCronistaNarration(cleaned).ok) {
+          recordExternalDriverSuccess("gemini");
+          return NextResponse.json({ narration: cleaned });
         }
-        throw new Error("narracion vacía (Gemini JSON).");
+        recordExternalDriverFailure("gemini");
+        lastErr = new Error("Gemini JSON · narración vacía o no aceptable.");
+        console.warn("[cronista json]", lastErr);
+        continue;
       }
       if (driver === "openai") {
         const raw = await jsonCronistaOpenAi(userPrompt);
         const narration = parseNarracionJson(raw);
-        if (narration) {
-          return NextResponse.json({ narration: sanitizePlayerFacingNarration(narration) });
+        const cleaned = narration ? sanitizePlayerFacingNarration(narration) : "";
+        if (cleaned && acceptCronistaNarration(cleaned).ok) {
+          recordExternalDriverSuccess("openai");
+          return NextResponse.json({ narration: cleaned });
         }
-        throw new Error("narracion vacía (OpenAI JSON).");
+        recordExternalDriverFailure("openai");
+        lastErr = new Error("OpenAI JSON · narración vacía o no aceptable.");
+        console.warn("[cronista json]", lastErr);
+        continue;
       }
       const narration = internalNarration(parsed);
       return NextResponse.json({ narration: sanitizePlayerFacingNarration(narration) });
     } catch (e) {
       lastErr = e;
+      if (driver === "gemini" || driver === "openai") recordExternalDriverFailure(driver);
       console.warn("[cronista json] driver:", driver, e);
     }
   }
@@ -117,37 +162,42 @@ async function cronistaJsonResponse(parsed: NormalizedCronistaBody): Promise<Res
 async function cronistaStreamResponse(parsed: NormalizedCronistaBody): Promise<Response> {
   const userPrompt = await buildCronistaPromptFromParsed(parsed);
 
-  const chain = resolveDriverChain();
+  const chain = applyDriverCircuitToChain(resolveDriverChain());
   let lastErr: unknown;
 
   for (const driver of chain) {
     try {
       if (driver === "gemini") {
         const stream = await streamCronistaGemini(userPrompt);
-        const encoder = new TextEncoder();
-        const readable = new ReadableStream({
-          async start(controller) {
-            try {
-              for await (const chunk of stream) {
-                const t = chunk.text();
-                if (t) controller.enqueue(encoder.encode(t));
-              }
-              controller.close();
-            } catch (e) {
-              controller.error(e);
-            }
-          },
-        });
-        return new Response(readable, { headers: STREAM_HEADERS });
+        const raw = await drainGeminiTextStream(stream);
+        const cleaned = sanitizePlayerFacingNarration(raw.trim());
+        if (cleaned && acceptCronistaNarration(cleaned).ok) {
+          recordExternalDriverSuccess("gemini");
+          return new Response(internalCronistaReadableStream(cleaned), { headers: STREAM_HEADERS });
+        }
+        recordExternalDriverFailure("gemini");
+        lastErr = new Error("Gemini stream · texto no aceptable.");
+        console.warn("[cronista stream]", lastErr);
+        continue;
       }
       if (driver === "openai") {
         const plain = await streamCronistaOpenAiReadable(userPrompt);
-        return new Response(plain, { headers: STREAM_HEADERS });
+        const raw = await drainUtf8ReadableStream(plain);
+        const cleaned = sanitizePlayerFacingNarration(raw.trim());
+        if (cleaned && acceptCronistaNarration(cleaned).ok) {
+          recordExternalDriverSuccess("openai");
+          return new Response(internalCronistaReadableStream(cleaned), { headers: STREAM_HEADERS });
+        }
+        recordExternalDriverFailure("openai");
+        lastErr = new Error("OpenAI stream · texto no aceptable.");
+        console.warn("[cronista stream]", lastErr);
+        continue;
       }
       const text = internalNarration(parsed);
       return new Response(internalCronistaReadableStream(text), { headers: STREAM_HEADERS });
     } catch (e) {
       lastErr = e;
+      if (driver === "gemini" || driver === "openai") recordExternalDriverFailure(driver);
       console.warn("[cronista stream] driver:", driver, e);
     }
   }

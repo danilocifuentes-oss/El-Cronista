@@ -1,7 +1,12 @@
 "use client";
 
 import CronistaApp from "@/components/CronistaApp";
+import { NexoWrapper } from "@/components/NexoWrapper";
 
 export default function Home() {
-  return <CronistaApp />;
+  return (
+    <NexoWrapper>
+      <CronistaApp />
+    </NexoWrapper>
+  );
 }

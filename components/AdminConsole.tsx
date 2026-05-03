@@ -16,7 +16,8 @@ type Props = {
   command: string;
   onCommand: (v: string) => void;
   onEmitCommand: () => void;
-  remoteSheetHint: string;
+  /** Pie de consola MJ; evitar rutas, proveedores o claves en este texto. */
+  remoteSheetHint?: string;
   /** Demostración: incrementa Hambre en +1 (no sustituye al Reloj). */
   onStressHunger: () => void;
   onForcedFrenesy: () => void;
@@ -178,7 +179,10 @@ export function AdminConsole({
               </button>
             </div>
 
-            <p className="mt-6 font-mono text-[9px] leading-relaxed text-neutral-600">{remoteSheetHint}</p>
+            <p className="mt-6 font-mono text-[9px] leading-relaxed text-neutral-600">
+              {remoteSheetHint ??
+                "//_ALMACÉN · ficha y bitácora en perfil local de este equipo. Nada del canal sale sin tu acción."}
+            </p>
           </motion.div>
         )}
       </AnimatePresence>

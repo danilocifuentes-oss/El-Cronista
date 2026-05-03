@@ -30,6 +30,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${inter.variable} ${jetbrains.variable} ${spaceGrotesk.variable} h-full antialiased`}>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,200,0,0&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body className="min-h-full font-sans bg-[var(--void)] text-neutral-200">{children}</body>
     </html>
   );

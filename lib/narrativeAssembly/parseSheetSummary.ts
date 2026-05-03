@@ -17,6 +17,8 @@ export type ParsedCodexSignals = {
   skillsLine: string;
   /** Desde etiqueta CODEX Nexo cuando existe (`Potencia de sangre: N`). */
   bloodPotency: number | null;
+  /** Marcas de daño físico V5 desde resumen CODEX. */
+  healthDamage: number | null;
 };
 
 /** Etiquetas de bloque CODEX conocidas desde `buildSheetSummary` — corta campos multi-línea. */
@@ -85,6 +87,7 @@ export function parseCodexSignalsFromSheetSummary(sheetSummary: string): ParsedC
   const hungerM = text.match(/Hambre\s*Σ\s*:\s*(\d+)\s*\/\s*5/i);
   const humanityM = text.match(/Humanidad\s*:\s*(\d+)/i);
   const potencyM = text.match(/Potencia\s+de\s+sangre\s*:\s*(\d+)/i);
+  const healthM = text.match(/Daño\s+a\s+salud\s*\(marcas\)\s*:\s*(\d+)/i);
 
   return {
     nombre,
@@ -101,5 +104,6 @@ export function parseCodexSignalsFromSheetSummary(sheetSummary: string): ParsedC
     disciplinesLine: lineAfterPrefix(lines, "Disciplinas:"),
     skillsLine: lineAfterPrefix(lines, "Habilidades destacadas:"),
     bloodPotency: potencyM ? Number(potencyM[1]) : null,
+    healthDamage: healthM ? Number(healthM[1]) : null,
   };
 }

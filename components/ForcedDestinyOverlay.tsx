@@ -1,6 +1,6 @@
 "use client";
 
-import { rollPoolV5, summarizeRollNarrator } from "@/lib/dice";
+import { rollPoolV5, summarizeRollPlayerLog } from "@/lib/dice";
 import type { CharacterSheet } from "@/lib/character";
 import type { ForcedRollKind } from "@/context/GameSessionContext";
 
@@ -30,12 +30,12 @@ export function ForcedDestinyOverlay({ forced, sheet, hungerLevel, onConsume }: 
     const pool = poolForForced(spec.kind, sheet);
     const hungerDice = Math.min(pool, hungerLevel);
     const r = rollPoolV5(pool, hungerDice, spec.difficulty);
-    const codex =
-      spec.kind === "frenesy"
-        ? "RES+COM"
-        : "FUER+RES";
-    const narr = summarizeRollNarrator(r);
-    onConsume(`[OVERRIDE_${spec.kind.toUpperCase()}]: ${codex} · pool:${pool}(Σh:${hungerDice}) · DF:${spec.difficulty} · ${narr}`);
+    const atributos =
+      spec.kind === "frenesy" ? "Resolución y Compostura" : "Fuerza y Resistencia";
+    const narr = summarizeRollPlayerLog(r);
+    onConsume(
+      `Tirada forzada (${spec.kind === "frenesy" ? "frenesí" : "enardecimiento"}) · ${atributos} · reserva ${pool} (eco sangrado ${hungerDice}) · umbral ${spec.difficulty} · ${narr}`,
+    );
   }
 
   return (

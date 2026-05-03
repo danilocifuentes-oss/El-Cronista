@@ -46,7 +46,12 @@ import {
   touchSignificantAction,
 } from "@/lib/impulseUnits";
 import { formatWorldNexusPromptBlock, ingestRollingSummary, loadNexusWorldState, saveNexusWorldState } from "@/lib/nexusWorldState";
-import { factoryResetLocalNexoPreserveGenesis } from "@/lib/clientNexoReset";
+import { applyMandatoryServerChronicleReset, factoryResetLocalNexoPreserveGenesis } from "@/lib/clientNexoReset";
+import {
+  fetchServerClientResetEpoch,
+  readLocalClientResetEpoch,
+  writeLocalClientResetEpoch,
+} from "@/lib/nexoSessionSync";
 import { formatNexoApiFailure } from "@/lib/nexoErrors";
 import { sanitizePlayerFacingNarration, sanitizeSuggestionLine } from "@/lib/playerFacingText";
 import { buildSheetSummaryLite } from "@/lib/sheetSummary";
@@ -272,6 +277,36 @@ function CronistaAppInner() {
     })();
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  /** Mandato servidor: nueva crónica global (epoch) — limpia todo y recarga. */
+  useEffect(() => {
+    let cancelled = false;
+    async function checkClientResetEpoch() {
+      try {
+        const server = await fetchServerClientResetEpoch();
+        if (cancelled) return;
+        const local = readLocalClientResetEpoch();
+        if (server > local) {
+          applyMandatoryServerChronicleReset();
+          writeLocalClientResetEpoch(server);
+          window.location.reload();
+        }
+      } catch {
+        /* red caída: reintentar en el próximo intervalo */
+      }
+    }
+    void checkClientResetEpoch();
+    const id = window.setInterval(checkClientResetEpoch, 45_000);
+    const onVis = () => {
+      if (document.visibilityState === "visible") void checkClientResetEpoch();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
     };
   }, []);
 
@@ -597,6 +632,9 @@ function CronistaAppInner() {
       ...(Array.isArray(part.suggestions) && part.suggestions.length
         ? { suggestions: part.suggestions.slice(0, 8) }
         : {}),
+      ...(part.rollPrompt ? { rollPrompt: part.rollPrompt } : {}),
+      ...(part.sigmaGlitch ? { sigmaGlitch: true } : {}),
+      ...(part.beastTone ? { beastTone: true } : {}),
     };
     setLogs((prev) => {
       const next = [...prev, entry];
@@ -685,7 +723,13 @@ function CronistaAppInner() {
         text: out.narration,
         ...(out.suggestions?.length ? { suggestions: out.suggestions } : {}),
         ...(out.rollPrompt ? { rollPrompt: out.rollPrompt } : {}),
+        ...(sheet.hunger > 3 ? { beastTone: true } : {}),
       });
+      if (out.nexoInternalV1?.systemWhispers?.length) {
+        for (const w of out.nexoInternalV1.systemWhispers) {
+          pushLog({ role: "sistema", text: w, sigmaGlitch: true });
+        }
+      }
       if (cmp.enabled && cid && remoteCampaignStore) {
         void pushCampaignEntry({
           campaignId: cid,
@@ -715,7 +759,7 @@ function CronistaAppInner() {
     const cmd = mjCmd.trim();
     if (!cmd || !isNarrator) return;
     appendMjDirective(cmd);
-    pushLog({ role: "sistema", text: `[MJ_PIPE]: ${cmd}` });
+    pushLog({ role: "sistema", text: `//_MJ · ${cmd}` });
     setMjCmd("");
     setAdminOpen(false);
   };
@@ -838,9 +882,14 @@ function CronistaAppInner() {
   };
 
   const ravenousVisual = sheet.hunger >= 5 || beastPulse;
-  const mainFrameClass = ravenousVisual
-    ? "flex min-h-screen flex-col crt-wrap ravenous-frame bg-black"
-    : "flex min-h-screen flex-col bg-black";
+  const hungerVeil = sheet.hunger >= 4 && sheet.hunger < 5 && !beastPulse;
+  const mainFrameClass = [
+    "flex min-h-screen flex-col bg-black crt-wrap",
+    hungerVeil ? "hunger-veil" : "",
+    ravenousVisual ? "ravenous-frame" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const impulseMeta = useMemo(() => {
     void impulseRev;
@@ -1075,6 +1124,8 @@ function CronistaAppInner() {
       <div className="flex min-h-0 flex-1 flex-col xl:flex-row xl:items-stretch">
         <SidebarMesa
           accent={accent}
+          sheet={sheet}
+          citySigma={inquisitionThreat}
           healthFilled={healthHudFilled}
           healthMax={HEALTH_MAX_UI}
           hunger={sheet.hunger}
@@ -1111,6 +1162,7 @@ function CronistaAppInner() {
             }
             activeStrand={activeStrand}
             onStrandChange={commitStrand}
+            glyphContext={{ inquisitionThreat, hunger: sheet.hunger }}
           />
           <ManifestWill
             key={`${sheet.hunger}-${sheet.name}-${impulseRev}`}
@@ -1160,7 +1212,6 @@ function CronistaAppInner() {
         command={mjCmd}
         onCommand={setMjCmd}
         onEmitCommand={emitMj}
-        remoteSheetHint="//_PERSIST: local · TX→/api/narrador · MANIFESTAR→/api/cronista (Gemini)"
         onStressHunger={tweakRemoteSimulation}
         onForcedFrenesy={() => requestForcedRoll("frenesy", rollDifficulty)}
         onForcedRage={() => requestForcedRoll("enardecimiento", rollDifficulty)}

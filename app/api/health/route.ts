@@ -2,62 +2,53 @@ import { NextResponse } from "next/server";
 
 import { isGeminiConfigured, whichGeminiEnvName } from "@/lib/geminiEnv";
 import { describeDriverResolution, hasOpenAiKey } from "@/lib/narrativeDrivers/config";
+import { applyDriverCircuitToChain, getLlmCircuitDiagnostics } from "@/lib/narrativeDrivers/llmCircuitBreaker";
 import {
   getOperatorRuntimeState,
   isExternalLlmBlocked,
   isNarratorChannelPaused,
 } from "@/lib/operatorRuntimeSettings";
-import type { NarradorRequestBody } from "@/lib/narrativeTypes";
 
 export const runtime = "nodejs";
 
-/**
- * Comprobación rápida en producción (Vercel): servidor vivo y presencia de clave Gemini (ver geminiEnv).
- * No expone la clave ni llama a Google.
- */
 function isUpstashRedisConfigured(): boolean {
   return Boolean(process.env.UPSTASH_REDIS_REST_URL?.trim() && process.env.UPSTASH_REDIS_REST_TOKEN?.trim());
 }
 
+/**
+ * GET /api/health
+ * Por defecto: cuerpo mínimo (operaciones / monitoreo) sin mapas de endpoints ni claves de operador.
+ * Diagnóstico extendido sólo con `NEXO_HEALTH_DIAGNOSTICS=1` en el servidor (p. ej. entorno de desarrollo).
+ */
 export async function GET() {
   const geminiConfigured = isGeminiConfigured();
   const geminiEnvNameUsed = whichGeminiEnvName();
-
-  const bodyExample: NarradorRequestBody = {
-    playerAction: "Entro al antro con la capucha baja y busco al camarero.",
-    recentLogs: [
-      { role: "sistema", text: "[MJ_PIPE]: Ambiente tenso, música baja." },
-      { role: "jugador", text: "¿Hay alguien que encaje con la descripción?" },
-    ],
-    sheetSummary: "Nombre: Ejemplo\nLinaje: Nosferatu\nHambre Σ: 2/5",
-    inquisitionThreat: 2,
-    mjDirectives: ["Mantén el tono urbano gótico.", "No revelar al príncipe todavía."],
-    rollingSummary: "El PJ está en un bar del centro, de noche.",
-    ideasRepository: "Arco: reunión con el Sheriff el viernes. NPC recurrente: la camarera mortal.",
-    narrativeStrand: "principal" as const,
-    orchestrationNpcKey: "pj:ejemplo-canal",
-    crossStrandContext:
-      "· Paralela: negocios con el barón del barrio bajo.\n· En vivo: la mesa del sábado dejó un rumor sobre cazadores.",
-  };
-
-  const driver = describeDriverResolution();
   const op = getOperatorRuntimeState();
 
-  return NextResponse.json({
-    ok: true,
+  const minimal = {
+    ok: true as const,
+    clientResetEpoch: typeof op.clientResetEpoch === "number" ? op.clientResetEpoch : 0,
     service: "el-cronista-de-las-sombras",
     geminiConfigured,
     openAiKeyPresent: hasOpenAiKey(),
-    /** Qué variable detectó el servidor (sin valor). Ausente si ninguna está definida. */
+    redisConfigured: isUpstashRedisConfigured(),
+    channelPaused: isNarratorChannelPaused(),
+    externalLlmBlocked: isExternalLlmBlocked(),
+  };
+
+  if (process.env.NEXO_HEALTH_DIAGNOSTICS !== "1") {
+    return NextResponse.json(minimal);
+  }
+
+  const driver = describeDriverResolution();
+  const llmCircuit = getLlmCircuitDiagnostics();
+
+  return NextResponse.json({
+    ...minimal,
     geminiEnvNameUsed,
-    envCanonical: "GEMINI_API_KEY",
-    envAliasesAccepted: ["GOOGLE_GENERATIVE_AI_API_KEY"],
-    openAiEnv: "OPENAI_API_KEY",
-    openAiModelEnv: "OPENAI_MODEL (opcional, default gpt-4o-mini)",
-    narrativeProviderEnv: "NEXO_LLM_PROVIDER=auto|gemini|openai|internal",
-    narrativePreferEnv: "NEXO_LLM_PREFER=gemini|openai (solo con auto)",
-    /** Cadena de intento ante fallo (API → API → motor interno). No expone secretos. */
     narrativeDriverChain: driver.chain,
+    narrativeDriverChainEffective: applyDriverCircuitToChain(driver.chain),
+    llmCircuit,
     operatorRuntime: {
       channelPausedEffective: isNarratorChannelPaused(),
       externalLlmBlockedEffective: isExternalLlmBlocked(),
@@ -65,35 +56,11 @@ export async function GET() {
       settingsAgeMs: op.updatedAt ? Date.now() - op.updatedAt : null,
     },
     operatorEnvHints: {
-      NEXO_FORCE_INTERNAL_ONLY: "1 fuerza solo motor interno (sin Gemini/OpenAI).",
-      NEXO_CHANNEL_PAUSED: "1 pausa canal jugador (narrador + manifestar).",
-      UPSTASH_REDIS:
-        "UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN — campaña multijugador y orquestación persistente (global).",
-      NEXO_ORCH_DISK:
-        "1 opcional en self-hosted: JSON local .data/nexo-orchestration.json además de Redis.",
+      NEXO_FORCE_INTERNAL_ONLY: "1 fuerza sólo motor de sala (sin canal remoto al núcleo).",
+      NEXO_CHANNEL_PAUSED: "1 pausa canal jugador.",
+      UPSTASH_REDIS: "URL + token — campaña multijugador y orquestación persistente (servidor).",
+      NEXO_ORCH_DISK: "1 opcional self-hosted: JSON local además de Redis.",
     },
-    orchestration: {
-      redisConfigured: isUpstashRedisConfigured(),
-      nexoOrchestration: "POST /api/nexo-orchestration — misma clave operador · get|reset|raid|…",
-    },
-    /** Solo comprueba que la variable exista en runtime; no valida la clave contra Google. */
-    note:
-      "El nombre «Gemini API Key» en Google AI Studio es solo etiqueta. En Vercel debe llamarse la variable GEMINI_API_KEY (o alias GOOGLE_GENERATIVE_AI_API_KEY). Para ChatGPT/OpenAI define OPENAI_API_KEY. Marca Production y Redeploy.",
-    endpoints: {
-      health: "GET /api/health",
-      narrador: "POST /api/narrador — motor según NEXO_LLM_PROVIDER (fallback automático a interno)",
-      cronista: "POST /api/cronista — mismo pipeline que narrador",
-      pulsoMundo: "POST /api/pulso-mundo — bitácora (mismo criterio de APIs / interno)",
-      operatorSettings: "POST /api/operator-settings — clave 245285 · action get|save",
-      campaignEntry:
-        "GET|POST /api/campaign/entry — cola mesa multijugador (requiere UPSTASH_REDIS_REST_URL + TOKEN en servidor)",
-      nexoOrchestration:
-        "POST /api/nexo-orchestration — estado narrativo servidor (opcional cliente; Centro de Mando)",
-    },
-    ejemploPostNarrador: {
-      url: "/api/narrador",
-      headers: { "Content-Type": "application/json" },
-      body: bodyExample,
-    },
+    note: "Variables de clave y modelo se definen sólo en el servidor; no se incluyen valores en esta respuesta.",
   });
 }

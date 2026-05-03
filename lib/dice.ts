@@ -111,6 +111,16 @@ export function summarizeRollNarrator(r: V5RollResult): string {
   return `[TRACE:N:${r.normalDice.join("|") || "∅"}│H:${r.hungerDice.join("|") || "∅"}] XS:${r.successes}/${r.difficulty} ${nm}${outcomeCode(r.outcome)}`.trimEnd();
 }
 
+/** Línea de bitácora jugador/MJ — sin trazas internas ni códigos de motor. */
+export function summarizeRollPlayerLog(r: V5RollResult): string {
+  const marks: string[] = [];
+  if (r.criticalNormal) marks.push("crítico en canal estable");
+  if (r.messyCritical) marks.push("crítico manchado por la Bestia");
+  if (r.fracasoBestial) marks.push("eco de la Bestia");
+  const tail = marks.length ? ` · ${marks.join(" · ")}` : "";
+  return `Resolución: ${r.successes} éxitos frente a umbral ${r.difficulty}${tail} · ${outcomeCode(r.outcome)}`;
+}
+
 /** Tirada serializable para POST `/api/cronista` (sin referencias circulares). */
 export type SerializedV5Roll = {
   successes: number;

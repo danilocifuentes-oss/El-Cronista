@@ -125,6 +125,7 @@ export async function POST(req: Request) {
       rollingSummary: out.rollingSummary,
       ...(out.suggestions?.length ? { suggestions: out.suggestions } : {}),
       ...(out.rollPrompt ? { rollPrompt: out.rollPrompt } : {}),
+      ...(out.nexoInternalV1 ? { nexoInternalV1: out.nexoInternalV1 } : {}),
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

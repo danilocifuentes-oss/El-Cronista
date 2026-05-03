@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useEffect, useRef } from "react";
 import {
   NARRATIVE_STRANDS,
@@ -10,6 +10,18 @@ import {
   type NarrativeStrand,
 } from "@/lib/narrativeStrands";
 import type { NarrativeLogEntry } from "@/lib/narrativeTypes";
+import {
+  getTailwindClassesForNexoLogArticle,
+  getTailwindClassesForNexoLogProse,
+} from "@/lib/internal-engine/uiSignals";
+import { NexoGlyphRail } from "@/components/icons/NexoGlyphRail";
+import { NexoProseWithGlyphs } from "@/components/icons/NexoProseWithGlyphs";
+import { NexusLibrary } from "@/components/icons/NexusLibrary";
+import { detectNexoGlyphHints } from "@/lib/icons/glyphSignals";
+import {
+  extractNexoGlyphTokenKindsFromTokens,
+  stripNexoGlyphTokenLiterals,
+} from "@/lib/icons/nexoGlyphTokens";
 
 function scrollToManifestZone(): void {
   if (typeof document === "undefined") return;
@@ -31,6 +43,11 @@ function mergeComposerLine(current: string, addition: string): string {
   return t ? `${t}\n\n${addition}` : addition;
 }
 
+export type NexoGlyphContext = {
+  inquisitionThreat: number;
+  hunger: number;
+};
+
 type Props = {
   logs: NarrativeLogEntry[];
   composer: string;
@@ -46,6 +63,8 @@ type Props = {
   onPickSuggestion?: (text: string) => void;
   activeStrand: NarrativeStrand;
   onStrandChange: (s: NarrativeStrand) => void;
+  /** σ + hambre para glifos paramétricos (riel SchreckNet). */
+  glyphContext?: NexoGlyphContext;
 };
 
 export function NarrativeFlow({
@@ -60,7 +79,9 @@ export function NarrativeFlow({
   onPickSuggestion,
   activeStrand,
   onStrandChange,
+  glyphContext,
 }: Props) {
+  const reduceMotion = useReducedMotion();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -95,6 +116,20 @@ export function NarrativeFlow({
             <span className="sr-only">Escena activa</span>
           )}
         </div>
+        {glyphContext ? (
+          showTechnicalAnchors ? (
+            <div className="flex items-center gap-2 font-mono text-[8px] font-normal normal-case tracking-wide text-neutral-500">
+              <NexusLibrary.Inquisicion sigma={glyphContext.inquisitionThreat} className="h-4 w-4" />
+              <span>
+                Amenaza σ {glyphContext.inquisitionThreat} · Hambre {glyphContext.hunger}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 opacity-75" aria-hidden>
+              <NexusLibrary.Inquisicion sigma={glyphContext.inquisitionThreat} className="h-3.5 w-3.5" />
+            </div>
+          )
+        ) : null}
         <div className="flex flex-wrap gap-1.5 normal-case tracking-normal">
           {NARRATIVE_STRANDS.map((s) => {
             const on = s === activeStrand;
@@ -145,48 +180,86 @@ export function NarrativeFlow({
         className="min-h-0 flex-1 overflow-y-auto scroll-smooth space-y-3 px-4 py-3"
       >
         <AnimatePresence mode="popLayout">
-          {logs.map((entry) => (
+          {logs.map((entry) => {
+            const isSystem = entry.role === "sistema";
+            const motionArticleProps = isSystem
+              ? entry.sigmaGlitch && !reduceMotion
+                ? {
+                    initial: { opacity: 0, x: 10 },
+                    animate: { opacity: 1, x: [6, -4, 3, 0] },
+                    transition: { duration: 0.5, ease: "easeOut" as const },
+                  }
+                : { initial: { opacity: 0 }, animate: { opacity: 1 } }
+              : reduceMotion
+                ? { initial: { opacity: 0, y: 3 }, animate: { opacity: 1, y: 0 } }
+                : {
+                    initial: { opacity: 0, x: entry.role === "narrador" ? -18 : 18 },
+                    whileInView: { opacity: 1, x: 0 },
+                    viewport: { once: true, margin: "-32px" },
+                  };
+            const immersiveLabel =
+              entry.role === "narrador"
+                ? entry.cronistaOut
+                  ? "Manifestar"
+                  : "Eco del canal"
+                : "Tu voz";
+            const proseForHints = stripNexoGlyphTokenLiterals(entry.text);
+            const bloodFrame =
+              entry.role === "jugador" &&
+              glyphContext &&
+              glyphContext.hunger > 2 &&
+              (detectNexoGlyphHints(proseForHints).includes("blood") ||
+                extractNexoGlyphTokenKindsFromTokens(entry.text).includes("blood"));
+            const articleClass = [
+              getTailwindClassesForNexoLogArticle(entry, {
+                showTechnicalAnchors,
+                reduceMotion: Boolean(reduceMotion),
+              }),
+              bloodFrame ? "nexo-glyph-bloodframe" : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
+            return (
             <motion.article
               key={entry.id}
               layout
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={
-                entry.role === "sistema"
-                  ? "max-w-[96%] font-mono text-[10px] leading-relaxed text-neutral-600"
-                  : showTechnicalAnchors
-                    ? `max-w-[96%] font-mono text-[10px] leading-relaxed ${
-                        entry.role === "narrador"
-                          ? entry.cronistaOut
-                            ? "border-l border-[var(--terminal)]/25 pl-3 text-neutral-300"
-                            : "border-l border-[#252525] pl-3 text-neutral-500"
-                          : "border-l border-[#252525] pl-3 text-neutral-400"
-                      }`
-                    : `max-w-[min(48rem,96%)] font-sans text-[13px] leading-[1.72] tracking-[0.02em] ${
-                        entry.role === "narrador"
-                          ? entry.cronistaOut
-                            ? "border-l-2 border-[var(--terminal)]/30 pl-4 text-neutral-200"
-                            : "border-l border-[#2a2a30] pl-4 text-neutral-400"
-                          : "border-l border-[#2a2a30] pl-4 text-neutral-300"
-                      }`
-              }
+              {...motionArticleProps}
+              className={articleClass}
             >
               {entry.role !== "sistema" ? (
                 <>
+                  {!showTechnicalAnchors ? (
+                    <div className="mb-2 flex items-center gap-2">
+                      <span
+                        className={`text-[10px] font-mono uppercase tracking-[0.2em] ${
+                          entry.role === "narrador" ? "glow-terminal text-terminal" : "text-neutral-500"
+                        }`}
+                      >
+                        {immersiveLabel}
+                      </span>
+                      <div className="h-px flex-1 bg-white/[0.06]" />
+                    </div>
+                  ) : null}
                   {showTechnicalAnchors ? (
                     <span className="mr-2 text-[8px] uppercase text-neutral-700">
                       {entry.role === "jugador" ? "//_IN" : "//_OUT"}
                     </span>
                   ) : null}
-                  <span
-                    className={
-                      entry.role === "narrador" && entry.cronistaOut
-                        ? "cronista-out-text whitespace-pre-wrap"
-                        : "whitespace-pre-wrap"
-                    }
-                  >
-                    {entry.text}
-                  </span>
+                  {(entry.role === "narrador" || entry.role === "jugador") && entry.text.trim() ? (
+                    <NexoGlyphRail
+                      text={entry.text}
+                      sigma={glyphContext?.inquisitionThreat ?? 0}
+                      hunger={glyphContext?.hunger ?? 0}
+                      extraHints={entry.cronistaOut ? (["destiny", "terminal"] as const) : undefined}
+                    />
+                  ) : null}
+                  <p className={getTailwindClassesForNexoLogProse(entry)}>
+                    <NexoProseWithGlyphs
+                      text={entry.text}
+                      sigma={glyphContext?.inquisitionThreat ?? 0}
+                      hunger={glyphContext?.hunger ?? 0}
+                    />
+                  </p>
                   {entry.role === "narrador" && !entry.cronistaOut && entry.suggestions?.length ? (
                     <div className="mt-3 space-y-1.5 border-t border-white/[0.04] pt-3">
                       <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-neutral-600">
@@ -244,7 +317,8 @@ export function NarrativeFlow({
                 </span>
               ) : null}
             </motion.article>
-          ))}
+            );
+          })}
         </AnimatePresence>
       </div>
       <div className="shrink-0 border-t border-[#1c1c22] bg-black/35 p-3 sm:p-4">

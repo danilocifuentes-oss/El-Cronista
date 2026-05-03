@@ -6,13 +6,11 @@
  */
 
 import { emptySheet, saveSheet } from "@/lib/character";
-import {
-  wipeAllLocalProfiles,
-} from "@/lib/profileStore";
+import { wipeAllLocalProfiles } from "@/lib/profileStore";
 import { wipeClientNexoWorld } from "@/lib/nexusWorldState";
 import { resetNarrativeChannel, saveActiveStrand } from "@/lib/narrativeMemory";
 import { saveXpLog, saveMeta, defaultMeta } from "@/lib/sessionMeta";
-import { setPendingSynapticDisruption } from "@/lib/chronicleConfig";
+import { blankChronicleForServerReset, saveChronicle, setPendingSynapticDisruption } from "@/lib/chronicleConfig";
 
 export type ClientFactoryResetOptions = {
   /** Si false, preserva sala/código jugador Redis (local). Default true. */
@@ -46,6 +44,43 @@ export function factoryResetLocalNexoPreserveGenesis(opts?: ClientFactoryResetOp
     window.localStorage.removeItem("cronista-bitacora-dual-v1");
     window.localStorage.removeItem("cronista-bitacora-publica-v1");
     window.localStorage.removeItem("cronista-bitacora-cache-v1");
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Reset duro cuando el **servidor** incrementa `clientResetEpoch`:
+ * personajes, Nexo, mundo cliente, Génesis en blanco, campaña local y bitácoras.
+ * No modifica claves del operador en servidor (solo reacciona al mandato).
+ */
+export function applyMandatoryServerChronicleReset(): void {
+  if (typeof window === "undefined") return;
+
+  wipeAllLocalProfiles();
+  wipeClientNexoWorld();
+  setPendingSynapticDisruption("");
+  saveChronicle(blankChronicleForServerReset());
+  saveXpLog([]);
+  resetNarrativeChannel({ clearIdeas: true, clearMj: true });
+  saveMeta(defaultMeta());
+  saveSheet(emptySheet());
+  saveActiveStrand("principal");
+
+  try {
+    window.localStorage.removeItem("cronista-campaign-sync-v1");
+  } catch {
+    /* ignore */
+  }
+  try {
+    window.localStorage.removeItem("cronista-bitacora-dual-v1");
+    window.localStorage.removeItem("cronista-bitacora-publica-v1");
+    window.localStorage.removeItem("cronista-bitacora-cache-v1");
+  } catch {
+    /* ignore */
+  }
+  try {
+    window.sessionStorage.removeItem("nexo_immersive_boot_v1");
   } catch {
     /* ignore */
   }
