@@ -84,13 +84,20 @@ export function loadMjDirectives(): string[] {
   }
 }
 
+export function saveMjDirectives(directives: string[]): void {
+  if (typeof window === "undefined") return;
+  const next = directives
+    .filter((x) => typeof x === "string" && x.trim().length > 0)
+    .map((x) => x.trim())
+    .slice(-MAX_MJ);
+  localStorage.setItem(MJ_KEY, JSON.stringify(next));
+}
+
 export function appendMjDirective(text: string): void {
   const t = text.trim();
   if (!t) return;
   const prev = loadMjDirectives();
-  const next = [...prev, t].slice(-MAX_MJ);
-  if (typeof window === "undefined") return;
-  localStorage.setItem(MJ_KEY, JSON.stringify(next));
+  saveMjDirectives([...prev, t]);
 }
 
 export function clearMjDirectives(): void {

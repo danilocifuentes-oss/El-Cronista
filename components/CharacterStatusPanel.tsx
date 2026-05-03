@@ -11,6 +11,8 @@ type Props = {
   xpLog?: XpLogEntry[];
   sheetLocked?: boolean;
   isNarrator?: boolean;
+  /** Solo lectura: sin ajustes tácticos (vista hoja ampliada). */
+  readOnlyMode?: boolean;
 };
 
 const HEALTH_MAX = 7;
@@ -21,10 +23,11 @@ export function CharacterStatusPanel({
   xpLog = [],
   sheetLocked = false,
   isNarrator = false,
+  readOnlyMode = false,
 }: Props) {
   const accent = CLAN_ACCENTS[sheet.clan];
   const wpPct = sheet.willpowerMax ? (sheet.willpowerCur / sheet.willpowerMax) * 100 : 0;
-  const hungerInteractive = sheetLocked ? isNarrator : true;
+  const hungerInteractive = readOnlyMode ? false : sheetLocked ? isNarrator : true;
   const linajeLabel = CLAN_OPTIONS.find((c) => c.id === sheet.clan)?.label ?? sheet.clan;
 
   return (
@@ -43,26 +46,32 @@ export function CharacterStatusPanel({
       {/* SU/SV táctico — texto mínimo; integridad física reflejada en HUD */}
       <div className="space-y-5 border-y border-[#161616] py-4">
         <div title="Índice de integridad física (no salud audible)">
-          <div className="mb-2 flex gap-4 text-neutral-600">
-            <button
-              type="button"
-              className="hover:text-emerald-500/90"
-              onClick={() =>
-                onChange({ ...sheet, healthDamage: Math.min(HEALTH_MAX, sheet.healthDamage + 1) }, `[SU_DELTA]:−1`)
-              }
-            >
-              ◇−
-            </button>
-            <button
-              type="button"
-              className="hover:text-emerald-500/90"
-              onClick={() =>
-                onChange({ ...sheet, healthDamage: Math.max(0, sheet.healthDamage - 1) }, `[SU_DELTA]:+1`)
-              }
-            >
-              ◇+
-            </button>
-          </div>
+          {readOnlyMode ? (
+            <p className="text-[9px] text-neutral-600">
+              SU · daño {sheet.healthDamage} / {HEALTH_MAX}
+            </p>
+          ) : (
+            <div className="mb-2 flex gap-4 text-neutral-600">
+              <button
+                type="button"
+                className="hover:text-emerald-500/90"
+                onClick={() =>
+                  onChange({ ...sheet, healthDamage: Math.min(HEALTH_MAX, sheet.healthDamage + 1) }, `[SU_DELTA]:−1`)
+                }
+              >
+                ◇−
+              </button>
+              <button
+                type="button"
+                className="hover:text-emerald-500/90"
+                onClick={() =>
+                  onChange({ ...sheet, healthDamage: Math.max(0, sheet.healthDamage - 1) }, `[SU_DELTA]:+1`)
+                }
+              >
+                ◇+
+              </button>
+            </div>
+          )}
         </div>
 
         <div title="Capacidad ejecutiva temporal">
@@ -75,23 +84,25 @@ export function CharacterStatusPanel({
           <div className="mt-1.5 h-1.5 border border-[#161616] bg-black">
             <motion.div className="h-full bg-[var(--terminal)]/70" animate={{ width: `${wpPct}%` }} transition={{ stiffness: 180, damping: 22 }} />
           </div>
-          <div className="mt-2 flex gap-4 text-neutral-600">
-            <button type="button" className="hover:text-neutral-400" onClick={() => onChange({ ...sheet, willpowerCur: Math.max(0, sheet.willpowerCur - 1) }, `[WV_DELTA]:−1`)}>
-              −
-            </button>
-            <button
-              type="button"
-              className="hover:text-neutral-400"
-              onClick={() =>
-                onChange(
-                  { ...sheet, willpowerCur: Math.min(sheet.willpowerMax, sheet.willpowerCur + 1) },
-                  `[WV_DELTA]:+1`,
-                )
-              }
-            >
-              +
-            </button>
-          </div>
+          {!readOnlyMode ? (
+            <div className="mt-2 flex gap-4 text-neutral-600">
+              <button type="button" className="hover:text-neutral-400" onClick={() => onChange({ ...sheet, willpowerCur: Math.max(0, sheet.willpowerCur - 1) }, `[WV_DELTA]:−1`)}>
+                −
+              </button>
+              <button
+                type="button"
+                className="hover:text-neutral-400"
+                onClick={() =>
+                  onChange(
+                    { ...sheet, willpowerCur: Math.min(sheet.willpowerMax, sheet.willpowerCur + 1) },
+                    `[WV_DELTA]:+1`,
+                  )
+                }
+              >
+                +
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div title="Vector hematófago — intervalo servidor local">
@@ -109,10 +120,12 @@ export function CharacterStatusPanel({
               }
               className="mt-2 w-full accent-[var(--blood)]"
             />
+          ) : readOnlyMode ? (
+            <p className="mt-2 text-[9px] text-neutral-500">Σh {sheet.hunger}/5</p>
           ) : (
             <p className="text-[9px] leading-snug opacity-65">[&gt;_CLOCK_READONLY]</p>
           )}
-          {isNarrator && sheetLocked ? (
+          {!readOnlyMode && isNarrator && sheetLocked ? (
             <button
               type="button"
               className="mt-2 w-full border border-[#161616] py-1.5 text-[9px] uppercase tracking-widest text-[var(--terminal)] hover:bg-neutral-950"

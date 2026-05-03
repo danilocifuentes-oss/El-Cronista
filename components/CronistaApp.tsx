@@ -39,8 +39,17 @@ import { ForcedDestinyOverlay } from "./ForcedDestinyOverlay";
 import { SerenoFooter } from "./SerenoFooter";
 import { TechnicalHud } from "./TechnicalHud";
 import { outcomeCode } from "@/lib/dice";
+import {
+  createBlankProfile,
+  getActiveProfileId,
+  listProfiles,
+  migrateLegacyToProfiles,
+  selectProfile,
+  syncActiveBundleFromGlobals,
+} from "@/lib/profileStore";
+import { ProfileHub } from "./ProfileHub";
 
-type Phase = "login" | "chargen" | "nexus";
+type Phase = "login" | "profileHub" | "chargen" | "nexus" | "sheetReview";
 
 const HEALTH_MAX_UI = 7;
 
@@ -67,6 +76,25 @@ const BOOT_STREAM: NarrativeLogEntry = {
 
 function mergeStoredSheet(raw: CharacterSheet): CharacterSheet {
   return normalizeCharacterSheet(raw);
+}
+
+function persistActiveProfile(): void {
+  const aid = getActiveProfileId();
+  if (aid) syncActiveBundleFromGlobals(aid);
+}
+
+function applyGlobalsToUi(
+  setSheet: (s: CharacterSheet) => void,
+  setSheetLocked: (v: boolean) => void,
+  setLogs: (v: NarrativeLogEntry[] | ((p: NarrativeLogEntry[]) => NarrativeLogEntry[])) => void,
+  refreshXpLog: () => void,
+) {
+  const stored = loadSheet();
+  if (stored) setSheet(mergeStoredSheet(stored));
+  setSheetLocked(loadMeta().sheetLocked);
+  const nar = loadNarrativeLog();
+  setLogs(nar.length > 0 ? nar : [BOOT_STREAM]);
+  refreshXpLog();
 }
 
 export default function CronistaApp() {
@@ -96,7 +124,7 @@ function CronistaAppInner() {
     isNarrator,
     setIsNarrator,
     famineIntervalMinutes,
-    setFamineIntervalMinutes,
+    setFamineIntervalMinutes: setFamineIntervalMinutesCtx,
     rollDifficulty,
     setRollDifficulty,
     forcedRoll,
@@ -116,6 +144,16 @@ function CronistaAppInner() {
     });
   }, []);
 
+  useEffect(() => {
+    if (phase !== "nexus") return;
+    const m = loadMeta();
+    setFamineIntervalMinutesCtx(
+      typeof m.famineIntervalMinutes === "number"
+        ? Math.max(5, Math.min(240, m.famineIntervalMinutes))
+        : 60,
+    );
+  }, [phase, setFamineIntervalMinutesCtx]);
+
   const handleSheetMutation = useCallback(
     (next: CharacterSheet, logLine?: string) => {
       saveSheet(next);
@@ -125,22 +163,15 @@ function CronistaAppInner() {
         appendXpLog(logLine);
         refreshXpLog();
       }
+      const aid = getActiveProfileId();
+      if (aid) syncActiveBundleFromGlobals(aid);
     },
     [refreshXpLog],
   );
 
   const applyLogin = () => {
-    const stored = loadSheet();
-    const meta = loadMeta();
-    setSheetLocked(meta.sheetLocked);
-    if (stored && stored.name) {
-      setSheet(mergeStoredSheet(stored));
-      setPhase("nexus");
-      refreshXpLog();
-      pushLog({ role: "sistema", text: "[CACHE_HIT]: índice operador · KV persistido." });
-    } else {
-      setPhase("chargen");
-    }
+    migrateLegacyToProfiles();
+    setPhase("profileHub");
   };
 
   const finishChargen = (w: CharacterSheet) => {
@@ -164,6 +195,8 @@ function CronistaAppInner() {
       role: "sistema",
       text: "[STATE_LOCK]: CODEX cerrado (`cronista-sheet-v1`) · cambios solo si el narrador los audita.",
     });
+    const aid = getActiveProfileId();
+    if (aid) syncActiveBundleFromGlobals(aid);
   };
 
   useEffect(() => {
@@ -203,6 +236,10 @@ function CronistaAppInner() {
     setLogs((prev) => {
       const next = [...prev, entry];
       saveNarrativeLog(next);
+      queueMicrotask(() => {
+        const aid = getActiveProfileId();
+        if (aid) syncActiveBundleFromGlobals(aid);
+      });
       return next;
     });
   }
@@ -255,7 +292,7 @@ function CronistaAppInner() {
       ...loadMeta(),
       famineIntervalMinutes: clamped,
     });
-    setFamineIntervalMinutes(clamped);
+    setFamineIntervalMinutesCtx(clamped);
     appendXpLog(`[CLOCK_CONFIG]:Δ=${clamped}m`);
     refreshXpLog();
   };
@@ -263,7 +300,41 @@ function CronistaAppInner() {
   const mainFrameClass =
     sheet.hunger >= 5 ? "flex min-h-screen flex-col crt-wrap ravenous-frame" : "flex min-h-screen flex-col crt-wrap";
 
+  const goToLogin = () => {
+    persistActiveProfile();
+    setPhase("login");
+  };
+
+  const goToProfileHub = () => {
+    persistActiveProfile();
+    setPhase("profileHub");
+  };
+
+  const enterProfile = (id: string) => {
+    if (!selectProfile(id)) return;
+    applyGlobalsToUi(setSheet, setSheetLocked, setLogs, refreshXpLog);
+    setPhase("nexus");
+    pushLog({ role: "sistema", text: `[PERFIL]: ${loadSheet()?.name || id}` });
+  };
+
+  const startBlankSheet = () => {
+    createBlankProfile();
+    applyGlobalsToUi(setSheet, setSheetLocked, setLogs, refreshXpLog);
+    setPhase("chargen");
+  };
+
   if (phase === "login") return <SchreckNetLogin onAuthenticate={applyLogin} />;
+
+  if (phase === "profileHub") {
+    return (
+      <ProfileHub
+        profiles={listProfiles()}
+        onPlayProfile={(id) => enterProfile(id)}
+        onNewSheetBlank={startBlankSheet}
+        onLogout={goToLogin}
+      />
+    );
+  }
 
   if (phase === "chargen") {
     const meta = loadMeta();
@@ -302,6 +373,34 @@ function CronistaAppInner() {
   const healthHudFilled =
     HEALTH_MAX_UI - Math.min(sheet.healthDamage, HEALTH_MAX_UI);
 
+  if (phase === "sheetReview") {
+    return (
+      <div className="flex min-h-screen flex-col bg-[var(--void)] techno-grid">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[#161616] bg-black/70 px-4 py-3 font-mono text-[10px] text-neutral-400">
+          <p className="tracking-[0.25em] text-[var(--terminal)]/90">{"//_HOJA · SOLO_LECTURA"}</p>
+          <button
+            type="button"
+            onClick={() => setPhase("nexus")}
+            className="border border-[var(--terminal)]/35 px-4 py-2 text-[9px] uppercase tracking-widest text-[var(--terminal)] hover:bg-[var(--terminal)]/10"
+          >
+            Volver al Nexo
+          </button>
+        </header>
+        <div className="mx-auto flex w-full max-w-md flex-1 flex-col p-4 pb-10 lg:max-w-lg">
+          <CharacterStatusPanel
+            sheet={sheet}
+            onChange={() => {}}
+            xpLog={xpLog}
+            sheetLocked={sheetLocked}
+            isNarrator={isNarrator}
+            readOnlyMode
+          />
+        </div>
+        <SerenoFooter />
+      </div>
+    );
+  }
+
   return (
     <div
       className={`${mainFrameClass} techno-grid bg-[var(--void)] text-neutral-200`}
@@ -338,10 +437,20 @@ function CronistaAppInner() {
         <div className="flex w-full flex-wrap items-center justify-between gap-3 border-t border-[#161616]/60 pt-3 sm:gap-4 lg:w-auto lg:border-t-0 lg:pt-0">
           <TechnicalHud healthFilled={healthHudFilled} healthMax={HEALTH_MAX_UI} hunger={sheet.hunger} />
           <div className="flex flex-wrap gap-2 sm:ml-auto lg:ml-0">
+            <button
+              type="button"
+              onClick={() => setPhase("sheetReview")}
+              className="border border-neutral-600 px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-400 hover:border-neutral-500 hover:text-neutral-300"
+            >
+              HOJA
+            </button>
             {(!sheetLocked || isNarrator) && (
               <button
                 type="button"
-                onClick={() => setPhase("chargen")}
+                onClick={() => {
+                  persistActiveProfile();
+                  setPhase("chargen");
+                }}
                 className="border border-[#252525] px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-400 hover:border-[color:var(--accent-clan)] hover:text-neutral-300"
               >
                 {sheetLocked ? "CODEX_MJ" : "CODEX"}
@@ -349,7 +458,14 @@ function CronistaAppInner() {
             )}
             <button
               type="button"
-              onClick={() => setPhase("login")}
+              onClick={goToProfileHub}
+              className="border border-[#2a2a2a] px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-500 hover:border-neutral-600 hover:text-neutral-400"
+            >
+              PERFILES
+            </button>
+            <button
+              type="button"
+              onClick={goToLogin}
               className="border border-[var(--blood)]/45 px-3 py-2 text-[9px] uppercase tracking-widest text-[var(--blood)] hover:bg-[var(--blood)]/10"
             >
               LOGOUT
