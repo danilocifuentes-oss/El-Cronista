@@ -68,6 +68,19 @@ export function saveNarrativeLog(entries: NarrativeLogEntry[]): void {
   localStorage.setItem(LOG_KEY, JSON.stringify(entries.slice(-MAX_LOG)));
 }
 
+/** Coordina inicio de crónica en este dispositivo (MJ): vacía el log global del Nexo. */
+export function wipeLocalNexoTranscript(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(LOG_KEY);
+}
+
+/** Borra resúmenes locales de hilo (`rolling` por strand y legacy). */
+export function wipeLocalRollingState(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(SUMMARY_KEY);
+  localStorage.removeItem(ROLLING_BY_STRAND_KEY);
+}
+
 /** Log completo; usar `filterLogsByStrand` para la vista por hilo. */
 export function filterLogsByStrand(entries: NarrativeLogEntry[], strand: NarrativeStrand): NarrativeLogEntry[] {
   return entries.filter((e) => normalizeStrand(e.strand) === strand);

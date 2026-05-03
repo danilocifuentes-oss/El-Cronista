@@ -6,6 +6,8 @@ import { createProfileEntity } from "@/lib/profileStore";
 import type { ProfileSummary } from "@/lib/profileStore";
 import type { ChronicleConfig } from "@/lib/chronicleConfig";
 import { loadChronicle, saveChronicle, setPendingSynapticDisruption } from "@/lib/chronicleConfig";
+import { wipeLocalNexoTranscript, wipeLocalRollingState } from "@/lib/narrativeMemory";
+import { wipeClientNexoWorld } from "@/lib/nexusWorldState";
 import { parseFetchJson } from "@/lib/parseFetchJson";
 import { MasterSheetEditor } from "./MasterSheetEditor";
 import { ROOT_OPERATOR_CIPHER } from "@/lib/sessionMeta";
@@ -610,6 +612,74 @@ export function NarratorCommandCenter({
             >
               {orchDisplay.trim() ? orchDisplay : orchBusy ? "…" : "(pulsa Refrescar)"}
             </pre>
+
+            <section className="mt-4 space-y-2 border-t pt-4" style={{ borderColor: "#333" }}>
+              <p className="text-[9px] uppercase tracking-[0.28em] text-neutral-500">Coordinar arranque · solo este dispositivo</p>
+              <p className="text-[10px] leading-relaxed text-neutral-500">
+                Para alinear el “momento actual” entre jugadores: usa esto cuando quieras cortar el lienzo del canal en este
+                navegador antes de abrir el Nexo en mesa. No limpia Redis de campaña ni claves API; los jugadores deben
+                coordinar el mismo corte o confiar en sala remota si comparten cola.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!window.confirm("¿Borrar el registro del canal Nexo (localStorage) en este equipo?")) return;
+                    wipeLocalNexoTranscript();
+                    onRefreshGlobals();
+                    setOrchStatusLine("Transcript Nexo local vaciado.");
+                    window.setTimeout(() => setOrchStatusLine(null), 4200);
+                  }}
+                  className="border px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-300"
+                  style={{ borderColor: ROOT }}
+                >
+                  Vaciar transcript
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        "¿Borrar transcript más resúmenes por hilo y legacy? El motor interno podrá reabrir escena al volver al Nexo principal.",
+                      )
+                    )
+                      return;
+                    wipeLocalNexoTranscript();
+                    wipeLocalRollingState();
+                    onRefreshGlobals();
+                    setOrchStatusLine("Transcript + rolling local reiniciados.");
+                    window.setTimeout(() => setOrchStatusLine(null), 4200);
+                  }}
+                  className="border px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-300"
+                  style={{ borderColor: ROOT }}
+                >
+                  Transcript + resúmenes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        "Reinicio cliente completo: transcript, resúmenes y estado mundo Nexo local (misiones/eco). ¿Seguro?",
+                      )
+                    )
+                      return;
+                    if (!window.confirm("Segunda confirmación: se pierden arcos y flags del mundo en este navegador."))
+                      return;
+                    wipeLocalNexoTranscript();
+                    wipeLocalRollingState();
+                    wipeClientNexoWorld();
+                    onRefreshGlobals();
+                    setOrchStatusLine("Cliente Nexo reiniciado en bruto (local).");
+                    window.setTimeout(() => setOrchStatusLine(null), 4800);
+                  }}
+                  className="border px-3 py-2 text-[9px] uppercase tracking-widest text-red-300/90"
+                  style={{ borderColor: "#7f1d1d" }}
+                >
+                  Reinicio duro cliente
+                </button>
+              </div>
+            </section>
           </div>
         ) : null}
 

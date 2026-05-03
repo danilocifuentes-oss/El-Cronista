@@ -95,6 +95,12 @@ export function saveNexusWorldState(s: NexusWorldState): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
 }
 
+/** MJ / coordinación — borra mundo Nexo cliente (marcas locales, quests, último eco). Solo este navegador. */
+export function wipeClientNexoWorld(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(STORAGE_KEY);
+}
+
 export function ingestRollingSummary(prev: NexusWorldState, rollingSummary?: string): NexusWorldState {
   const slice = rollingSummary?.trim()?.slice(0, 520);
   if (!slice) return prev;

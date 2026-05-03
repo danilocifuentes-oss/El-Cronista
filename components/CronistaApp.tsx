@@ -9,18 +9,6 @@ import {
 } from "@/lib/campaignLocalSettings";
 import { mergeCampaignIntoLog, recentLinesFromCampaign } from "@/lib/campaignMerge";
 import { normalizeCampaignId, normalizePlayerTag } from "@/lib/campaignTypes";
-
-function orchestrationNpcKeyFromPlayerTag(tag: string): string | undefined {
-  const slug = normalizePlayerTag(tag)
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9_.-]/g, "")
-    .slice(0, 48);
-  if (!slug) return undefined;
-  const key = `pj:${slug}`.slice(0, 64);
-  return /^[a-zA-Z0-9_:.\-]+$/.test(key) ? key : undefined;
-}
 import {
   CLAN_ACCENTS,
   CLAN_OPTIONS,
@@ -101,8 +89,28 @@ import {
   isOperatorSessionUnlocked,
   setOperatorSessionUnlocked,
 } from "@/lib/operatorSessionGate";
+import {
+  acquireNexoPrimeLock,
+  buildArrivalNarradorPayload,
+  nexoNeedsNarrativePriming,
+  releaseNexoPrimeLock,
+  stripBootPlaceholder,
+  synthesizeInternalArrivalScene,
+} from "@/lib/nexoArrivalPrime";
 
 const HEALTH_MAX_UI = 7;
+
+function orchestrationNpcKeyFromPlayerTag(tag: string): string | undefined {
+  const slug = normalizePlayerTag(tag)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9_.-]/g, "")
+    .slice(0, 48);
+  if (!slug) return undefined;
+  const key = `pj:${slug}`.slice(0, 64);
+  return /^[a-zA-Z0-9_:.\-]+$/.test(key) ? key : undefined;
+}
 
 const MOCK_CONCLAVE: ConclaveMate[] = [
   { id: "1", name: "Mireya V.", clan: "Tremere", status: "refugio" },
@@ -118,10 +126,11 @@ function famineSealWallClock(): number {
   return Date.now();
 }
 
+/** Placeholder de arranque: el motor interno reemplazará esta entrada al entrar al Nexo si hace falta. */
 const BOOT_STREAM: NarrativeLogEntry = {
   id: "0",
   role: "narrador",
-  text: "Todavía no hay ninguna marca en esta escena.",
+  text: "El Nexo templa lo que ya eras: ciudad vieja sobre concrete, cicatrices en la humedad. El siguiente latido será escena — aquí mismo — cuando muevas voluntad sobre el mundo.",
   ts: 0,
   strand: "principal",
 };
@@ -285,6 +294,87 @@ function CronistaAppInner() {
     const id = window.setInterval(() => void run(), 32000);
     return () => window.clearInterval(id);
   }, [campaignSync.enabled, campaignSync.campaignId, activeStrand]);
+
+  /** Apertura Nexo principal: narración siempre primero (motor interno, sin API). */
+  useEffect(() => {
+    if (phase !== "nexus") return;
+    if (!sheetLocked) return;
+    if (activeStrand !== "principal") return;
+    if (!acquireNexoPrimeLock()) return;
+
+    void (async () => {
+      try {
+        let merged = loadNarrativeLog();
+        const cmp = campaignSyncRef.current;
+        const cid = normalizeCampaignId(cmp.campaignId);
+        if (cmp.enabled && cid && remoteCampaignStore) {
+          try {
+            const { entries } = await fetchCampaignTail(cid, "principal", 40);
+            const next = mergeCampaignIntoLog(merged.length ? merged : logs, entries);
+            if (next.length > 0 && (next.length !== merged.length || entries.length > 0)) {
+              merged = next;
+              saveNarrativeLog(merged);
+              setLogs(merged);
+            }
+          } catch {
+            /* cola remota opcional */
+          }
+        }
+
+        const candidate = merged.length > 0 ? merged : logs;
+        if (!nexoNeedsNarrativePriming(candidate, "principal")) return;
+
+        const chron = loadChronicle();
+        const world = loadNexusWorldState();
+        const worldBlock = formatWorldNexusPromptBlock(world, "principal");
+        const body = buildArrivalNarradorPayload({
+          sheet,
+          chronicle: chron,
+          strand: "principal",
+          inquisitionThreat,
+          worldState: world,
+          worldNexusPrompt: worldBlock,
+          rollingSummary: loadRollingSummary()?.trim() || undefined,
+          activeProfileId: getActiveProfileId(),
+        });
+        const out = synthesizeInternalArrivalScene(body);
+        const narrId = uid();
+        const summary = out.resumen_actualizado?.trim();
+
+        setLogs((prev) => {
+          const stripped = stripBootPlaceholder(prev);
+          const next: NarrativeLogEntry[] = [
+            ...stripped,
+            {
+              id: narrId,
+              role: "narrador",
+              strand: "principal",
+              ts: Date.now(),
+              text: out.narracion.trim(),
+              ...(Array.isArray(out.suggestions) && out.suggestions.length
+                ? { suggestions: out.suggestions.slice(0, 8) }
+                : {}),
+            },
+          ];
+          saveNarrativeLog(next);
+          queueMicrotask(() => {
+            const aid = getActiveProfileId();
+            if (aid) syncActiveBundleFromGlobals(aid);
+          });
+          return next;
+        });
+
+        if (summary) {
+          saveRollingSummary(summary);
+          saveNexusWorldState(ingestRollingSummary(world, summary));
+        }
+        setImpulseRev((x) => x + 1);
+      } finally {
+        releaseNexoPrimeLock();
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- arranque tras hidratar/cambiar log principal
+  }, [phase, sheetLocked, activeStrand, sheet, inquisitionThreat, logs, remoteCampaignStore]);
 
   useEffect(() => {
     const saved = loadNarrativeLog();
