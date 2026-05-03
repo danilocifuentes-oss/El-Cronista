@@ -228,7 +228,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error:
-          "GEMINI_API_KEY no está definida. Añade la clave en .env.local y reinicia el servidor.",
+          "GEMINI_API_KEY no está definida. Configura .env.local (desarrollo) o Vercel → Environment Variables → GEMINI_API_KEY (producción) y redeploy.",
       },
       { status: 503 },
     );

@@ -31,6 +31,10 @@ export async function GET() {
     ok: true,
     service: "el-cronista-de-las-sombras",
     geminiConfigured,
+    envExpected: "GEMINI_API_KEY",
+    /** Solo comprueba que la variable exista en runtime; no valida la clave contra Google. */
+    note:
+      "Si geminiConfigured es false en producción: Vercel → tu proyecto → Settings → Environment Variables → añade GEMINI_API_KEY para Environment Production (y Preview si hace falta) → Redeploy. Desarrollo local: .env.local copiado de .env.example.",
     endpoints: {
       health: "GET /api/health",
       narrador: "POST /api/narrador (canal TX — requiere GEMINI_API_KEY)",
