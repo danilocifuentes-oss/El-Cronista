@@ -85,6 +85,10 @@ export interface CharacterSheet {
   antitribu: boolean;
   concept: string;
   /**
+   * Historia previa, vínculos, objetivos ocultos — contexto para narrador IA y mesa (no es la línea de «concepto» táctico).
+   */
+  transfondo: string;
+  /**
    * `CONCEPTOS_DATA.id` cuando el jugador usa plantilla CODEX (`null` = «OTRO…» texto en `concept`).
    */
   conceptPresetId: string | null;
@@ -235,6 +239,7 @@ export function emptySheet(): CharacterSheet {
     clan: "other",
     antitribu: false,
     concept: "",
+    transfondo: "",
     conceptPresetId: null,
     yearsUnlife: 12,
     freebiePool: 21,
@@ -272,6 +277,10 @@ export function normalizeCharacterSheet(partial: Partial<CharacterSheet>): Chara
     antitribu: partial.antitribu ?? base.antitribu,
     clan: clanId,
     concept: partial.concept ?? base.concept,
+    transfondo:
+      typeof partial.transfondo === "string"
+        ? partial.transfondo.slice(0, 16000)
+        : base.transfondo,
     conceptPresetId: ((): string | null => {
       if (partial.conceptPresetId === null) return null;
       if (

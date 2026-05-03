@@ -8,15 +8,26 @@ import {
 } from "@/lib/character";
 import { SHADOW_PACK_SHEETS } from "@/lib/shadowPack";
 import {
+  loadActiveStrand,
+  loadIdeasRepository,
   loadMjDirectives,
   loadNarrativeLog,
-  loadRollingSummary,
+  loadRollingByStrand,
+  saveActiveStrand,
+  saveIdeasRepository,
   saveMjDirectives,
   saveNarrativeLog,
-  saveRollingSummary,
+  saveRollingByStrand,
 } from "@/lib/narrativeMemory";
 import type { NarrativeLogEntry } from "@/lib/narrativeTypes";
 import { loadMeta, loadXpLog, saveMeta, saveXpLog, type SessionMeta, type XpLogEntry } from "@/lib/sessionMeta";
+import {
+  defaultRollingByStrand,
+  normalizeRollingByStrand,
+  normalizeStrand,
+  type NarrativeStrand,
+  type RollingByStrand,
+} from "@/lib/narrativeStrands";
 
 const INDEX_KEY = "cronista-profile-index-v1";
 const BUNDLE_PREFIX = "cronista-profile-bundle-v1::";
@@ -24,6 +35,8 @@ const MIGRATION_FLAG = "cronista-migrated-profiles-v1";
 const ACTIVE_ID_KEY = "cronista-active-profile-v1";
 const MAX_PROFILES = 20;
 const SHADOW_PACK_FLAG = "cronista-shadow-pack-seeded-v1";
+const LEGACY_GLOBAL_IDEAS_KEY = "cronista-ideas-repo-v1";
+const MAX_IDEAS_IN_BUNDLE = 12000;
 
 export type ProfileSummary = {
   id: string;
@@ -45,8 +58,12 @@ export type ProfileBundle = {
   meta: SessionMeta;
   xpLog: XpLogEntry[];
   narrativeLog: NarrativeLogEntry[];
-  rollingSummary: string;
+  rollingByStrand: RollingByStrand;
+  /** Último hilo narrativo seleccionado en el Nexo (principal / paralela / vivo). */
+  narrativeStrand: NarrativeStrand;
   mjDirectives: string[];
+  /** Repositorio de ideas narrativas (por perfil; la copia activa vive en la clave global hasta el siguiente sync). */
+  ideasRepository: string;
 };
 
 function newId(): string {
@@ -103,8 +120,22 @@ export function loadBundle(id: string): ProfileBundle | null {
       meta,
       xpLog: Array.isArray(p.xpLog) ? p.xpLog : [],
       narrativeLog: Array.isArray(p.narrativeLog) ? p.narrativeLog : [],
-      rollingSummary: typeof p.rollingSummary === "string" ? p.rollingSummary : "",
+      rollingByStrand: ((): RollingByStrand => {
+        const raw = p as Record<string, unknown>;
+        if (raw.rollingByStrand && typeof raw.rollingByStrand === "object") {
+          return normalizeRollingByStrand(raw.rollingByStrand);
+        }
+        const leg = typeof raw.rollingSummary === "string" ? raw.rollingSummary : "";
+        const base = defaultRollingByStrand();
+        base.principal = leg ? leg.slice(0, 2000) : "";
+        return base;
+      })(),
+      narrativeStrand: normalizeStrand((p as { narrativeStrand?: unknown }).narrativeStrand),
       mjDirectives: Array.isArray(p.mjDirectives) ? p.mjDirectives : [],
+      ideasRepository:
+        typeof p.ideasRepository === "string"
+          ? p.ideasRepository.slice(0, MAX_IDEAS_IN_BUNDLE)
+          : "",
     };
   } catch {
     return null;
@@ -141,8 +172,10 @@ export function syncActiveBundleFromGlobals(profileId: string): void {
     meta: loadMeta(),
     xpLog: loadXpLog(),
     narrativeLog: loadNarrativeLog(),
-    rollingSummary: loadRollingSummary(),
+    rollingByStrand: loadRollingByStrand(),
+    narrativeStrand: loadActiveStrand(),
     mjDirectives: loadMjDirectives(),
+    ideasRepository: loadIdeasRepository().slice(0, MAX_IDEAS_IN_BUNDLE),
   };
   saveBundle(profileId, bundle);
   const idx = loadIndex();
@@ -166,8 +199,28 @@ export function hydrateGlobalsFromBundle(bundle: ProfileBundle): void {
   saveMeta(bundle.meta);
   saveXpLog(bundle.xpLog);
   saveNarrativeLog(bundle.narrativeLog);
-  saveRollingSummary(bundle.rollingSummary);
+  saveRollingByStrand(bundle.rollingByStrand);
+  saveActiveStrand(bundle.narrativeStrand);
   saveMjDirectives(bundle.mjDirectives);
+
+  let ideas = typeof bundle.ideasRepository === "string" ? bundle.ideasRepository : "";
+  if (!ideas.trim() && typeof window !== "undefined") {
+    try {
+      const idx = loadIndex();
+      const leg = localStorage.getItem(LEGACY_GLOBAL_IDEAS_KEY)?.trim();
+      if (leg && idx.profiles.length === 1) {
+        ideas = leg.slice(0, MAX_IDEAS_IN_BUNDLE);
+        localStorage.removeItem(LEGACY_GLOBAL_IDEAS_KEY);
+        const id = getActiveProfileId();
+        if (id) {
+          queueMicrotask(() => syncActiveBundleFromGlobals(id));
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  saveIdeasRepository(ideas);
 }
 
 export function migrateLegacyToProfiles(): void {
@@ -195,8 +248,10 @@ export function migrateLegacyToProfiles(): void {
       meta: loadMeta(),
       xpLog: loadXpLog(),
       narrativeLog: loadNarrativeLog(),
-      rollingSummary: loadRollingSummary(),
+      rollingByStrand: loadRollingByStrand(),
+      narrativeStrand: loadActiveStrand(),
       mjDirectives: loadMjDirectives(),
+      ideasRepository: loadIdeasRepository().slice(0, MAX_IDEAS_IN_BUNDLE),
     };
     saveBundle(id, bundle);
     saveIndex({
@@ -239,8 +294,10 @@ export function createBlankProfile(): string {
     meta,
     xpLog: [],
     narrativeLog: [],
-    rollingSummary: "",
+    rollingByStrand: defaultRollingByStrand(),
+    narrativeStrand: "principal",
     mjDirectives: [],
+    ideasRepository: "",
   };
   saveBundle(id, bundle);
   saveIndex({
@@ -275,8 +332,8 @@ export function selectProfile(id: string): boolean {
   if (current) syncActiveBundleFromGlobals(current);
   const bundle = loadBundle(id);
   if (!bundle) return false;
-  hydrateGlobalsFromBundle(bundle);
   setActiveProfileId(id);
+  hydrateGlobalsFromBundle(bundle);
   saveIndex({ ...loadIndex(), lastActiveId: id });
   return true;
 }
@@ -310,8 +367,10 @@ export function createProfileEntity(isNPC: boolean): string {
     meta,
     xpLog: [],
     narrativeLog: [],
-    rollingSummary: "",
+    rollingByStrand: defaultRollingByStrand(),
+    narrativeStrand: "principal",
     mjDirectives: [],
+    ideasRepository: "",
   };
   saveBundle(id, bundle);
   saveIndex({
@@ -355,8 +414,10 @@ export function ensureShadowPackNpcs(): void {
       meta,
       xpLog: [],
       narrativeLog: [],
-      rollingSummary: "",
+      rollingByStrand: defaultRollingByStrand(),
+      narrativeStrand: "principal",
       mjDirectives: [],
+      ideasRepository: "",
     };
     saveBundle(id, bundle);
     extra.push({

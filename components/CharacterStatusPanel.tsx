@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import type { CharacterSheet } from "@/lib/character";
 import { CLAN_ACCENTS, CLAN_OPTIONS } from "@/lib/character";
@@ -13,6 +14,8 @@ type Props = {
   isNarrator?: boolean;
   /** Solo lectura: sin ajustes tácticos (vista hoja ampliada). */
   readOnlyMode?: boolean;
+  /** Pie del panel lateral (p. ej. memoria narrativa). */
+  footer?: ReactNode;
 };
 
 const HEALTH_MAX = 7;
@@ -24,6 +27,7 @@ export function CharacterStatusPanel({
   sheetLocked = false,
   isNarrator = false,
   readOnlyMode = false,
+  footer,
 }: Props) {
   const accent = CLAN_ACCENTS[sheet.clan];
   const wpPct = sheet.willpowerMax ? (sheet.willpowerCur / sheet.willpowerMax) * 100 : 0;
@@ -31,7 +35,7 @@ export function CharacterStatusPanel({
   const linajeLabel = CLAN_OPTIONS.find((c) => c.id === sheet.clan)?.label ?? sheet.clan;
 
   return (
-    <aside className="flex h-full flex-col gap-5 border-[#161616] bg-black/30 p-3 font-mono text-[10px] text-neutral-500 lg:w-64 lg:shrink-0">
+    <aside className="flex h-full min-h-0 flex-col gap-5 overflow-y-auto border-[#161616] bg-black/30 p-3 font-mono text-[10px] text-neutral-500 lg:w-64 lg:shrink-0">
       <div>
         <p className="text-[9px] uppercase tracking-[0.38em] text-neutral-700">{"//_CV"}</p>
         <p className="mt-2 font-sans text-sm tracking-tight text-neutral-300">{sheet.name || "—"}</p>
@@ -41,6 +45,22 @@ export function CharacterStatusPanel({
         <p className="mt-2 text-[9px] text-neutral-600">
           PS{sheet.bloodPotency}_HUM{sheet.humanity}_FB{sheet.freebiePool}_{sheet.resonance?.slice(0, 3) || "—"}
         </p>
+        <div className="mt-3 space-y-1">
+          <label htmlFor="cv-transfondo" className="block text-[8px] uppercase tracking-widest text-neutral-700">
+            Transfondo
+          </label>
+          <textarea
+            id="cv-transfondo"
+            rows={4}
+            value={sheet.transfondo ?? ""}
+            disabled={readOnlyMode && !isNarrator}
+            onChange={(e) =>
+              onChange({ ...sheet, transfondo: e.target.value.slice(0, 16000) })
+            }
+            placeholder="Historia, vínculos, objetivos, secretos jugables…"
+            className="w-full resize-y border border-[#161616] bg-black/40 px-2 py-1.5 text-[10px] leading-relaxed text-neutral-400 placeholder:text-neutral-700 focus:border-neutral-600 focus:outline-none disabled:opacity-60"
+          />
+        </div>
       </div>
 
       {/* SU/SV táctico — texto mínimo; integridad física reflejada en HUD */}
@@ -136,6 +156,8 @@ export function CharacterStatusPanel({
           ) : null}
         </div>
       </div>
+
+      {footer}
 
       {(sheetLocked || xpLog.length > 0) && (
         <div className="mt-auto flex min-h-[6rem] flex-col border border-[#161616] bg-black/40 p-2">

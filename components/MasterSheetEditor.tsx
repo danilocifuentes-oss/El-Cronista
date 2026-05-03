@@ -185,6 +185,17 @@ function EditorBody({
         />
       </label>
 
+      <label className="flex flex-col gap-1">
+        Transfondo (IA / continuidad)
+        <textarea
+          value={draft.transfondo ?? ""}
+          onChange={(e) => patch({ transfondo: e.target.value.slice(0, 16000) })}
+          rows={4}
+          className="border bg-black/70 px-2 py-1.5 text-neutral-200"
+          style={{ borderColor: ROOT }}
+        />
+      </label>
+
       <section className="space-y-2 border p-3" style={{ borderColor: ROOT }}>
         <p className="text-[9px] uppercase tracking-[0.3em] text-neutral-500">Atributos (1–5)</p>
         <div className="grid gap-2 sm:grid-cols-3">

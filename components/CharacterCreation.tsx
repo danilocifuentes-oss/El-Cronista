@@ -480,6 +480,20 @@ export function CharacterCreation({ initial, onSave, viewOnly }: Props) {
               readOnly={vo}
             />
 
+            <div className="md:col-span-12">
+              <label className="mb-1 block text-[8px] uppercase tracking-widest text-neutral-600">Transfondo</label>
+              <textarea
+                value={sheet.transfondo ?? ""}
+                disabled={vo}
+                onChange={(e) =>
+                  setSheet((s) => ({ ...s, transfondo: e.target.value.slice(0, 16000) }))
+                }
+                rows={5}
+                placeholder="Historia previa, vínculos, lo que el narrador IA puede asumir como hecho en la crónica…"
+                className="w-full resize-y border border-[#161616] bg-black/50 px-3 py-2 text-xs leading-relaxed text-neutral-300 placeholder:text-neutral-700 focus:border-[var(--terminal)]/50 focus:outline-none disabled:opacity-50"
+              />
+            </div>
+
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3 md:col-span-12 md:border-t md:border-[#161616] md:pt-4">
               <span className="text-[9px] text-neutral-600">MOTOR CODEX</span>
               <label className={`flex items-center gap-2 font-mono text-[10px] ${vo ? "" : "cursor-pointer"}`}>

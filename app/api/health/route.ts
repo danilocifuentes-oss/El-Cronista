@@ -21,6 +21,10 @@ export async function GET() {
     inquisitionThreat: 2,
     mjDirectives: ["Mantén el tono urbano gótico.", "No revelar al príncipe todavía."],
     rollingSummary: "El PJ está en un bar del centro, de noche.",
+    ideasRepository: "Arco: reunión con el Sheriff el viernes. NPC recurrente: la camarera mortal.",
+    narrativeStrand: "principal" as const,
+    crossStrandContext:
+      "· Paralela: negocios con el barón del barrio bajo.\n· En vivo: la mesa del sábado dejó un rumor sobre cazadores.",
   };
 
   return NextResponse.json({

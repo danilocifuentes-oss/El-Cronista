@@ -1,3 +1,5 @@
+import type { NarrativeStrand } from "@/lib/narrativeStrands";
+
 /** Rol en el canal SchreckNet del Nexo. */
 export type NarrativeRole = "narrador" | "jugador" | "sistema";
 
@@ -6,6 +8,8 @@ export type NarrativeLogEntry = {
   role: NarrativeRole;
   text: string;
   ts: number;
+  /** Hilo narrativo: principal / paralela / en vivo (mesa física). Ausente = principal (legacy). */
+  strand?: NarrativeStrand;
   /** Respuesta del motor Cronista (MANIFESTAR): estilo terminal degradado */
   cronistaOut?: boolean;
 };
@@ -21,6 +25,8 @@ export type ChroniclePayload = {
   AMBIENTE?: string;
   TENSION?: string;
   ESTADO_GLOBAL?: string;
+  /** Cómo se enlazan los tres hilos en tu crónica (opcional, alta prioridad diegética). */
+  VINCULO_HILOS?: string;
 };
 
 /** Payload cliente → POST /api/narrador */
@@ -34,6 +40,15 @@ export type NarradorRequestBody = {
   chronicle?: ChroniclePayload;
   /** Prioridad máxima: inyección del operador (una escena forzada). */
   synapticDisruption?: string;
+  /**
+   * Notas persistentes de mesa: arcos, ideas, continuidad — no es el log del canal.
+   * El cliente lo guarda en localStorage; limpiar para iterar versiones narrativas.
+   */
+  ideasRepository?: string;
+  /** Hilo activo en el Nexo. */
+  narrativeStrand?: NarrativeStrand;
+  /** Resúmenes de otros hilos (continuidad cruzada). */
+  crossStrandContext?: string;
 };
 
 /** Respuesta API → cliente */

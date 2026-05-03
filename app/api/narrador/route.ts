@@ -13,6 +13,7 @@ import {
   withExponentialBackoff,
 } from "@/lib/geminiRetry";
 import { formatNexoApiFailure } from "@/lib/nexoErrors";
+import { isNarrativeStrand, STRAND_LABEL, type NarrativeStrand } from "@/lib/narrativeStrands";
 import type { ChroniclePayload, NarradorRequestBody } from "@/lib/narrativeTypes";
 
 export const runtime = "nodejs";
@@ -25,6 +26,8 @@ const NEXO_RECENT_TURNS = 5;
 const MAX_SHEET_SUMMARY = 4500;
 const MAX_CHRON = 8000;
 const MAX_SYNAPTIC = 4000;
+const MAX_IDEAS = 6000;
+const MAX_CROSS = 4000;
 
 function clampStr(s: unknown, max: number): string {
   if (typeof s !== "string") return "";
@@ -74,10 +77,15 @@ function normalizeBody(raw: unknown): NarradorRequestBody | null {
       AMBIENTE: clampStr(c.AMBIENTE, 2000),
       TENSION: clampStr(c.TENSION, 2000),
       ESTADO_GLOBAL: clampStr(c.ESTADO_GLOBAL, 2000),
+      VINCULO_HILOS: c.VINCULO_HILOS ? clampStr(c.VINCULO_HILOS, 2000) : undefined,
     };
   }
 
   const synapticDisruption = o.synapticDisruption ? clampStr(o.synapticDisruption, MAX_SYNAPTIC) : "";
+  const ideasRepository = o.ideasRepository ? clampStr(o.ideasRepository, MAX_IDEAS) : "";
+  const narrativeStrandRaw = typeof o.narrativeStrand === "string" ? o.narrativeStrand : "";
+  const narrativeStrand: NarrativeStrand = isNarrativeStrand(narrativeStrandRaw) ? narrativeStrandRaw : "principal";
+  const crossStrandContext = o.crossStrandContext ? clampStr(o.crossStrandContext, MAX_CROSS) : "";
 
   return {
     playerAction,
@@ -88,6 +96,9 @@ function normalizeBody(raw: unknown): NarradorRequestBody | null {
     rollingSummary: rollingSummary.trim() || undefined,
     chronicle,
     synapticDisruption: synapticDisruption.trim() || undefined,
+    ideasRepository: ideasRepository.trim() || undefined,
+    narrativeStrand,
+    crossStrandContext: crossStrandContext.trim() || undefined,
   };
 }
 
@@ -97,21 +108,35 @@ function buildUserPrompt(body: NarradorRequestBody): string {
     ? body.mjDirectives.map((d, i) => `${i + 1}. ${d}`).join("\n")
     : "(ninguna — improvisa dentro del tono y la hoja.)";
 
+  const strandId = body.narrativeStrand && isNarrativeStrand(body.narrativeStrand) ? body.narrativeStrand : "principal";
+  const strandBlock = `Hilo narrativo activo (prioriza coherencia con su resumen; respeta el tono del hilo):\n${STRAND_LABEL[strandId]}`;
+
   const summaryBlock = body.rollingSummary?.trim()
-    ? `Resumen acumulado de la sesión (mantén coherencia):\n${body.rollingSummary.trim()}`
-    : "Resumen acumulado: (vacío — puedes iniciar o anclar escena según la acción.)";
+    ? `Resumen acumulado del hilo activo (mantén coherencia):\n${body.rollingSummary.trim()}`
+    : "Resumen acumulado del hilo activo: (vacío — puedes iniciar o anclar escena según la acción.)";
 
   const disrupt = body.synapticDisruption?.trim();
+  const ideasBlock = body.ideasRepository?.trim()
+    ? `═══ Repositorio de ideas / continuidad de mesa (no es transcripción del canal) ═══\n${body.ideasRepository.trim()}`
+    : "";
+  const cross = body.crossStrandContext?.trim();
 
   const chunks: string[] = [
     summaryBlock,
+    strandBlock,
     "═══ GÉNESIS DE CRÓNICA (persistente — ancla escenas) ═══\n" + formatChronicleForPrompt(body.chronicle),
     `Amenaza Inquisitorial (escala 0–5 en mesa): ${body.inquisitionThreat}`,
   ];
+  if (cross) {
+    chunks.push(cross);
+  }
   if (disrupt) {
     chunks.push(
       "═══ DISRUPCIÓN SINÁPTICA (PRIORIDAD ABSOLUTA — integra antes que cualquier otro arco) ═══\n" + disrupt,
     );
+  }
+  if (ideasBlock) {
+    chunks.push(ideasBlock);
   }
   chunks.push(
     "═══ Hoja / contexto del personaje ═══\n" + (body.sheetSummary || "(sin datos de hoja.)"),
@@ -127,6 +152,7 @@ const SYSTEM_INSTRUCTION = `Eres el narrador de una partida de rol inspirada en 
 Reglas:
 - No copies texto literal de libros con derechos de autor. Inventa escenas, NPC y diálogos propios.
 - Respeta el tono gótico-punk urbano, adulto, sin glorificar daño real a personas reales.
+- La mesa puede usar tres hilos (principal, paralela, en vivo). Prioriza el "hilo activo" y el resumen de ese hilo; usa "Continuidad en otros hilos" solo para no contradecir hechos ya establecidos.
 - Si aparece "DISRUPCIÓN SINÁPTICA", integra ese elemento de forma orgánica y prioritaria en la narración actual aunque contradiga parcialmente el plan previo (sin romper la coherencia física básica salvo que la disrupción lo exija).
 - Si hay "Directivas del MJ", obedécelas salvo que choquen con una Disrupción Sináptica activa (en ese caso la disrupción gana).
 - La salida debe ser SIEMPRE un JSON con las claves "narracion" (texto de respuesta al jugador, segunda persona o estilo escena) y "resumen_actualizado" (máximo ~350 caracteres: qué quedó establecido en la escena para turnos futuros).

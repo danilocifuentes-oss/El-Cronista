@@ -1,6 +1,7 @@
 import type { CharacterSheet } from "@/lib/character";
 import type { ChroniclePayload } from "@/lib/narrativeTypes";
 import type { SerializedV5Roll } from "@/lib/dice";
+import type { NarrativeStrand } from "@/lib/narrativeStrands";
 
 export type CronistaRecentLine = { role: string; text: string };
 
@@ -12,6 +13,9 @@ export type CronistaMotorBody = {
   recentLogs: CronistaRecentLine[];
   chronicle?: ChroniclePayload;
   synapticDisruption?: string;
+  ideasRepository?: string;
+  narrativeStrand: NarrativeStrand;
+  crossStrandContext?: string;
 };
 
 export async function fetchCronistaJson(body: CronistaMotorBody): Promise<{ narration: string }> {

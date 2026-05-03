@@ -13,6 +13,7 @@ import {
   withExponentialBackoff,
 } from "@/lib/geminiRetry";
 import { formatNexoApiFailure } from "@/lib/nexoErrors";
+import { isNarrativeStrand, STRAND_LABEL, type NarrativeStrand } from "@/lib/narrativeStrands";
 import type { ChroniclePayload } from "@/lib/narrativeTypes";
 import type { CharacterSheet } from "@/lib/character";
 import type { SerializedV5Roll } from "@/lib/dice";
@@ -26,6 +27,8 @@ const MAX_LOG = 5;
 const MAX_CODEX_JSON = 14000;
 const MAX_CHRON = 12000;
 const MAX_SYNAPTIC = 4000;
+const MAX_IDEAS = 6000;
+const MAX_CROSS = 4000;
 
 function clampStr(s: unknown, max: number): string {
   if (typeof s !== "string") return "";
@@ -50,6 +53,9 @@ function normalizeCronistaBody(raw: unknown): {
   stream: boolean;
   chronicle?: ChroniclePayload;
   synapticDisruption?: string;
+  ideasRepository?: string;
+  narrativeStrand: NarrativeStrand;
+  crossStrandContext?: string;
 } | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -85,12 +91,31 @@ function normalizeCronistaBody(raw: unknown): {
       AMBIENTE: clampStr(c.AMBIENTE, 2000),
       TENSION: clampStr(c.TENSION, 2000),
       ESTADO_GLOBAL: clampStr(c.ESTADO_GLOBAL, 2000),
+      VINCULO_HILOS: c.VINCULO_HILOS ? clampStr(c.VINCULO_HILOS, 2000) : undefined,
     };
   }
   const synRaw = o.synapticDisruption ? clampStr(o.synapticDisruption, MAX_SYNAPTIC) : "";
   const synapticDisruption = synRaw.trim() || undefined;
+  const ideasRaw = o.ideasRepository ? clampStr(o.ideasRepository, MAX_IDEAS) : "";
+  const ideasRepository = ideasRaw.trim() || undefined;
+  const nsRaw = typeof o.narrativeStrand === "string" ? o.narrativeStrand : "";
+  const narrativeStrand: NarrativeStrand = isNarrativeStrand(nsRaw) ? nsRaw : "principal";
+  const crossRaw = o.crossStrandContext ? clampStr(o.crossStrandContext, MAX_CROSS) : "";
+  const crossStrandContext = crossRaw.trim() || undefined;
 
-  return { codex, tirada, hambre, input, recentLogs, stream, chronicle, synapticDisruption };
+  return {
+    codex,
+    tirada,
+    hambre,
+    input,
+    recentLogs,
+    stream,
+    chronicle,
+    synapticDisruption,
+    ideasRepository,
+    narrativeStrand,
+    crossStrandContext,
+  };
 }
 
 function buildCronistaPrompt(parts: {
@@ -101,18 +126,33 @@ function buildCronistaPrompt(parts: {
   recentLogs: { role: string; text: string }[];
   chronicle?: ChroniclePayload;
   synapticDisruption?: string;
+  ideasRepository?: string;
+  narrativeStrand: NarrativeStrand;
+  crossStrandContext?: string;
 }): string {
   const ctx = parts.recentLogs.map((l) => `[${l.role}] ${l.text}`).join("\n");
   const genesis = formatChronicleForPrompt(parts.chronicle);
   const disrupt = parts.synapticDisruption?.trim();
+  const ideas = parts.ideasRepository?.trim();
+  const strandLine = `Hilo activo: ${STRAND_LABEL[parts.narrativeStrand]}`;
+  const cross = parts.crossStrandContext?.trim();
   const chunks: string[] = [
     "═══ ENTRADA MOTOR CRONISTA (PROYECTO SERENO · Codex V) ═══",
     `Hambre Σ (0–5): ${parts.hambre}`,
+    strandLine,
     "═══ GÉNESIS DE CRÓNICA (ancla diegética) ═══\n" + genesis,
   ];
+  if (cross) {
+    chunks.push(cross);
+  }
   if (disrupt) {
     chunks.push(
       "═══ DISRUPCIÓN SINÁPTICA (prioridad — integra en la escena de la tirada) ═══\n" + disrupt,
+    );
+  }
+  if (ideas) {
+    chunks.push(
+      "═══ Repositorio de ideas / continuidad de mesa ═══\n" + ideas,
     );
   }
   chunks.push(
@@ -135,6 +175,7 @@ Identidad:
 - Breve, técnico, inmersivo, oscuro: no sermones; 2–4 párrafos cortos máximo salvo que el input pida más.
 
 Normas:
+- Puede haber tres hilos (principal, paralela, en vivo). Prioriza el hilo activo indicado en el prompt; usa el bloque de continuidad cruzada solo para coherencia entre hilos.
 - Obra de fandom inspirada en Vampire: The Masquerade — no copies texto de libros con copyright; inventa escenas y NPC.
 - Respeta siempre el resultado de "tirada" (fracaso bestial, crítico sucio, margen). No re-tires dados ni cambies DF.
 - Si hambre Σ es 5 o hay fracaso bestial en la tirada, refleja presión/costo narrativo (sin glorificar violencia real).
@@ -184,6 +225,9 @@ export async function POST(req: Request) {
     recentLogs: parsed.recentLogs,
     chronicle: parsed.chronicle,
     synapticDisruption: parsed.synapticDisruption,
+    ideasRepository: parsed.ideasRepository,
+    narrativeStrand: parsed.narrativeStrand,
+    crossStrandContext: parsed.crossStrandContext,
   });
 
   async function streamGenerate(modelName: string) {

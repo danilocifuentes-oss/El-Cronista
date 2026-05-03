@@ -9,6 +9,9 @@ export function formatChronicleForPrompt(ch?: ChroniclePayload): string {
     ch.ESTADO_GLOBAL?.trim()
       ? `ESTADO_GLOBAL (eventos activos en la ciudad): ${ch.ESTADO_GLOBAL.trim()}`
       : null,
+    ch.VINCULO_HILOS?.trim()
+      ? `VÍNCULO ENTRE HILOS (principal · paralela · en vivo): ${ch.VINCULO_HILOS.trim()}`
+      : null,
   ].filter(Boolean);
   return parts.length ? parts.join("\n\n") : "(Génesis parcial — completa coherencia con el resto.)";
 }

@@ -13,12 +13,22 @@ import {
 import { askCronista } from "@/lib/narrativeApi";
 import {
   appendMjDirective,
+  filterLogsByStrand,
+  loadActiveStrand,
+  saveActiveStrand,
+  loadIdeasRepository,
   loadMjDirectives,
   loadNarrativeLog,
+  loadRollingByStrand,
   loadRollingSummary,
+  resetNarrativeChannel,
+  recentLinesForStrand,
+  saveIdeasRepository,
   saveNarrativeLog,
   saveRollingSummary,
+  type NarrativeResetOptions,
 } from "@/lib/narrativeMemory";
+import { buildCrossStrandContext, type NarrativeStrand } from "@/lib/narrativeStrands";
 import { consumePendingSynapticDisruption, loadChronicle, peekPendingSynapticDisruption } from "@/lib/chronicleConfig";
 import {
   appendXpLog,
@@ -54,6 +64,7 @@ import {
 } from "@/lib/profileStore";
 import { ProfileHub } from "./ProfileHub";
 import { NarratorCommandCenter } from "./NarratorCommandCenter";
+import { NarrativeMemoryPanel } from "./NarrativeMemoryPanel";
 
 type Phase = "login" | "profileHub" | "chargen" | "nexus" | "sheetReview" | "commandCenter";
 
@@ -78,6 +89,7 @@ const BOOT_STREAM: NarrativeLogEntry = {
   role: "sistema",
   text: "[BOOT]: Nexo_standby · buffer vacío.",
   ts: 0,
+  strand: "principal",
 };
 
 function mergeStoredSheet(raw: CharacterSheet): CharacterSheet {
@@ -94,6 +106,8 @@ function applyGlobalsToUi(
   setSheetLocked: (v: boolean) => void,
   setLogs: (v: NarrativeLogEntry[] | ((p: NarrativeLogEntry[]) => NarrativeLogEntry[])) => void,
   refreshXpLog: () => void,
+  setIdeasRepo?: (s: string) => void,
+  commitStrand?: (s: NarrativeStrand) => void,
 ) {
   const stored = loadSheet();
   if (stored) setSheet(mergeStoredSheet(stored));
@@ -101,6 +115,8 @@ function applyGlobalsToUi(
   const nar = loadNarrativeLog();
   setLogs(nar.length > 0 ? nar : [BOOT_STREAM]);
   refreshXpLog();
+  setIdeasRepo?.(loadIdeasRepository());
+  commitStrand?.(loadActiveStrand());
 }
 
 export default function CronistaApp() {
@@ -129,6 +145,21 @@ function CronistaAppInner() {
     typeof window === "undefined" ? [] : loadXpLog(),
   );
   const [profileIndexTick, setProfileIndexTick] = useState(0);
+  const [ideasRepo, setIdeasRepo] = useState("");
+  const [activeStrand, setActiveStrand] = useState<NarrativeStrand>(() =>
+    typeof window === "undefined" ? "principal" : loadActiveStrand(),
+  );
+  const activeStrandRef = useRef<NarrativeStrand>(
+    typeof window === "undefined" ? "principal" : loadActiveStrand(),
+  );
+
+  const commitStrand = useCallback((s: NarrativeStrand) => {
+    activeStrandRef.current = s;
+    setActiveStrand(s);
+    saveActiveStrand(s);
+    const aid = getActiveProfileId();
+    if (aid) queueMicrotask(() => syncActiveBundleFromGlobals(aid));
+  }, []);
 
   const {
     isNarrator,
@@ -162,9 +193,15 @@ function CronistaAppInner() {
 
   const refreshXpLog = useCallback(() => setXpLog(loadXpLog()), []);
 
+  const displayLogs = useMemo(() => filterLogsByStrand(logs, activeStrand), [logs, activeStrand]);
+
   useEffect(() => {
     logsRef.current = logs;
   }, [logs]);
+
+  useEffect(() => {
+    setIdeasRepo(loadIdeasRepository());
+  }, []);
 
   useEffect(() => {
     const saved = loadNarrativeLog();
@@ -271,11 +308,13 @@ function CronistaAppInner() {
   }, [refreshXpLog]);
 
   function pushLog(part: Omit<NarrativeLogEntry, "id" | "ts"> & { ts?: number }) {
+    const strand = part.strand ?? activeStrandRef.current;
     const entry: NarrativeLogEntry = {
       id: uid(),
       ts: part.ts ?? Date.now(),
       role: part.role,
       text: part.text,
+      strand,
       ...(part.cronistaOut ? { cronistaOut: true } : {}),
     };
     setLogs((prev) => {
@@ -289,14 +328,33 @@ function CronistaAppInner() {
     });
   }
 
+  const handleIdeasChange = useCallback((next: string) => {
+    setIdeasRepo(next);
+    saveIdeasRepository(next);
+    const aid = getActiveProfileId();
+    if (aid) syncActiveBundleFromGlobals(aid);
+  }, []);
+
+  const handleNarrativeReset = useCallback((opts: NarrativeResetOptions) => {
+    const next = resetNarrativeChannel(opts);
+    setLogs(next);
+    if (opts.clearIdeas) setIdeasRepo("");
+    queueMicrotask(() => {
+      const aid = getActiveProfileId();
+      if (aid) syncActiveBundleFromGlobals(aid);
+    });
+  }, []);
+
   const sendPlayer = async () => {
     const t = composer.trim();
     if (!t) return;
     setComposer("");
     pushLog({ role: "jugador", text: t });
 
-    const prior = logs.slice(-4).map(({ role, text }) => ({ role, text }));
-    const recentLogs = [...prior, { role: "jugador" as const, text: t }];
+    const strand = activeStrandRef.current;
+    const prior = recentLinesForStrand(logs, strand, 4);
+    const recentLogs = [...prior, { role: "jugador" as const, text: t }].slice(-5);
+    const cross = buildCrossStrandContext(strand, loadRollingByStrand());
 
     try {
       const out = await askCronista({
@@ -308,6 +366,9 @@ function CronistaAppInner() {
         rollingSummary: loadRollingSummary() || undefined,
         chronicle: loadChronicle(),
         synapticDisruption: consumePendingSynapticDisruption() || undefined,
+        ideasRepository: ideasRepo.trim() || undefined,
+        narrativeStrand: strand,
+        crossStrandContext: cross.trim() || undefined,
       });
       pushLog({ role: "narrador", text: out.narration });
       if (out.rollingSummary) saveRollingSummary(out.rollingSummary);
@@ -334,15 +395,25 @@ function CronistaAppInner() {
       if (roll.fracasoBestial || sheet.hunger >= 5) setBeastPulse(true);
 
       const streamId = uid();
+      const strand = activeStrandRef.current;
       setCronistaProcessing(true);
       setLogs((prev) => [
         ...prev,
-        { id: streamId, role: "narrador", text: "", ts: Date.now(), cronistaOut: true },
+        {
+          id: streamId,
+          role: "narrador",
+          text: "",
+          ts: Date.now(),
+          cronistaOut: true,
+          strand,
+        },
       ]);
 
-      const recentLogs = [...logsRef.current.map(({ role, text }) => ({ role, text })), { role: "sistema", text: ledgerLine }].slice(
-        -5,
-      );
+      const recentLogs = [
+        ...recentLinesForStrand(logsRef.current, strand, 4),
+        { role: "sistema", text: ledgerLine },
+      ].slice(-5);
+      const cross = buildCrossStrandContext(strand, loadRollingByStrand());
 
       try {
         let acc = "";
@@ -355,6 +426,9 @@ function CronistaAppInner() {
             recentLogs,
             chronicle: loadChronicle(),
             synapticDisruption: peekPendingSynapticDisruption() || undefined,
+            ideasRepository: ideasRepo.trim() || undefined,
+            narrativeStrand: strand,
+            crossStrandContext: cross.trim() || undefined,
           },
           (delta) => {
             acc += delta;
@@ -381,7 +455,7 @@ function CronistaAppInner() {
         setCronistaProcessing(false);
       }
     },
-    [sheet],
+    [sheet, ideasRepo],
   );
 
   const tweakRemoteSimulation = () => {
@@ -417,14 +491,14 @@ function CronistaAppInner() {
 
   const enterProfile = (id: string) => {
     if (!selectProfile(id)) return;
-    applyGlobalsToUi(setSheet, setSheetLocked, setLogs, refreshXpLog);
+    applyGlobalsToUi(setSheet, setSheetLocked, setLogs, refreshXpLog, setIdeasRepo, commitStrand);
     setPhase("nexus");
     pushLog({ role: "sistema", text: `[CV]: ${loadSheet()?.name || id}` });
   };
 
   const startBlankSheet = () => {
     createBlankProfile();
-    applyGlobalsToUi(setSheet, setSheetLocked, setLogs, refreshXpLog);
+    applyGlobalsToUi(setSheet, setSheetLocked, setLogs, refreshXpLog, setIdeasRepo, commitStrand);
     setPhase("chargen");
   };
 
@@ -445,10 +519,12 @@ function CronistaAppInner() {
             return;
           }
           if (!selectProfile(id)) return;
-          applyGlobalsToUi(setSheet, setSheetLocked, setLogs, refreshXpLog);
+          applyGlobalsToUi(setSheet, setSheetLocked, setLogs, refreshXpLog, setIdeasRepo, commitStrand);
           setPhase("nexus");
         }}
-        onRefreshGlobals={() => applyGlobalsToUi(setSheet, setSheetLocked, setLogs, refreshXpLog)}
+        onRefreshGlobals={() =>
+          applyGlobalsToUi(setSheet, setSheetLocked, setLogs, refreshXpLog, setIdeasRepo, commitStrand)
+        }
       />
     );
   }
@@ -624,17 +700,27 @@ function CronistaAppInner() {
           sheetLocked={sheetLocked}
           isNarrator={isNarrator}
           onChange={(next, logLine) => handleSheetMutation(next, logLine)}
+          footer={
+            <NarrativeMemoryPanel
+              ideasText={ideasRepo}
+              onIdeasChange={handleIdeasChange}
+              onResetChannel={handleNarrativeReset}
+              activeStrand={activeStrand}
+            />
+          }
         />
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 p-4 lg:p-6">
           <NarrativeFlow
-            logs={logs}
+            logs={displayLogs}
             composer={composer}
             onComposer={setComposer}
             onSend={sendPlayer}
             accent={accent}
             processing={cronistaProcessing}
             identityHint={identityHint}
+            activeStrand={activeStrand}
+            onStrandChange={commitStrand}
           />
           <ManifestWill
             key={`${sheet.hunger}-${sheet.name}`}

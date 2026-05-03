@@ -21,6 +21,9 @@ export function buildSheetSummary(sheet: CharacterSheet): string {
     `Nombre: ${sheet.name?.trim() || "—"}`,
     `Linaje: ${clanLabel}${sheet.antitribu ? " (antitribu)" : ""}`,
     `Concepto: ${sheet.concept?.trim() || "—"}`,
+    sheet.transfondo?.trim()
+      ? `Transfondo (historia / vínculos / secretos jugables): ${sheet.transfondo.trim()}`
+      : null,
     `Generación (mes): ${sheet.generation}`,
     `No-vida (años): ${sheet.yearsUnlife}`,
     `Hambre Σ: ${sheet.hunger}/5`,

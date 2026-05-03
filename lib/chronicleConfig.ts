@@ -7,6 +7,8 @@ export type ChronicleConfig = {
   AMBIENTE: string;
   TENSION: string;
   ESTADO_GLOBAL: string;
+  /** Cómo encajan trama central, subtramas y mesa en vivo (vínculo diegético). */
+  VINCULO_HILOS: string;
 };
 
 function defaultChronicle(): ChronicleConfig {
@@ -15,6 +17,7 @@ function defaultChronicle(): ChronicleConfig {
     AMBIENTE: "Santiago nocturno, frío seco, neón y concreto, gotic-punk urbano.",
     TENSION: "Inquisición en sombras, operaciones discretas; el Príncipe mantiene apariencia de control.",
     ESTADO_GLOBAL: "Tregua frágil entre linajes; rumores de cazadores en el barrio alto.",
+    VINCULO_HILOS: "",
   };
 }
 
@@ -30,6 +33,7 @@ export function loadChronicle(): ChronicleConfig {
       AMBIENTE: typeof p.AMBIENTE === "string" ? p.AMBIENTE : d.AMBIENTE,
       TENSION: typeof p.TENSION === "string" ? p.TENSION : d.TENSION,
       ESTADO_GLOBAL: typeof p.ESTADO_GLOBAL === "string" ? p.ESTADO_GLOBAL : d.ESTADO_GLOBAL,
+      VINCULO_HILOS: typeof p.VINCULO_HILOS === "string" ? p.VINCULO_HILOS : d.VINCULO_HILOS,
     };
   } catch {
     return defaultChronicle();

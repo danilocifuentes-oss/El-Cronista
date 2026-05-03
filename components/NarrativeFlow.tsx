@@ -2,6 +2,14 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useRef } from "react";
+import {
+  NARRATIVE_STRANDS,
+  STRAND_ACCENT,
+  STRAND_HELPLINE,
+  STRAND_LABEL,
+  STRAND_TAG,
+  type NarrativeStrand,
+} from "@/lib/narrativeStrands";
 import type { NarrativeLogEntry } from "@/lib/narrativeTypes";
 
 export type { NarrativeLogEntry as LogEntry } from "@/lib/narrativeTypes";
@@ -15,9 +23,21 @@ type Props = {
   processing?: boolean;
   /** Línea contextual (nombre · clan) bajo el título del canal. */
   identityHint?: string;
+  activeStrand: NarrativeStrand;
+  onStrandChange: (s: NarrativeStrand) => void;
 };
 
-export function NarrativeFlow({ logs, composer, onComposer, onSend, accent, processing, identityHint }: Props) {
+export function NarrativeFlow({
+  logs,
+  composer,
+  onComposer,
+  onSend,
+  accent,
+  processing,
+  identityHint,
+  activeStrand,
+  onStrandChange,
+}: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,14 +47,16 @@ export function NarrativeFlow({ logs, composer, onComposer, onSend, accent, proc
   }, [logs]);
 
   const canSend = composer.trim().length > 0 && !processing;
+  const strandBorder = STRAND_ACCENT[activeStrand];
 
   return (
     <section
-      className="nexo-stream-panel flex min-h-0 flex-1 flex-col border border-[#161616] bg-black/25 shadow-[inset_0_1px_0_rgba(57,255,20,0.06)] lg:min-h-[320px]"
+      className="nexo-stream-panel flex min-h-0 flex-1 flex-col border bg-black/25 shadow-[inset_0_1px_0_rgba(57,255,20,0.06)] lg:min-h-[320px]"
+      style={{ borderColor: `${strandBorder}44` }}
       aria-busy={processing ? true : undefined}
     >
       <header
-        className="shrink-0 space-y-1 border-b border-[#161616] px-4 py-2.5 font-mono text-[9px] uppercase tracking-[0.32em]"
+        className="shrink-0 space-y-2 border-b border-[#161616] px-4 py-2.5 font-mono text-[9px] uppercase tracking-[0.32em]"
         style={{ color: accent }}
       >
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -44,6 +66,33 @@ export function NarrativeFlow({ logs, composer, onComposer, onSend, accent, proc
               {identityHint}
             </span>
           ) : null}
+        </div>
+        <div className="flex flex-wrap gap-1.5 normal-case tracking-normal">
+          {NARRATIVE_STRANDS.map((s) => {
+            const on = s === activeStrand;
+            return (
+              <button
+                key={s}
+                type="button"
+                title={STRAND_HELPLINE[s]}
+                onClick={() => onStrandChange(s)}
+                className={`rounded border px-2 py-1 text-[8px] font-mono transition-colors ${
+                  on ? "text-neutral-100" : "border-[#2a2a2a] text-neutral-500 hover:border-neutral-600 hover:text-neutral-300"
+                }`}
+                style={
+                  on
+                    ? {
+                        borderColor: STRAND_ACCENT[s],
+                        backgroundColor: `${STRAND_ACCENT[s]}18`,
+                        color: STRAND_ACCENT[s],
+                      }
+                    : undefined
+                }
+              >
+                <span className="opacity-80">{STRAND_TAG[s]}</span> {STRAND_LABEL[s]}
+              </button>
+            );
+          })}
         </div>
       </header>
       {processing ? (
@@ -108,7 +157,7 @@ export function NarrativeFlow({ logs, composer, onComposer, onSend, accent, proc
               if (canSend) onSend();
             }
           }}
-          placeholder="Qué haces o dices en escena… (Enter envía · Shift+Enter línea nueva)"
+          placeholder={`Escena en «${STRAND_LABEL[activeStrand]}»… (Enter envía · Shift+Enter línea nueva)`}
           rows={3}
           className="w-full resize-none border border-[#161616] bg-black/50 px-3 py-2.5 font-mono text-[11px] leading-relaxed text-neutral-300 placeholder:text-neutral-600 focus:border-[var(--terminal)]/40 focus:outline-none focus:ring-1 focus:ring-[var(--terminal)]/15"
         />

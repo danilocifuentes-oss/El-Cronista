@@ -174,6 +174,19 @@ export function NarratorCommandCenter({
                 placeholder="Facciiones, barrios tabú, aliados recurrentes, líneas rojas de la crónica…"
               />
             </label>
+            <label className="flex flex-col gap-2">
+              <span className="text-[9px] uppercase tracking-widest text-neutral-500">
+                Vínculo entre hilos (principal · paralela · en vivo)
+              </span>
+              <textarea
+                value={chronicle.VINCULO_HILOS}
+                onChange={(e) => setChronicle((c) => ({ ...c, VINCULO_HILOS: e.target.value }))}
+                rows={4}
+                className="w-full border bg-black/80 px-3 py-2 text-[11px] leading-relaxed text-neutral-200"
+                style={{ borderColor: ROOT }}
+                placeholder="Ej.: La mesa IRL es el viernes; lo jugado en vivo actualiza el rumor que el PJ investiga el domingo en el hilo principal…"
+              />
+            </label>
             <div className="grid gap-4 md:grid-cols-3">
               <label className="flex flex-col gap-1">
                 <span className="text-[9px] uppercase text-neutral-500">AMBIENTE</span>
