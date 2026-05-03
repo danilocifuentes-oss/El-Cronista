@@ -63,8 +63,6 @@ import {
 import { CONCEPTOS_DATA, inferConceptPresetIdFromNombre } from "@/lib/conceptosCodex";
 import { ConceptCodexField } from "./ConceptCodexField";
 import { DotTrack } from "./DotTrack";
-import { SerenoFooter } from "./SerenoFooter";
-
 /** Freebies CODEX ocultos en creación hasta rediseño de ese bloque. */
 const SHOW_CODEX_FREEBIES = false;
 
@@ -837,7 +835,6 @@ export function CharacterCreation({ initial, onSave, viewOnly }: Props) {
           </section>
         </div>
       </motion.div>
-      <SerenoFooter />
     </div>
   );
 }

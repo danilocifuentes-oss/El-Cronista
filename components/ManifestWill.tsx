@@ -58,35 +58,40 @@ export function ManifestWill({
   }
 
   return (
-    <section className="relative mt-6 border border-[#161616] bg-black/30 p-4 font-mono text-[10px] text-neutral-500">
-      <header className="mb-4 border-b border-[#161616] pb-3 font-mono text-[9px] uppercase tracking-[0.32em] text-neutral-600">
-        {"//_VOLUNTAD · MOTOR_CRONISTA"}
+    <section className="nexo-gothic-shell relative shrink-0 overflow-hidden rounded-xl border border-[#2f2f36]/90 bg-gradient-to-b from-black/50 to-black/30 p-4 font-mono text-[10px] text-neutral-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-5">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-60"
+        style={{ background: `linear-gradient(90deg, transparent, ${accent}66, transparent)` }}
+        aria-hidden
+      />
+      <header className="mb-4 border-b border-[#2a2a30] pb-3 font-sans text-[10px] font-medium tracking-[0.18em] text-neutral-400">
+        Voluntad · motor del Cronista
       </header>
 
       <label className="mb-3 block">
-        <span className="text-[9px] uppercase tracking-wider text-neutral-600" style={{ color: accent }}>
-          &gt;_INTENCIÓN (opcional — contexto para el Cronista)
+        <span className="text-[9px] uppercase tracking-[0.16em] text-neutral-500" style={{ color: accent }}>
+          Intención (opcional)
         </span>
         <textarea
           value={intent}
           onChange={(e) => setIntent(e.target.value)}
           disabled={isProcessing}
           rows={2}
-          placeholder="Opcional: tono, objetivo o detalle para el Cronista (tirada + intención)…"
-          className="mt-1.5 w-full resize-none border border-[#161616] bg-black/50 px-2 py-2 text-[10px] text-neutral-300 placeholder:text-neutral-600 focus:border-[var(--terminal)]/40 focus:outline-none focus:ring-1 focus:ring-[var(--terminal)]/12 disabled:opacity-45"
+          placeholder="Tono, apuesta, lo que buscas con la tirada…"
+          className="mt-1.5 w-full resize-none rounded-md border border-[#2a2a30] bg-black/55 px-3 py-2.5 text-[10px] text-neutral-200 placeholder:text-neutral-600 focus:border-[var(--terminal)]/45 focus:outline-none focus:ring-1 focus:ring-[var(--terminal)]/15 disabled:opacity-45"
         />
       </label>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1">
-          <span className="text-[9px] uppercase tracking-wider text-neutral-600" style={{ color: accent }}>
-            &gt;_ATRIBUTO
+          <span className="text-[9px] uppercase tracking-[0.16em] text-neutral-500" style={{ color: accent }}>
+            Atributo
           </span>
           <select
             value={attrKey}
             onChange={(e) => setAttrKey(e.target.value as keyof CharacterSheet["attributes"])}
             disabled={isProcessing}
-            className="cursor-pointer border border-[#161616] bg-black/60 px-2 py-2 text-neutral-400 focus:border-[var(--terminal)]/40 focus:outline-none disabled:opacity-45"
+            className="cursor-pointer rounded-md border border-[#2a2a30] bg-black/65 px-2 py-2 text-neutral-300 focus:border-[var(--terminal)]/40 focus:outline-none disabled:opacity-45"
           >
             {ATTRIBUTE_KEYS.map((a) => (
               <option key={a.key} value={a.key}>
@@ -96,14 +101,14 @@ export function ManifestWill({
           </select>
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[9px] uppercase tracking-wider text-neutral-600" style={{ color: accent }}>
-            &gt;_HAB
+          <span className="text-[9px] uppercase tracking-[0.16em] text-neutral-500" style={{ color: accent }}>
+            Habilidad
           </span>
           <select
             value={skillKey}
             onChange={(e) => setSkillKey(e.target.value)}
             disabled={isProcessing}
-            className="cursor-pointer border border-[#161616] bg-black/60 px-2 py-2 text-neutral-400 focus:border-[var(--terminal)]/40 focus:outline-none disabled:opacity-45"
+            className="cursor-pointer rounded-md border border-[#2a2a30] bg-black/65 px-2 py-2 text-neutral-300 focus:border-[var(--terminal)]/40 focus:outline-none disabled:opacity-45"
           >
             {SERENO_SKILLS.map(({ key, label }) => (
               <option key={key} value={key}>
@@ -115,20 +120,22 @@ export function ManifestWill({
       </div>
 
       {impulseBlocked ? (
-        <p className="mt-3 border border-[#7f1d1d]/50 bg-black/50 px-2 py-1.5 text-[var(--blood)]/90">
-          [IMPULSE_LOCK]: sin UI — espera el ciclo o interactúa en el canal.
+        <p className="mt-3 rounded-md border border-[#7f1d1d]/50 bg-black/50 px-3 py-2 text-[var(--blood)]/90">
+          Sin impulso de interfaz — espera el ciclo de 24 h o escribe en el canal.
         </p>
       ) : isNarrator ? (
-        <p className="mt-3 border border-[#222] bg-black/40 px-2 py-1.5 text-[var(--terminal)]">
-          VECTOR:{pool} · N:{Math.max(0, pool - hungerDicePool)} · Σh:{hungerDicePool}
+        <p className="mt-3 rounded-md border border-[#27272f] bg-black/45 px-3 py-2 text-[10px] text-[var(--terminal)]">
+          Pool {pool} · dados normales {Math.max(0, pool - hungerDicePool)} · Σh {hungerDicePool}
         </p>
       ) : (
-        <p className="mt-3 border border-[#222] bg-black/40 px-2 py-1.5 opacity-75">[&gt;_PIPE_LOCAL]</p>
+        <p className="mt-3 rounded-md border border-[#27272f] bg-black/40 px-3 py-2 text-[9px] leading-snug text-neutral-500">
+          La tirada corre en tu perfil — el Nexo sólo muestra la salida.
+        </p>
       )}
 
       {isNarrator && (
-        <label className="mt-3 flex max-w-[10rem] flex-col gap-1">
-          <span className="text-[9px] uppercase text-neutral-600">{"//_FACTOR_DIFF"}</span>
+        <label className="mt-3 flex max-w-[11rem] flex-col gap-1">
+          <span className="text-[9px] uppercase tracking-[0.12em] text-neutral-600">Dificultad (DF)</span>
           <input
             type="number"
             min={0}
@@ -136,21 +143,25 @@ export function ManifestWill({
             value={rollDifficulty}
             onChange={(e) => setRollDifficulty(Number(e.target.value))}
             disabled={isProcessing}
-            className="border border-[#161616] bg-black/60 px-2 py-1.5 text-neutral-300 focus:outline-none disabled:opacity-45"
+            className="rounded-md border border-[#2a2a30] bg-black/60 px-2 py-2 text-neutral-300 focus:border-[var(--terminal)]/35 focus:outline-none disabled:opacity-45"
           />
         </label>
       )}
 
-      <form onSubmit={manifest} className="mt-5 flex flex-col items-center gap-2">
+      <form onSubmit={manifest} className="mt-6 flex flex-col items-center gap-2">
         <motion.button
           type="submit"
           disabled={isProcessing || impulseBlocked}
-          whileHover={{ scale: isProcessing ? 1 : 1.01 }}
-          whileTap={{ scale: isProcessing ? 1 : 0.99 }}
-          className="border px-14 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.4em] disabled:opacity-45"
-          style={{ borderColor: accent, color: accent, boxShadow: `inset 0 0 18px ${accent}26` }}
+          whileHover={{ scale: isProcessing ? 1 : 1.015 }}
+          whileTap={{ scale: isProcessing ? 1 : 0.985 }}
+          className="rounded-lg border px-12 py-3.5 font-sans text-[11px] font-semibold uppercase tracking-[0.32em] transition-shadow disabled:opacity-45 disabled:shadow-none"
+          style={{
+            borderColor: `${accent}99`,
+            color: accent,
+            boxShadow: `0 12px 32px rgba(0,0,0,0.55), inset 0 1px 0 ${accent}40`,
+          }}
         >
-          MANIFESTAR
+          Manifestar
         </motion.button>
         {isProcessing ? (
           <p className="animate-pulse font-mono text-[9px] uppercase tracking-[0.35em] text-[var(--terminal)]">
@@ -159,11 +170,11 @@ export function ManifestWill({
         ) : null}
       </form>
 
-      <div className="mt-4 border-t border-[#161616] pt-4">
-        <p className="text-[9px] uppercase tracking-[0.28em] text-neutral-600">{"//_OUT"}</p>
-        <div className="mt-2 min-h-[2rem] text-[11px]">
+      <div className="mt-5 border-t border-[#2a2a30] pt-4">
+        <p className="font-sans text-[9px] uppercase tracking-[0.2em] text-neutral-600">Último veredicto</p>
+        <div className="mt-2 min-h-[2rem] font-sans text-[12px]">
           {!lastPlayerLabel ? (
-            <span className="text-neutral-600">[NULL]</span>
+            <span className="text-neutral-600">Sin tirada aún</span>
           ) : (
             <span
               className={`verdict-${lastPlayerLabel === "ÉXITO" ? "hit" : lastPlayerLabel === "FRACASO" ? "miss" : "beast"}`}

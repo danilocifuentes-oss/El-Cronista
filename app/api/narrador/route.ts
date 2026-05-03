@@ -12,7 +12,7 @@ export const maxDuration = 120;
 const MAX_ACTION = 4500;
 const MAX_LINE = 1800;
 /** Solo los últimos turnos al motor (ahorra tokens y presión de cuota). */
-const NEXO_RECENT_TURNS = 5;
+const NEXO_RECENT_TURNS = 6;
 const MAX_SHEET_SUMMARY = 4500;
 const MAX_CHRON = 8000;
 const MAX_SYNAPTIC = 4000;

@@ -18,7 +18,7 @@ type Props = {
 };
 
 /**
- * Carril derecho tipo “opción 5”: Génesis viva del CV + metadatos del hilo sin duplicar toda la ficha.
+ * Riel derecho con orden diegético: primero urgencias de mesa; Génesis detallado colapsado.
  */
 export function NexoChronicaRail({
   chronicle,
@@ -27,58 +27,86 @@ export function NexoChronicaRail({
   rollingSummary,
   pendingSynaptic,
 }: Props) {
-  const titleLine =
-    clipDiegetic(chronicle.ESTADO_GLOBAL, 220) ||
-    clipDiegetic(chronicle.TENSION, 220) ||
-    clipDiegetic(chronicle.AMBIENTE, 220);
+  const ciudadLine =
+    clipDiegetic(chronicle.ESTADO_GLOBAL, 280) ||
+    clipDiegetic(chronicle.TENSION, 260) ||
+    clipDiegetic(chronicle.AMBIENTE, 260);
 
   return (
-    <div className="space-y-5 font-mono text-[9px] text-neutral-500">
+    <div className="space-y-4 font-mono text-[9px] text-neutral-500">
       <div>
-        <h3 className="gothic-title mb-3 text-[10px] uppercase tracking-[0.32em] text-neutral-400">
-          Crónica actual
+        <h3 className="gothic-title mb-2 text-[9px] uppercase tracking-[0.32em] text-neutral-400">
+          Estado de situación (orden de urgencia)
         </h3>
-        <p className="text-[11px] font-sans leading-relaxed tracking-tight text-neutral-300">{titleLine || "Sin estado global cargado · edita Génesis desde Centro / local."}</p>
+        <ol className="list-decimal space-y-3 pl-4 font-sans text-[10px] leading-relaxed text-neutral-300">
+          <li>
+            <span className="text-[8px] uppercase tracking-[0.2em] text-neutral-500">
+              Vigilancia inquisitorial
+            </span>
+            <span className="mt-1 block text-neutral-200">Índice σ = {inquisitionThreat}</span>
+            <span className="mt-0.5 block text-neutral-600">
+              Elevado ⇒ más drones, filtros ciudadanos y cazadores oportunistas.
+            </span>
+          </li>
+
+          <li>
+            <span className="text-[8px] uppercase tracking-[0.2em] text-neutral-500">
+              Canal del Nexo abierto en
+            </span>
+            <span className="mt-1 block text-[color:var(--neon)]">{STRAND_LABEL[activeStrand]}</span>
+            <span className="mt-0.5 block text-neutral-600">
+              Lo que ves en el centro es sólo este hilo. Otros hilos conservan archivo aparte hasta que cambies pestaña.
+            </span>
+          </li>
+
+          {pendingSynaptic.trim() ? (
+            <li className="text-[color:var(--crimson)]">
+              <span className="text-[8px] uppercase tracking-[0.28em]">Intervención del operador</span>
+              <p className="mt-1 whitespace-pre-wrap normal-case">{clipDiegetic(pendingSynaptic, 420)}</p>
+            </li>
+          ) : null}
+
+          <li>
+            <span className="text-[8px] uppercase tracking-[0.22em] text-neutral-500">
+              Pulso ciudadano vigente
+            </span>
+            <p className="mt-1 normal-case">{ciudadLine || "Sin Estado global cargado — edita Génesis o deja fluir rumor callejero libremente."}</p>
+          </li>
+
+          <li>
+            <span className="text-[8px] uppercase tracking-[0.22em] text-neutral-500">
+              Rumor establecido (resumen técnico)
+            </span>
+            {rollingSummary.trim() ? (
+              <p className="mt-1 whitespace-pre-wrap normal-case text-neutral-400">{clipDiegetic(rollingSummary, 720)}</p>
+            ) : (
+              <p className="mt-1 italic normal-case text-neutral-600">Este hilo aún no registra rumor compacto anterior.</p>
+            )}
+          </li>
+        </ol>
       </div>
 
-      <div className="rounded-xl border border-[#323238] bg-black/35 p-3">
-        <p className="mb-1 text-[8px] uppercase tracking-widest text-neutral-600">Hilo Nexo</p>
-        <p className="text-[color:var(--neon)]">{STRAND_LABEL[activeStrand]}</p>
-        <p className="mt-2 text-[8px] uppercase tracking-widest text-neutral-600">Amenaza inquisitorial</p>
-        <p className="text-neutral-200">σ = {inquisitionThreat}</p>
-      </div>
-
-      {pendingSynaptic.trim() ? (
-        <div className="rounded-xl border border-[#7f1d1d]/40 bg-[color:var(--crimson)]/[0.08] p-3 text-neutral-400">
-          <p className="mb-1 text-[8px] uppercase tracking-[0.28em] text-[color:var(--crimson)]">Disrupción armada</p>
-          <p className="whitespace-pre-wrap font-sans text-[10px] leading-snug">{clipDiegetic(pendingSynaptic, 420)}</p>
-        </div>
-      ) : null}
-
-      {rollingSummary.trim() ? (
-        <div>
-          <p className="mb-1 text-[8px] uppercase tracking-widest text-neutral-600">Resumen del hilo activo</p>
-          <p className="whitespace-pre-wrap font-sans text-[10px] leading-relaxed text-neutral-400">
-            {clipDiegetic(rollingSummary, 900)}
+      <details className="rounded-xl border border-[#323238]/85 bg-black/35 open:border-[color:var(--neon)]/20">
+        <summary className="cursor-pointer px-3 py-2 text-[8px] uppercase tracking-[0.28em] text-neutral-500">
+          Expandir atmósfera narrativa · Génesis
+        </summary>
+        <div className="space-y-3 border-t border-[#2a2a30] px-3 py-3 font-sans text-[10px] leading-relaxed text-neutral-400">
+          <p>
+            <span className="text-[8px] uppercase tracking-[0.2em] text-neutral-600">Ambiente · </span>
+            {clipDiegetic(chronicle.AMBIENTE, 360)}
           </p>
+          <p>
+            <span className="text-[8px] uppercase tracking-[0.2em] text-neutral-600">Tensión · </span>
+            {clipDiegetic(chronicle.TENSION, 360)}
+          </p>
+          {chronicle.foundations.trim() ? (
+            <p className="text-neutral-500">
+              <span className="text-[8px] uppercase tracking-[0.2em] text-neutral-600">Cimientos · </span>
+              {clipDiegetic(chronicle.foundations, 480)}
+            </p>
+          ) : null}
         </div>
-      ) : (
-        <p className="text-[9px] italic text-neutral-600">Aún sin resumen de escena para este hilo.</p>
-      )}
-
-      <div className="rounded-xl border border-[#323238]/90 bg-black/40 p-3">
-        <p className="mb-2 text-[8px] uppercase tracking-widest text-neutral-600">Génesis · Ambiente</p>
-        <p className="font-sans text-[10px] leading-relaxed text-neutral-400">{clipDiegetic(chronicle.AMBIENTE, 360)}</p>
-        <p className="mb-2 mt-4 text-[8px] uppercase tracking-widest text-neutral-600">Tensión</p>
-        <p className="font-sans text-[10px] leading-relaxed text-neutral-400">{clipDiegetic(chronicle.TENSION, 360)}</p>
-      </div>
-
-      {chronicle.foundations.trim() ? (
-        <div>
-          <p className="mb-1 text-[8px] uppercase tracking-widest text-neutral-600">Cimientos</p>
-          <p className="font-sans text-[10px] leading-relaxed text-neutral-500">{clipDiegetic(chronicle.foundations, 500)}</p>
-        </div>
-      ) : null}
+      </details>
     </div>
   );
 }

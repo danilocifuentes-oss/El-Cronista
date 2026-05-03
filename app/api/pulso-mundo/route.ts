@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { executePulsoMundo, internalPulsoLines } from "@/lib/narrativeDrivers/runPulsoMundo";
+import { executePulsoMundo, internalPulsoDual } from "@/lib/narrativeDrivers/runPulsoMundo";
 
 export const runtime = "nodejs";
 export const maxDuration = 45;
@@ -15,9 +15,16 @@ export async function POST(req: Request) {
   }
 
   try {
-    const lines = await executePulsoMundo(ciudadHint);
-    return NextResponse.json({ lines });
+    const dual = await executePulsoMundo(ciudadHint);
+    return NextResponse.json({
+      eco_visible: dual.ecoVisible,
+      eco_sombras: dual.ecoSombras,
+    });
   } catch {
-    return NextResponse.json({ lines: internalPulsoLines(ciudadHint) });
+    const dual = internalPulsoDual(ciudadHint);
+    return NextResponse.json({
+      eco_visible: dual.ecoVisible,
+      eco_sombras: dual.ecoSombras,
+    });
   }
 }

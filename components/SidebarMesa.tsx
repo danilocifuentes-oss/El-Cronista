@@ -42,7 +42,7 @@ export function SidebarMesa({
 }: Props) {
   return (
     <aside
-      className="sticky top-0 hidden h-[calc(100vh-5rem)] max-h-[calc(100dvh-5rem)] min-h-0 w-[11.5rem] shrink-0 flex-col gap-4 overflow-y-auto border-r border-[#2a2a30] bg-[color:var(--paper)]/40 px-3 py-4 xl:flex"
+      className="sticky top-0 hidden min-h-0 w-[11.5rem] shrink-0 flex-col gap-4 self-stretch overflow-y-auto border-r border-[#2a2f36] bg-[color:var(--paper)]/40 px-3 py-4 xl:flex xl:max-h-none"
       aria-label="Mesa Nexo · accesos"
     >
       <div className="space-y-0.5 border-b border-[#27272f] pb-3">

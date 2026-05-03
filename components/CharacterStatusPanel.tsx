@@ -39,14 +39,19 @@ export function CharacterStatusPanel({
       <div>
         <p className="text-[9px] uppercase tracking-[0.38em] text-neutral-700">{"//_CV"}</p>
         <p className="mt-2 font-sans text-sm tracking-tight text-neutral-300">{sheet.name || "—"}</p>
-        <p className={`mt-1 text-[10px] ${sheet.antitribu ? "line-through opacity-55" : ""}`} style={{ color: accent }}>
+        <p className={`mt-1 text-[10px] ${sheet.antitribu ? "line-through opacity-50" : ""}`} style={{ color: accent }}>
           {linajeLabel}
         </p>
-        <p className="mt-2 text-[9px] text-neutral-600">
-          PS{sheet.bloodPotency}_HUM{sheet.humanity}_FB{sheet.freebiePool}_{sheet.resonance?.slice(0, 3) || "—"}
-        </p>
-        <div className="mt-3 space-y-1">
-          <label htmlFor="cv-transfondo" className="block text-[8px] uppercase tracking-widest text-neutral-700">
+        {isNarrator ? (
+          <p className="mt-2 text-[9px] text-neutral-600" title="Sólo MJ">
+            PS{sheet.bloodPotency}_HUM{sheet.humanity}_FB{sheet.freebiePool}_{sheet.resonance?.slice(0, 3) || "—"}
+          </p>
+        ) : null}
+        <details className="mt-3 space-y-1 border border-[#161616] bg-black/25 p-2 open:pb-3">
+          <summary className="cursor-pointer select-none font-mono text-[8px] uppercase tracking-[0.22em] text-neutral-600">
+            Transfondo y notas jugables
+          </summary>
+          <label htmlFor="cv-transfondo" className="mt-2 block text-[8px] uppercase tracking-widest text-neutral-700 sr-only">
             Transfondo
           </label>
           <textarea
@@ -57,10 +62,10 @@ export function CharacterStatusPanel({
             onChange={(e) =>
               onChange({ ...sheet, transfondo: e.target.value.slice(0, 16000) })
             }
-            placeholder="Historia, vínculos, objetivos, secretos jugables…"
-            className="w-full resize-y border border-[#161616] bg-black/40 px-2 py-1.5 text-[10px] leading-relaxed text-neutral-400 placeholder:text-neutral-700 focus:border-neutral-600 focus:outline-none disabled:opacity-60"
+            placeholder="Historia, vínculos, objetivos…"
+            className="mt-2 w-full resize-y border border-[#161616] bg-black/40 px-2 py-1.5 text-[10px] leading-relaxed text-neutral-400 placeholder:text-neutral-700 focus:border-neutral-600 focus:outline-none disabled:opacity-60"
           />
-        </div>
+        </details>
       </div>
 
       {/* SU/SV táctico — texto mínimo; integridad física reflejada en HUD */}
@@ -159,12 +164,12 @@ export function CharacterStatusPanel({
 
       {footer}
 
-      {(sheetLocked || xpLog.length > 0) && (
+      {isNarrator && (sheetLocked || xpLog.length > 0) && (
         <div className="mt-auto flex min-h-[6rem] flex-col border border-[#161616] bg-black/40 p-2">
-          <p className="mb-1.5 text-[8px] uppercase tracking-[0.35em] text-neutral-700">{"//_AUDIT"}</p>
+          <p className="mb-1.5 text-[8px] uppercase tracking-[0.35em] text-neutral-700">Auditoría MJ</p>
           <div className="max-h-36 space-y-0.5 overflow-y-auto pr-1 text-[9px] leading-relaxed text-neutral-500">
             {xpLog.slice(-40).length === 0 ? (
-              <span className="text-neutral-700">[VACÍO]</span>
+              <span className="text-neutral-700">Sin entradas</span>
             ) : (
               xpLog.slice(-40).map((line, i) => (
                 <p key={`${line.ts}-${i}-${line.text.slice(0, 12)}`}>{line.text}</p>

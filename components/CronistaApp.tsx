@@ -57,7 +57,6 @@ import { SchreckNetLogin } from "./SchreckNetLogin";
 import { GameSessionProvider, useGameSession } from "@/context/GameSessionContext";
 import { ManifestWill } from "./ManifestWill";
 import { ForcedDestinyOverlay } from "./ForcedDestinyOverlay";
-import { SerenoFooter } from "./SerenoFooter";
 import { TechnicalHud } from "./TechnicalHud";
 import { streamCronistaMotorWithFallback } from "@/lib/cronistaClient";
 import { serializeV5Roll, type V5RollResult } from "@/lib/dice";
@@ -800,7 +799,7 @@ function CronistaAppInner() {
       />
 
       <header className="flex shrink-0 flex-col gap-3 border-b border-[#222] bg-black px-4 py-4 font-mono text-[10px] sm:gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:px-6">
-        <div className="min-w-0 flex-1 space-y-2 text-neutral-500">
+        <div className="min-w-0 flex-1 space-y-2 text-neutral-500 xl:hidden">
           <p className="gothic-title text-[11px] font-medium normal-case tracking-normal text-neutral-300">
             El Cronista de las Sombras
           </p>
@@ -826,8 +825,38 @@ function CronistaAppInner() {
             ) : null}
           </p>
         </div>
+        <div
+          className="hidden min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1 text-[9px] text-neutral-500 xl:flex"
+          aria-label="Estado de sesión"
+        >
+          <span className="gothic-title text-[10px] font-medium normal-case tracking-tight text-neutral-400">
+            Canon activo
+          </span>
+          <span className="text-neutral-600">·</span>
+          <span style={{ color: accent }} className="font-sans font-medium text-neutral-300">
+            {STRAND_LABEL[activeStrand]}
+          </span>
+          {cronistaProcessing ? (
+            <span className="animate-pulse text-[color:var(--neon)]">El Cronista escribe…</span>
+          ) : null}
+          {!isNarrator ? (
+            <span className="text-neutral-600">
+              Impulso {impulseMeta.impulseUnits}/2
+              {manifestPenalty > 0 ? " · letargo (−1 reserva)" : ""}
+            </span>
+          ) : (
+            <span className="text-neutral-600">
+              MJ · reloj {famineIntervalMinutes} min · σ {inquisitionThreat}
+            </span>
+          )}
+        </div>
         <div className="flex w-full flex-wrap items-center justify-between gap-3 border-t border-[#222] pt-3 sm:gap-4 lg:w-auto lg:border-t-0 lg:pt-0">
-          <TechnicalHud healthFilled={healthHudFilled} healthMax={HEALTH_MAX_UI} hunger={sheet.hunger} />
+          <TechnicalHud
+            healthFilled={healthHudFilled}
+            healthMax={HEALTH_MAX_UI}
+            hunger={sheet.hunger}
+            className="xl:hidden"
+          />
           <div className="flex flex-wrap gap-2 sm:ml-auto lg:ml-0">
             <button
               type="button"
@@ -883,7 +912,7 @@ function CronistaAppInner() {
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col xl:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col xl:flex-row xl:items-stretch">
         <SidebarMesa
           accent={accent}
           sheetName={sheet.name?.trim() ?? ""}
@@ -920,7 +949,7 @@ function CronistaAppInner() {
           }
         />
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 overflow-hidden p-4 lg:p-6">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden px-4 py-4 lg:gap-5 lg:px-6 lg:py-5">
           <NarrativeFlow
             logs={displayLogs}
             composer={composer}
@@ -928,6 +957,7 @@ function CronistaAppInner() {
             onSend={sendPlayer}
             accent={accent}
             processing={cronistaProcessing}
+            showTechnicalAnchors={isNarrator}
             identityHint={identityHint}
             onPickSuggestion={(s) =>
               setComposer((c) => {
@@ -959,7 +989,7 @@ function CronistaAppInner() {
           </details>
         </div>
 
-        <aside className="hidden min-h-0 shrink-0 border-l border-[#222] bg-black/35 lg:flex lg:w-[min(20rem,32vw)] lg:flex-col lg:overflow-y-auto">
+        <aside className="hidden min-h-0 shrink-0 self-stretch border-l border-[#222] bg-black/35 lg:flex lg:w-[min(20vw,22rem)] lg:max-w-sm lg:flex-col lg:overflow-hidden xl:w-[min(18rem,26vw)]">
           <div className="border-b border-[#222] px-4 py-3 font-mono text-[8px] uppercase tracking-[0.3em] text-neutral-600">
             Riel diegético
           </div>
@@ -992,7 +1022,6 @@ function CronistaAppInner() {
         onForcedRage={() => requestForcedRoll("enardecimiento", rollDifficulty)}
       />
 
-      <SerenoFooter />
     </div>
   );
 }
