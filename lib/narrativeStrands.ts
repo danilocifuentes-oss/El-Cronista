@@ -4,9 +4,9 @@ export type NarrativeStrand = (typeof NARRATIVE_STRANDS)[number];
 export type RollingByStrand = Record<NarrativeStrand, string>;
 
 export const STRAND_LABEL: Record<NarrativeStrand, string> = {
-  principal: "Principal",
-  paralela: "Incursión individual",
-  vivo: "En vivo",
+  principal: "Mesa grupal",
+  paralela: "Incursión en solitario",
+  vivo: "Mesa física (IRL)",
 };
 
 /** Etiqueta corta para chips de UI. */
@@ -17,9 +17,10 @@ export const STRAND_TAG: Record<NarrativeStrand, string> = {
 };
 
 export const STRAND_HELPLINE: Record<NarrativeStrand, string> = {
-  principal: "Arco central / sesiones SchreckNet habituales.",
-  paralela: "Chat paralelo: trasfondo, contactos y escenas privadas con el Cronista.",
-  vivo: "Mesa física — mismo CV; tono presente, continuidad enlazada.",
+  principal: "Narrativa compartida: turnos implícitos, consecuencias que pesan para todos.",
+  paralela:
+    "Ritmo rápido y más acotado: tu ángulo personal; no debe copiar escena por escena el hilo grupal.",
+  vivo: "Mesa cara a cara: mismo CV enlazado, tono presente.",
 };
 
 /** Color CSS (borde / acento del stream). */

@@ -218,6 +218,7 @@ export function generateInternalNarrador(body: NarradorRequestBody): {
     body.sheetSummary?.slice?.(0, 400) ?? "",
     chronicleFingerprint(body.chronicle),
     (body.rollingSummary ?? "").slice(0, 200),
+    (body.worldNexusContext ?? "").slice(0, 320),
     ...(body.recentLogs?.slice(-4).map((l) => l.text.slice(0, 80)) ?? []),
   ]);
 

@@ -42,6 +42,7 @@ import {
   tickImpulseRefill,
   touchSignificantAction,
 } from "@/lib/impulseUnits";
+import { formatWorldNexusPromptBlock, ingestRollingSummary, loadNexusWorldState, saveNexusWorldState } from "@/lib/nexusWorldState";
 import { formatNexoApiFailure } from "@/lib/nexoErrors";
 import { buildSheetSummaryLite } from "@/lib/sheetSummary";
 import type { NarrativeLogEntry } from "@/lib/narrativeTypes";
@@ -53,6 +54,7 @@ import { AdminConsole } from "./AdminConsole";
 import { NarrativeFlow } from "./NarrativeFlow";
 import { SidebarMesa } from "./SidebarMesa";
 import { NexoChronicaRail } from "./NexoChronicaRail";
+import { NexoWorldMissions } from "./NexoWorldMissions";
 import { SchreckNetLogin } from "./SchreckNetLogin";
 import { GameSessionProvider, useGameSession } from "@/context/GameSessionContext";
 import { ManifestWill } from "./ManifestWill";
@@ -160,6 +162,8 @@ function CronistaAppInner() {
   const [profileIndexTick, setProfileIndexTick] = useState(0);
   /** Re-render impulsos / letargo tras gastar o pasar el ciclo. */
   const [impulseRev, setImpulseRev] = useState(0);
+  /** Invalida paneles que leen `nexusWorldState` tras contestar el narrador. */
+  const [worldRev, setWorldRev] = useState(0);
   const [ideasRepo, setIdeasRepo] = useState("");
   const [activeStrand, setActiveStrand] = useState<NarrativeStrand>(() =>
     typeof window === "undefined" ? "principal" : loadActiveStrand(),
@@ -500,7 +504,8 @@ function CronistaAppInner() {
     const strand = activeStrandRef.current;
     const prior = recentLinesForStrand(logs, strand, 4);
     const recentLogs = [...prior, { role: "jugador" as const, text: t }].slice(-5);
-    const cross = buildCrossStrandContext(strand, loadRollingByStrand());
+      const cross = buildCrossStrandContext(strand, loadRollingByStrand());
+      const worldNexusContext = formatWorldNexusPromptBlock(loadNexusWorldState(), strand);
 
     try {
       const out = await askCronista({
@@ -515,6 +520,7 @@ function CronistaAppInner() {
         ideasRepository: ideasRepo.trim() || undefined,
         narrativeStrand: strand,
         crossStrandContext: cross.trim() || undefined,
+        worldNexusContext,
       });
       pushLog({
         role: "narrador",
@@ -522,6 +528,8 @@ function CronistaAppInner() {
         ...(out.suggestions?.length ? { suggestions: out.suggestions } : {}),
       });
       if (out.rollingSummary) saveRollingSummary(out.rollingSummary);
+      saveNexusWorldState(ingestRollingSummary(loadNexusWorldState(), out.rollingSummary));
+      setWorldRev((n) => n + 1);
       saveMeta(touchSignificantAction(loadMeta()));
       const aid = getActiveProfileId();
       if (aid) syncActiveBundleFromGlobals(aid);
@@ -583,6 +591,7 @@ function CronistaAppInner() {
         { role: "sistema", text: ledgerLine },
       ].slice(-5);
       const cross = buildCrossStrandContext(strand, loadRollingByStrand());
+      const worldNexusContext = formatWorldNexusPromptBlock(loadNexusWorldState(), strand);
 
       try {
         let acc = "";
@@ -598,6 +607,7 @@ function CronistaAppInner() {
             ideasRepository: ideasRepo.trim() || undefined,
             narrativeStrand: strand,
             crossStrandContext: cross.trim() || undefined,
+            worldNexusContext,
           },
           (delta) => {
             acc += delta;
@@ -981,6 +991,14 @@ function CronistaAppInner() {
 
           <details className="lg:hidden nexo-gothic-shell rounded-xl border border-[#2f2f36] px-4 py-3">
             <summary className="gothic-title cursor-pointer text-[10px] uppercase tracking-[0.25em] text-neutral-400">
+              Mundo · misiones · portátil
+            </summary>
+            <div className="mt-3 max-h-[40vh] overflow-y-auto border border-[#2a2a30]">
+              <NexoWorldMissions accent={accent} worldRev={worldRev} isNarrator={isNarrator} />
+            </div>
+          </details>
+          <details className="lg:hidden nexo-gothic-shell rounded-xl border border-[#2f2f36] px-4 py-3">
+            <summary className="gothic-title cursor-pointer text-[10px] uppercase tracking-[0.25em] text-neutral-400">
               Crónica actual · vértice portátil
             </summary>
             <div className="mt-4 max-h-[50vh] overflow-y-auto border-t border-[#2a2a30] pt-4">
@@ -993,10 +1011,11 @@ function CronistaAppInner() {
           <div className="border-b border-[#222] px-4 py-3 font-mono text-[8px] uppercase tracking-[0.3em] text-neutral-600">
             Riel diegético
           </div>
-          <div className="min-h-0 flex-1 px-4 py-4">
+          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4">
             <NexoChronicaRail {...chronicaRailProps} />
           </div>
-          <div className="flex min-h-[10rem] shrink-0 flex-col border-t border-[#222] lg:min-h-[12rem] lg:flex-1 lg:overflow-hidden">
+          <NexoWorldMissions accent={accent} worldRev={worldRev} isNarrator={isNarrator} />
+          <div className="flex min-h-[10rem] shrink-0 flex-col border-t border-[#222] lg:min-h-0 lg:flex-1 lg:overflow-hidden">
             <ConclavePanel mates={MOCK_CONCLAVE} accent={accent} embedded />
           </div>
         </aside>

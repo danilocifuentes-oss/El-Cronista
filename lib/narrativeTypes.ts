@@ -51,6 +51,11 @@ export type NarradorRequestBody = {
   narrativeStrand?: NarrativeStrand;
   /** Resúmenes de otros hilos (continuidad cruzada). */
   crossStrandContext?: string;
+  /**
+   * Bloque Nexo: era, ecos mundiales, flags, misiones; evita «día 1» artificial.
+   * Lo genera el cliente desde `nexusWorldState` + hilo activo.
+   */
+  worldNexusContext?: string;
 };
 
 /** Respuesta API → cliente */

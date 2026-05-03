@@ -18,6 +18,7 @@ const MAX_CHRON = 8000;
 const MAX_SYNAPTIC = 4000;
 const MAX_IDEAS = 6000;
 const MAX_CROSS = 4000;
+const MAX_NEXUS = 4500;
 
 function clampStr(s: unknown, max: number): string {
   if (typeof s !== "string") return "";
@@ -76,6 +77,7 @@ function normalizeBody(raw: unknown): NarradorRequestBody | null {
   const narrativeStrandRaw = typeof o.narrativeStrand === "string" ? o.narrativeStrand : "";
   const narrativeStrand: NarrativeStrand = isNarrativeStrand(narrativeStrandRaw) ? narrativeStrandRaw : "principal";
   const crossStrandContext = o.crossStrandContext ? clampStr(o.crossStrandContext, MAX_CROSS) : "";
+  const worldNexusContext = o.worldNexusContext ? clampStr(o.worldNexusContext, MAX_NEXUS) : "";
 
   return {
     playerAction,
@@ -89,6 +91,7 @@ function normalizeBody(raw: unknown): NarradorRequestBody | null {
     ideasRepository: ideasRepository.trim() || undefined,
     narrativeStrand,
     crossStrandContext: crossStrandContext.trim() || undefined,
+    worldNexusContext: worldNexusContext.trim() || undefined,
   };
 }
 

@@ -9,6 +9,7 @@ const MAX_CHRON = 12000;
 const MAX_SYNAPTIC = 4000;
 const MAX_IDEAS = 6000;
 const MAX_CROSS = 4000;
+const MAX_NEXUS = 4500;
 const MAX_CODEX_JSON = 14000;
 
 function clampStr(s: unknown, max: number): string {
@@ -37,6 +38,7 @@ export type NormalizedCronistaBody = {
   ideasRepository?: string;
   narrativeStrand: NarrativeStrand;
   crossStrandContext?: string;
+  worldNexusContext?: string;
 };
 
 export function normalizeCronistaBody(raw: unknown): NormalizedCronistaBody | null {
@@ -85,6 +87,8 @@ export function normalizeCronistaBody(raw: unknown): NormalizedCronistaBody | nu
   const narrativeStrand: NarrativeStrand = isNarrativeStrand(nsRaw) ? nsRaw : "principal";
   const crossRaw = o.crossStrandContext ? clampStr(o.crossStrandContext, MAX_CROSS) : "";
   const crossStrandContext = crossRaw.trim() || undefined;
+  const nexusRaw = o.worldNexusContext ? clampStr(o.worldNexusContext, MAX_NEXUS) : "";
+  const worldNexusContext = nexusRaw.trim() || undefined;
 
   return {
     codex,
@@ -98,5 +102,6 @@ export function normalizeCronistaBody(raw: unknown): NormalizedCronistaBody | nu
     ideasRepository,
     narrativeStrand,
     crossStrandContext,
+    worldNexusContext,
   };
 }

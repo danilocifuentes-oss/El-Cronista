@@ -69,6 +69,7 @@ async function cronistaJsonResponse(parsed: NormalizedCronistaBody): Promise<Res
     ideasRepository: parsed.ideasRepository,
     narrativeStrand: parsed.narrativeStrand,
     crossStrandContext: parsed.crossStrandContext,
+    worldNexusContext: parsed.worldNexusContext,
   });
 
   const chain = resolveDriverChain();
@@ -118,6 +119,7 @@ async function cronistaStreamResponse(parsed: NormalizedCronistaBody): Promise<R
     ideasRepository: parsed.ideasRepository,
     narrativeStrand: parsed.narrativeStrand,
     crossStrandContext: parsed.crossStrandContext,
+    worldNexusContext: parsed.worldNexusContext,
   });
 
   const chain = resolveDriverChain();

@@ -17,6 +17,7 @@ export type CronistaMotorBody = {
   ideasRepository?: string;
   narrativeStrand: NarrativeStrand;
   crossStrandContext?: string;
+  worldNexusContext?: string;
 };
 
 export async function fetchCronistaJson(body: CronistaMotorBody): Promise<{ narration: string }> {
