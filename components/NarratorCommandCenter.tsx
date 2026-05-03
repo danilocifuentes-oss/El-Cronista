@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createProfileEntity } from "@/lib/profileStore";
 import type { ProfileSummary } from "@/lib/profileStore";
 import type { ChronicleConfig } from "@/lib/chronicleConfig";
@@ -12,6 +12,10 @@ import { MasterSheetEditor } from "./MasterSheetEditor";
 const MOTOR_CIPHER_STORAGE = "cronista-motor-cipher";
 
 const ROOT = "#b91c1c";
+
+function motorSnapshot(ext: boolean, paused: boolean, seed: string) {
+  return JSON.stringify({ ext, paused, seed });
+}
 
 type Tab = "sheets" | "genesis" | "synaptic" | "motor";
 
@@ -42,6 +46,26 @@ export function NarratorCommandCenter({
   const [motorSeed, setMotorSeed] = useState("");
   const [motorStatus, setMotorStatus] = useState<string | null>(null);
   const [motorLoading, setMotorLoading] = useState(false);
+  const [genesisLastSaved, setGenesisLastSaved] = useState(() => JSON.stringify(loadChronicle()));
+  const [motorLastSynced, setMotorLastSynced] = useState(() => motorSnapshot(true, false, ""));
+
+  const genesisDirty = useMemo(
+    () => JSON.stringify(chronicle) !== genesisLastSaved,
+    [chronicle, genesisLastSaved],
+  );
+  const motorDirty = useMemo(
+    () => motorSnapshot(motorExtLlm, motorPaused, motorSeed) !== motorLastSynced,
+    [motorExtLlm, motorPaused, motorSeed, motorLastSynced],
+  );
+
+  useEffect(() => {
+    if (!genesisDirty && !motorDirty) return;
+    function warnLeave(e: BeforeUnloadEvent) {
+      e.preventDefault();
+    }
+    window.addEventListener("beforeunload", warnLeave);
+    return () => window.removeEventListener("beforeunload", warnLeave);
+  }, [genesisDirty, motorDirty]);
 
   useEffect(() => {
     try {
@@ -77,9 +101,13 @@ export function NarratorCommandCenter({
         setMotorStatus(data.error || `HTTP ${res.status}`);
         return;
       }
-      setMotorExtLlm(data.externalLlmEnabled ?? true);
-      setMotorPaused(data.narratorChannelPaused ?? false);
-      setMotorSeed(typeof data.seedContext === "string" ? data.seedContext : "");
+      const ext = data.externalLlmEnabled ?? true;
+      const paused = data.narratorChannelPaused ?? false;
+      const seed = typeof data.seedContext === "string" ? data.seedContext : "";
+      setMotorExtLlm(ext);
+      setMotorPaused(paused);
+      setMotorSeed(seed);
+      setMotorLastSynced(motorSnapshot(ext, paused, seed));
       try {
         sessionStorage.setItem(MOTOR_CIPHER_STORAGE, cipher);
       } catch {
@@ -119,6 +147,7 @@ export function NarratorCommandCenter({
         setMotorStatus(data.error || `HTTP ${res.status}`);
         return;
       }
+      setMotorLastSynced(motorSnapshot(motorExtLlm, motorPaused, motorSeed));
       try {
         sessionStorage.setItem(MOTOR_CIPHER_STORAGE, cipher);
       } catch {
@@ -133,9 +162,52 @@ export function NarratorCommandCenter({
     }
   }
 
+  /** Un clic: mismo payload que Guardar pero fija solo `externalLlmEnabled` (mando IA). */
+  async function aplicarMandoIa(remoto: boolean) {
+    const cipher = motorCipher.trim();
+    if (!cipher) {
+      setMotorStatus("Introduce la clave raíz para activar o desactivar la IA remota.");
+      return;
+    }
+    setMotorLoading(true);
+    setMotorStatus(null);
+    try {
+      const res = await fetch("/api/operator-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cipher,
+          action: "save",
+          externalLlmEnabled: remoto,
+          narratorChannelPaused: motorPaused,
+          seedContext: motorSeed,
+        }),
+      });
+      const data = await parseFetchJson<{ ok?: boolean; error?: string }>(res);
+      if (!res.ok) {
+        setMotorStatus(data.error || `HTTP ${res.status}`);
+        return;
+      }
+      setMotorExtLlm(remoto);
+      setMotorLastSynced(motorSnapshot(remoto, motorPaused, motorSeed));
+      try {
+        sessionStorage.setItem(MOTOR_CIPHER_STORAGE, cipher);
+      } catch {
+        /* */
+      }
+      setMotorStatus(remoto ? "IA remota activada (Gemini/OpenAI si hay claves)." : "IA remota desactivada · solo motor interno.");
+      window.setTimeout(() => setMotorStatus(null), 4200);
+    } catch (e) {
+      setMotorStatus(e instanceof Error ? e.message : String(e));
+    } finally {
+      setMotorLoading(false);
+    }
+  }
+
   function persistGenesis() {
     saveChronicle(chronicle);
-    setSynStatus("Génesis guardada en almacenamiento local.");
+    setGenesisLastSaved(JSON.stringify(chronicle));
+    setSynStatus("Génesis guardada en almacenamiento local (persistente en este equipo).");
     window.setTimeout(() => setSynStatus(null), 3200);
   }
 
@@ -226,6 +298,58 @@ export function NarratorCommandCenter({
             </button>
           ))}
         </nav>
+
+        {(genesisDirty || motorDirty) ? (
+          <aside
+            className="mb-4 flex flex-col gap-3 border px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
+            style={{ borderColor: ROOT, backgroundColor: `${ROOT}12` }}
+            role="status"
+          >
+            <div className="text-[10px] leading-relaxed text-neutral-400">
+              <p className="text-[9px] uppercase tracking-[0.28em]" style={{ color: ROOT }}>
+                Borradores sin fijar
+              </p>
+              <ul className="mt-2 list-disc pl-4 marker:text-neutral-600">
+                {genesisDirty ? (
+                  <li>
+                    <strong className="font-normal text-neutral-200">Génesis:</strong> los cambios viven solo en esta
+                    pantalla hasta que pulses «Guardar Génesis» (memoria local).
+                  </li>
+                ) : null}
+                {motorDirty ? (
+                  <li>
+                    <strong className="font-normal text-neutral-200">Motor Nexo:</strong> la IA / pausa / contexto global
+                    no quedan en el servidor hasta «Guardar en servidor» con clave válida (o usar los botones «Activar /
+                    Desactivar IA», que también guardan).
+                  </li>
+                ) : null}
+              </ul>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {genesisDirty ? (
+                <button
+                  type="button"
+                  onClick={persistGenesis}
+                  className="border px-4 py-2 text-[9px] uppercase tracking-wider text-neutral-200"
+                  style={{ borderColor: ROOT }}
+                >
+                  Fijar Génesis ahora
+                </button>
+              ) : null}
+              {motorDirty ? (
+                <button
+                  type="button"
+                  disabled={motorLoading}
+                  onClick={() => void pushMotorSettings()}
+                  className="border px-4 py-2 text-[9px] uppercase tracking-wider disabled:opacity-40"
+                  style={{ borderColor: ROOT, color: ROOT }}
+                >
+                  Subir Motor al servidor
+                </button>
+              ) : null}
+            </div>
+          </aside>
+        ) : null}
 
         {synStatus ? (
           <p className="mb-4 border px-3 py-2 text-[10px] text-neutral-400" style={{ borderColor: ROOT }}>
@@ -364,6 +488,50 @@ export function NarratorCommandCenter({
               <span className="text-neutral-400">NEXO_FORCE_INTERNAL_ONLY</span> /{" "}
               <span className="text-neutral-400">NEXO_CHANNEL_PAUSED</span> en el deploy.
             </p>
+
+            <section
+              className="rounded border px-4 py-3 shadow-[inset_0_0_0_1px_rgba(185,28,28,0.15)]"
+              style={{ borderColor: ROOT }}
+            >
+              <p className="text-[9px] uppercase tracking-[0.32em]" style={{ color: ROOT }}>
+                Mando · IA remota
+              </p>
+              <p className="mt-1.5 text-[10px] text-neutral-500">
+                Activar o cortar Gemini/OpenAI sin tocar pausa ni contexto. Requiere clave y guardado en servidor.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={motorLoading}
+                  onClick={() => void aplicarMandoIa(true)}
+                  className="border px-4 py-2.5 text-[9px] uppercase tracking-[0.2em] transition disabled:opacity-40"
+                  style={{
+                    borderColor: ROOT,
+                    ...(motorExtLlm ? { backgroundColor: `${ROOT}26`, color: ROOT } : { color: "rgb(212 212 212)" }),
+                  }}
+                >
+                  Activar IA remota
+                </button>
+                <button
+                  type="button"
+                  disabled={motorLoading}
+                  onClick={() => void aplicarMandoIa(false)}
+                  className="border px-4 py-2.5 text-[9px] uppercase tracking-[0.2em] transition disabled:opacity-40"
+                  style={{
+                    borderColor: ROOT,
+                    ...(!motorExtLlm ? { backgroundColor: "rgba(38 38 38 / 0.9)", color: "rgb(250 250 250)" } : {}),
+                  }}
+                >
+                  Desactivar IA · solo interno
+                </button>
+              </div>
+              <p className="mt-3 text-[9px] text-neutral-600">
+                Estado:{" "}
+                {motorExtLlm
+                  ? "Permitidas APIs externas si el deploy tiene claves."
+                  : "Bloqueadas · motor interno y plantillas locales."}
+              </p>
+            </section>
 
             <label className="flex flex-col gap-1.5">
               <span className="text-[9px] uppercase tracking-widest text-neutral-500">Clave operador (245285…)</span>

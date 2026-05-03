@@ -1,56 +1,45 @@
+import { requireOpenAiClient } from "@/lib/openAiClient";
+
 import { openAiModel } from "./config";
 import { NARRADOR_SYSTEM_INSTRUCTION } from "./prompts";
 
-type JsonOut = { narracion?: string; resumen_actualizado?: string };
+type JsonOut = {
+  narracion?: string;
+  resumen_actualizado?: string;
+  sugerencias?: unknown;
+};
+
+function normalizeSugerencias(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const s = raw.map((x) => (typeof x === "string" ? x.trim().slice(0, 160) : "")).filter(Boolean).slice(0, 4);
+  return s.length ? s : undefined;
+}
 
 export async function generateNarradorWithOpenAi(userPrompt: string): Promise<{
   narracion: string;
   resumen_actualizado?: string;
+  sugerencias?: string[];
 }> {
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) {
-    throw new Error("OPENAI_API_KEY no configurada.");
-  }
+  const openai = requireOpenAiClient();
 
   const system = [
     NARRADOR_SYSTEM_INSTRUCTION,
     "",
-    "Formato: un único objeto JSON con narracion y resumen_actualizado. Sin markdown fuera del JSON.",
+    "Salida: un solo objeto JSON válido; sin fence markdown. Claves exactas: narracion, resumen_actualizado, sugerencias.",
   ].join("\n");
 
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${key}`,
-    },
-    body: JSON.stringify({
-      model: openAiModel(),
-      temperature: 0.88,
-      max_tokens: 2048,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: userPrompt },
-      ],
-    }),
+  const completion = await openai.chat.completions.create({
+    model: openAiModel(),
+    temperature: 0.88,
+    max_tokens: 2048,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: userPrompt },
+    ],
   });
 
-  const rawText = await res.text();
-  if (!res.ok) {
-    throw new Error(`OpenAI narrador HTTP ${res.status}: ${rawText.slice(0, 400)}`);
-  }
-
-  let data: {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  try {
-    data = JSON.parse(rawText) as typeof data;
-  } catch {
-    throw new Error("Respuesta OpenAI no es JSON.");
-  }
-
-  const content = data.choices?.[0]?.message?.content?.trim();
+  const content = completion.choices[0]?.message?.content?.trim();
   if (!content) {
     throw new Error("OpenAI narrador vacío.");
   }
@@ -67,9 +56,12 @@ export async function generateNarradorWithOpenAi(userPrompt: string): Promise<{
     throw new Error("narracion vacía (OpenAI).");
   }
 
+  const sugerencias = normalizeSugerencias(parsed.sugerencias);
+
   return {
     narracion,
     resumen_actualizado:
       typeof parsed.resumen_actualizado === "string" ? parsed.resumen_actualizado.trim().slice(0, 2000) : undefined,
+    sugerencias,
   };
 }

@@ -9,8 +9,7 @@ import { compactCodex } from "./cronistaPayload";
 import { resolveDriverChain } from "./config";
 import { jsonCronistaGemini, streamCronistaGemini } from "./geminiCronista";
 import { generateInternalCronista } from "./internalCronista";
-import { jsonCronistaOpenAi, streamCronistaOpenAiResponse } from "./openAiCronista";
-import { openAiSseResponseToPlainTextStream } from "./openAiSseToPlainStream";
+import { jsonCronistaOpenAi, streamCronistaOpenAiReadable } from "./openAiCronista";
 import { buildCronistaUserPrompt } from "./prompts";
 
 const STREAM_HEADERS = {
@@ -145,8 +144,7 @@ async function cronistaStreamResponse(parsed: NormalizedCronistaBody): Promise<R
         return new Response(readable, { headers: STREAM_HEADERS });
       }
       if (driver === "openai") {
-        const upstream = await streamCronistaOpenAiResponse(userPrompt);
-        const plain = openAiSseResponseToPlainTextStream(upstream.body!);
+        const plain = await streamCronistaOpenAiReadable(userPrompt);
         return new Response(plain, { headers: STREAM_HEADERS });
       }
       const text = internalNarration(parsed);

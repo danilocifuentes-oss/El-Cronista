@@ -4,8 +4,11 @@
   --void: #050505;
   --terminal: #39ff14;
   --blood: #8b0000;
+  --crimson: #9f1239;
+  --neon: #c026d3;
+  --paper: #1a1a1f;
   --background: var(--void);
-  --foreground: #e0e0ff;
+  --foreground: #e2e8f0;
 }
 
 @theme inline {
@@ -189,4 +192,19 @@ body {
 /* Panel principal del stream · Nexo */
 .nexo-stream-panel {
   border-radius: 2px;
+}
+
+/* Gótico-punk elegante (títulos / acentos) */
+.gothic-title {
+  font-family: var(--font-grotesk), var(--font-inter), system-ui, sans-serif;
+  letter-spacing: -0.04em;
+  text-shadow: 0 0 20px rgba(192, 38, 211, 0.45);
+}
+
+.nexo-gothic-shell {
+  background: linear-gradient(165deg, rgba(15, 15, 20, 0.92), rgba(10, 10, 15, 0.97));
+  border-radius: 1rem;
+  box-shadow:
+    inset 0 1px 0 rgba(192, 38, 211, 0.08),
+    0 0 0 1px rgba(63, 63, 70, 0.35);
 }

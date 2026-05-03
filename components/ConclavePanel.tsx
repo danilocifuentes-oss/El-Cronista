@@ -21,11 +21,19 @@ const STATUS_CODE: Record<ConclaveMate["status"], string> = {
 type Props = {
   mates: ConclaveMate[];
   accent: string;
+  /** Debajo del riel de crónica: sin borde izquierdo propio. */
+  embedded?: boolean;
 };
 
-export function ConclavePanel({ mates, accent }: Props) {
+export function ConclavePanel({ mates, accent, embedded }: Props) {
   return (
-    <aside className="flex h-full w-full shrink-0 flex-col border-l border-[#222] bg-black lg:w-56">
+    <aside
+      className={`flex w-full shrink-0 flex-col bg-black ${
+        embedded
+          ? "min-h-0 flex-1 overflow-hidden border-t border-[#222]"
+          : "h-full border-l border-[#222] lg:w-56"
+      }`}
+    >
       <BitacoraPublica accent={accent} />
       <header className="border-b border-[#222] px-3 py-2 font-mono text-[8px] uppercase tracking-[0.35em]" style={{ color: accent }}>
         {"//_PEERS"}

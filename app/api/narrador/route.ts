@@ -110,6 +110,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       narration: out.narration,
       rollingSummary: out.rollingSummary,
+      ...(out.suggestions?.length ? { suggestions: out.suggestions } : {}),
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

@@ -10,6 +10,7 @@ import { buildNarradorUserPrompt } from "./prompts";
 export type NarradorSuccess = {
   narration: string;
   rollingSummary?: string;
+  suggestions?: string[];
   /** Solo diagnóstico en logs servidor; no se envía al cliente. */
   driverUsed?: LlmDriverId;
 };
@@ -33,6 +34,7 @@ export async function executeNarradorPipeline(body: NarradorRequestBody): Promis
         return {
           narration: r.narracion,
           rollingSummary: r.resumen_actualizado,
+          suggestions: r.sugerencias,
           driverUsed: "gemini",
         };
       }
@@ -41,6 +43,7 @@ export async function executeNarradorPipeline(body: NarradorRequestBody): Promis
         return {
           narration: r.narracion,
           rollingSummary: r.resumen_actualizado,
+          suggestions: r.sugerencias,
           driverUsed: "openai",
         };
       }
@@ -48,6 +51,7 @@ export async function executeNarradorPipeline(body: NarradorRequestBody): Promis
       return {
         narration: r.narracion,
         rollingSummary: r.resumen_actualizado,
+        suggestions: r.sugerencias,
         driverUsed: "internal",
       };
     } catch (e) {

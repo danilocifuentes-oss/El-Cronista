@@ -12,6 +12,8 @@ export type NarrativeLogEntry = {
   strand?: NarrativeStrand;
   /** Respuesta del motor Cronista (MANIFESTAR): estilo terminal degradado */
   cronistaOut?: boolean;
+  /** Pistas opcionales del narrador IA (motor canal jugador); no Cronista MANIFESTAR. */
+  suggestions?: string[];
 };
 
 export type NarradorRecentLine = {
@@ -55,4 +57,6 @@ export type NarradorRequestBody = {
 export type NarradorApiResponse = {
   narration: string;
   rollingSummary?: string;
+  /** 2–4 ideas de siguiente paso para el jugador (opcional). */
+  suggestions?: string[];
 };

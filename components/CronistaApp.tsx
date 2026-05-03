@@ -28,7 +28,7 @@ import {
   saveRollingSummary,
   type NarrativeResetOptions,
 } from "@/lib/narrativeMemory";
-import { buildCrossStrandContext, type NarrativeStrand } from "@/lib/narrativeStrands";
+import { buildCrossStrandContext, STRAND_LABEL, type NarrativeStrand } from "@/lib/narrativeStrands";
 import { consumePendingSynapticDisruption, loadChronicle, peekPendingSynapticDisruption } from "@/lib/chronicleConfig";
 import {
   appendXpLog,
@@ -51,6 +51,8 @@ import type { ConclaveMate } from "./ConclavePanel";
 import { ConclavePanel } from "./ConclavePanel";
 import { AdminConsole } from "./AdminConsole";
 import { NarrativeFlow } from "./NarrativeFlow";
+import { SidebarMesa } from "./SidebarMesa";
+import { NexoChronicaRail } from "./NexoChronicaRail";
 import { SchreckNetLogin } from "./SchreckNetLogin";
 import { GameSessionProvider, useGameSession } from "@/context/GameSessionContext";
 import { ManifestWill } from "./ManifestWill";
@@ -71,8 +73,14 @@ import {
 import { ProfileHub } from "./ProfileHub";
 import { NarratorCommandCenter } from "./NarratorCommandCenter";
 import { NarrativeMemoryPanel } from "./NarrativeMemoryPanel";
-
-type Phase = "login" | "profileHub" | "chargen" | "nexus" | "sheetReview" | "commandCenter";
+import type { Phase } from "@/lib/schreckPhase";
+import {
+  clearSchreckAuth,
+  phaseToHref,
+  queryParamToPhase,
+  readAuthRole,
+  writeAuthRole,
+} from "@/lib/schreckNavigation";
 
 const HEALTH_MAX_UI = 7;
 
@@ -169,6 +177,21 @@ function CronistaAppInner() {
     if (aid) queueMicrotask(() => syncActiveBundleFromGlobals(aid));
   }, []);
 
+  /** Navega y escribe entrada en historial (`?v=`) para atrás/adelante en el mismo origen. */
+  const navigateToPhase = useCallback((next: Phase, opts?: { replace?: boolean }) => {
+    if (typeof window !== "undefined") {
+      const href = phaseToHref(next);
+      if (opts?.replace) {
+        window.history.replaceState({ phase: next }, "", href);
+      } else {
+        window.history.pushState({ phase: next }, "", href);
+      }
+    }
+    setPhase(next);
+  }, []);
+
+  const historyBootRef = useRef(false);
+
   const {
     isNarrator,
     setIsNarrator,
@@ -219,6 +242,78 @@ function CronistaAppInner() {
     });
   }, []);
 
+  /** Primera carga cliente: reconciliar `?v=` con sesión y roles. */
+  useEffect(() => {
+    if (historyBootRef.current) return;
+    historyBootRef.current = true;
+    if (typeof window === "undefined") return;
+
+    const role = readAuthRole();
+    const vRaw = new URLSearchParams(window.location.search).get("v");
+    const fromUrl = queryParamToPhase(vRaw);
+
+    if (!role) {
+      if (vRaw) window.history.replaceState(null, "", "/");
+      setPhase("login");
+      setIsNarrator(false);
+      return;
+    }
+
+    const narrator = role === "narrator";
+    setIsNarrator(narrator);
+
+    let target: Phase = fromUrl ?? (narrator ? "commandCenter" : "profileHub");
+
+    if (target === "commandCenter" && !narrator) target = "profileHub";
+    if (target === "nexus" && !narrator && !getActiveProfileId()) target = "profileHub";
+
+    const hrefWant = phaseToHref(target);
+    if (`${window.location.pathname}${window.location.search}` !== hrefWant) {
+      window.history.replaceState({ phase: target }, "", hrefWant);
+    }
+    setPhase(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- arranque único del historial Nexo
+  }, []);
+
+  useEffect(() => {
+    function syncFromHistory() {
+      const vRaw = new URLSearchParams(window.location.search).get("v");
+      if (!vRaw) {
+        clearSchreckAuth();
+        setIsNarrator(false);
+        setPhase("login");
+        return;
+      }
+      const fromUrl = queryParamToPhase(vRaw);
+      const role = readAuthRole();
+      if (!fromUrl || !role) {
+        window.history.replaceState(null, "", "/");
+        clearSchreckAuth();
+        setIsNarrator(false);
+        setPhase("login");
+        return;
+      }
+
+      const narrator = role === "narrator";
+      setIsNarrator(narrator);
+
+      let target: Phase = fromUrl;
+
+      if (target === "commandCenter" && !narrator) {
+        window.history.replaceState({ phase: "profileHub" }, "", phaseToHref("profileHub"));
+        target = "profileHub";
+      } else if (target === "nexus" && !narrator && !getActiveProfileId()) {
+        window.history.replaceState({ phase: "profileHub" }, "", phaseToHref("profileHub"));
+        target = "profileHub";
+      }
+
+      setPhase(target);
+    }
+
+    window.addEventListener("popstate", syncFromHistory);
+    return () => window.removeEventListener("popstate", syncFromHistory);
+  }, [setIsNarrator]);
+
   useEffect(() => {
     if (phase !== "nexus") return;
     const m = loadMeta();
@@ -266,15 +361,18 @@ function CronistaAppInner() {
 
   const applyLogin = () => {
     migrateLegacyToProfiles();
-    setPhase("profileHub");
+    writeAuthRole("player");
+    setIsNarrator(false);
+    navigateToPhase("profileHub");
   };
 
   const applyRootAccess = () => {
     migrateLegacyToProfiles();
+    writeAuthRole("narrator");
     setIsNarrator(true);
     ensureShadowPackNpcs();
     setProfileIndexTick((n) => n + 1);
-    setPhase("commandCenter");
+    navigateToPhase("commandCenter");
   };
 
   const finishChargen = (w: CharacterSheet) => {
@@ -293,7 +391,7 @@ function CronistaAppInner() {
     );
     setSheetLocked(true);
     refreshXpLog();
-    setPhase("nexus");
+    navigateToPhase("nexus");
     pushLog({
       role: "sistema",
       text: "[STATE_LOCK]: CODEX cerrado (`cronista-sheet-v1`) · cambios solo si el narrador los audita.",
@@ -338,6 +436,9 @@ function CronistaAppInner() {
       text: part.text,
       strand,
       ...(part.cronistaOut ? { cronistaOut: true } : {}),
+      ...(Array.isArray(part.suggestions) && part.suggestions.length
+        ? { suggestions: part.suggestions.slice(0, 8) }
+        : {}),
     };
     setLogs((prev) => {
       const next = [...prev, entry];
@@ -367,6 +468,30 @@ function CronistaAppInner() {
     });
   }, []);
 
+  const nuevaEscenaHiloActivo = useCallback(() => {
+    const label = STRAND_LABEL[activeStrand];
+    if (
+      !window.confirm(
+        `¿Reiniciar el buffer del hilo «${label}»? Se mantienen la ficha, Génesis y otros hilos; se vacía el resumen solo de este hilo.`,
+      )
+    ) {
+      return;
+    }
+    handleNarrativeReset({ strandOnly: activeStrand });
+  }, [activeStrand, handleNarrativeReset]);
+
+  const genesisSnap = useMemo(() => loadChronicle(), [logs.length, profileIndexTick]);
+  const rollingSnap = useMemo(() => loadRollingSummary(), [logs, activeStrand, impulseRev]);
+  const pendingSynapticPreview = peekPendingSynapticDisruption()?.trim() ?? "";
+
+  const chronicaRailProps = {
+    chronicle: genesisSnap,
+    activeStrand,
+    inquisitionThreat,
+    rollingSummary: rollingSnap,
+    pendingSynaptic: pendingSynapticPreview,
+  } as const;
+
   const sendPlayer = async () => {
     const t = composer.trim();
     if (!t) return;
@@ -392,7 +517,11 @@ function CronistaAppInner() {
         narrativeStrand: strand,
         crossStrandContext: cross.trim() || undefined,
       });
-      pushLog({ role: "narrador", text: out.narration });
+      pushLog({
+        role: "narrador",
+        text: out.narration,
+        ...(out.suggestions?.length ? { suggestions: out.suggestions } : {}),
+      });
       if (out.rollingSummary) saveRollingSummary(out.rollingSummary);
       saveMeta(touchSignificantAction(loadMeta()));
       const aid = getActiveProfileId();
@@ -530,25 +659,27 @@ function CronistaAppInner() {
 
   const goToLogin = () => {
     persistActiveProfile();
-    setPhase("login");
+    clearSchreckAuth();
+    setIsNarrator(false);
+    navigateToPhase("login", { replace: true });
   };
 
   const goToProfileHub = () => {
     persistActiveProfile();
-    setPhase("profileHub");
+    navigateToPhase("profileHub");
   };
 
   const enterProfile = (id: string) => {
     if (!selectProfile(id)) return;
     applyGlobalsToUi(setSheet, setSheetLocked, setLogs, refreshXpLog, setIdeasRepo, commitStrand);
-    setPhase("nexus");
+    navigateToPhase("nexus");
     pushLog({ role: "sistema", text: `[CV]: ${loadSheet()?.name || id}` });
   };
 
   const startBlankSheet = () => {
     createBlankProfile();
     applyGlobalsToUi(setSheet, setSheetLocked, setLogs, refreshXpLog, setIdeasRepo, commitStrand);
-    setPhase("chargen");
+    navigateToPhase("chargen");
   };
 
   if (phase === "login") {
@@ -560,7 +691,7 @@ function CronistaAppInner() {
       <NarratorCommandCenter
         profiles={hubProfiles}
         onProfilesChange={() => setProfileIndexTick((n) => n + 1)}
-        onGoHub={() => setPhase("profileHub")}
+        onGoHub={() => navigateToPhase("profileHub")}
         onGoNexus={() => {
           const id = getActiveProfileId();
           if (!id) {
@@ -569,7 +700,7 @@ function CronistaAppInner() {
           }
           if (!selectProfile(id)) return;
           applyGlobalsToUi(setSheet, setSheetLocked, setLogs, refreshXpLog, setIdeasRepo, commitStrand);
-          setPhase("nexus");
+          navigateToPhase("nexus");
         }}
         onRefreshGlobals={() =>
           applyGlobalsToUi(setSheet, setSheetLocked, setLogs, refreshXpLog, setIdeasRepo, commitStrand)
@@ -603,7 +734,7 @@ function CronistaAppInner() {
               setSheet(mergeStoredSheet(stored));
               setSheetLocked(true);
               refreshXpLog();
-              setPhase("nexus");
+              navigateToPhase("nexus", { replace: true });
             }}
             className="border border-[#333] px-8 py-2.5 font-mono text-[9px] uppercase tracking-[0.35em] text-neutral-400 hover:border-[var(--terminal)] hover:text-neutral-300"
           >
@@ -633,7 +764,7 @@ function CronistaAppInner() {
           <p className="tracking-[0.25em] text-[var(--terminal)]/90">{"//_CODEX · MATRIZ"}</p>
           <button
             type="button"
-            onClick={() => setPhase("nexus")}
+            onClick={() => navigateToPhase("nexus", { replace: true })}
             className="border border-[var(--terminal)]/35 px-4 py-2 text-[9px] uppercase tracking-widest text-[var(--terminal)] hover:bg-[var(--terminal)]/10"
           >
             Volver al Nexo
@@ -670,7 +801,10 @@ function CronistaAppInner() {
 
       <header className="flex shrink-0 flex-col gap-3 border-b border-[#222] bg-black px-4 py-4 font-mono text-[10px] sm:gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:px-6">
         <div className="min-w-0 flex-1 space-y-2 text-neutral-500">
-          <p className="tracking-[0.28em] text-neutral-400">PROTOCOLO_ACTIVO · SCHRECK_NET</p>
+          <p className="gothic-title text-[11px] font-medium normal-case tracking-normal text-neutral-300">
+            El Cronista de las Sombras
+          </p>
+          <p className="tracking-[0.28em] text-neutral-500">PROTOCOLO_ACTIVO · SCHRECK_NET</p>
           <p className="truncate font-sans text-[12px] font-medium tracking-tight text-neutral-200">
             <span style={{ color: accent }}>{sheet.name?.trim() || "Sin nombre"}</span>
             <span className="text-neutral-600"> · </span>
@@ -697,8 +831,8 @@ function CronistaAppInner() {
           <div className="flex flex-wrap gap-2 sm:ml-auto lg:ml-0">
             <button
               type="button"
-              onClick={() => setPhase("sheetReview")}
-              className="border border-neutral-600 px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-400 hover:border-neutral-500 hover:text-neutral-300"
+              onClick={() => navigateToPhase("sheetReview")}
+              className="border border-neutral-600 px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-400 hover:border-neutral-500 hover:text-neutral-300 xl:hidden"
             >
               HOJA
             </button>
@@ -707,9 +841,9 @@ function CronistaAppInner() {
                 type="button"
                 onClick={() => {
                   persistActiveProfile();
-                  setPhase("chargen");
+                  navigateToPhase("chargen");
                 }}
-                className="border border-[#252525] px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-400 hover:border-[color:var(--accent-clan)] hover:text-neutral-300"
+                className="border border-[#252525] px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-400 hover:border-[color:var(--accent-clan)] hover:text-neutral-300 xl:hidden"
               >
                 {sheetLocked ? "CODEX_MJ" : "CODEX"}
               </button>
@@ -717,14 +851,31 @@ function CronistaAppInner() {
             <button
               type="button"
               onClick={goToProfileHub}
-              className="border border-[#2a2a2a] px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-500 hover:border-neutral-600 hover:text-neutral-400"
+              className="border border-[#2a2a2a] px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-500 hover:border-neutral-600 hover:text-neutral-400 xl:hidden"
             >
               REGISTRO CV
             </button>
             <button
               type="button"
+              onClick={() => nuevaEscenaHiloActivo()}
+              title="Reinicia solo el hilo activo (móvil / atajo)"
+              className="border border-[color:var(--crimson)]/35 px-3 py-2 text-[9px] uppercase tracking-widest text-[color:var(--crimson)]/90 hover:bg-[color:var(--crimson)]/10"
+            >
+              NUEVA_ESCENA
+            </button>
+            {isNarrator ? (
+              <button
+                type="button"
+                onClick={() => navigateToPhase("commandCenter")}
+                className="hidden border border-[#7f1d1d]/50 px-3 py-2 text-[9px] uppercase tracking-widest text-[#fca5a5] hover:border-[#b91c1c]/70 sm:inline xl:hidden"
+              >
+                MANDO
+              </button>
+            ) : null}
+            <button
+              type="button"
               onClick={goToLogin}
-              className="border border-[var(--blood)]/45 px-3 py-2 text-[9px] uppercase tracking-widest text-[var(--blood)] hover:bg-[var(--blood)]/10"
+              className="border border-[var(--blood)]/45 px-3 py-2 text-[9px] uppercase tracking-widest text-[var(--blood)] hover:bg-[var(--blood)]/10 xl:hidden"
             >
               LOGOUT
             </button>
@@ -732,7 +883,27 @@ function CronistaAppInner() {
         </div>
       </header>
 
-      <div className="flex min-h-[calc(100vh-5rem)] flex-1 flex-col lg:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col xl:flex-row">
+        <SidebarMesa
+          accent={accent}
+          sheetName={sheet.name?.trim() ?? ""}
+          clanLabel={clanLabelDisplay}
+          healthFilled={healthHudFilled}
+          healthMax={HEALTH_MAX_UI}
+          hunger={sheet.hunger}
+          onPersonajes={goToProfileHub}
+          onNuevaEscena={nuevaEscenaHiloActivo}
+          onHoja={() => navigateToPhase("sheetReview")}
+          onCodex={() => {
+            persistActiveProfile();
+            navigateToPhase("chargen");
+          }}
+          codexButtonLabel={sheetLocked ? "CODEX_MJ" : "CODEX"}
+          onLogout={goToLogin}
+          isNarrator={isNarrator}
+          onCentroMando={() => navigateToPhase("commandCenter")}
+        />
+
         <CharacterStatusPanel
           sheet={sheet}
           xpLog={xpLog}
@@ -749,7 +920,7 @@ function CronistaAppInner() {
           }
         />
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 p-4 lg:p-6">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 overflow-hidden p-4 lg:p-6">
           <NarrativeFlow
             logs={displayLogs}
             composer={composer}
@@ -758,6 +929,12 @@ function CronistaAppInner() {
             accent={accent}
             processing={cronistaProcessing}
             identityHint={identityHint}
+            onPickSuggestion={(s) =>
+              setComposer((c) => {
+                const t = c.trim();
+                return t ? `${t}\n${s}` : s;
+              })
+            }
             activeStrand={activeStrand}
             onStrandChange={commitStrand}
           />
@@ -771,9 +948,28 @@ function CronistaAppInner() {
             poolPenalty={isNarrator ? 0 : manifestPenalty}
             impulseBlocked={impulseBlocked}
           />
+
+          <details className="lg:hidden nexo-gothic-shell rounded-xl border border-[#2f2f36] px-4 py-3">
+            <summary className="gothic-title cursor-pointer text-[10px] uppercase tracking-[0.25em] text-neutral-400">
+              Crónica actual · vértice portátil
+            </summary>
+            <div className="mt-4 max-h-[50vh] overflow-y-auto border-t border-[#2a2a30] pt-4">
+              <NexoChronicaRail {...chronicaRailProps} />
+            </div>
+          </details>
         </div>
 
-        <ConclavePanel mates={MOCK_CONCLAVE} accent={accent} />
+        <aside className="hidden min-h-0 shrink-0 border-l border-[#222] bg-black/35 lg:flex lg:w-[min(20rem,32vw)] lg:flex-col lg:overflow-y-auto">
+          <div className="border-b border-[#222] px-4 py-3 font-mono text-[8px] uppercase tracking-[0.3em] text-neutral-600">
+            Riel diegético
+          </div>
+          <div className="min-h-0 flex-1 px-4 py-4">
+            <NexoChronicaRail {...chronicaRailProps} />
+          </div>
+          <div className="flex min-h-[10rem] shrink-0 flex-col border-t border-[#222] lg:min-h-[12rem] lg:flex-1 lg:overflow-hidden">
+            <ConclavePanel mates={MOCK_CONCLAVE} accent={accent} embedded />
+          </div>
+        </aside>
       </div>
 
       <AdminConsole

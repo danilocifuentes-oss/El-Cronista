@@ -24,5 +24,8 @@ export async function askCronista(body: NarradorRequestBody): Promise<NarradorAp
   return {
     narration: data.narration.trim(),
     rollingSummary: data.rollingSummary?.trim(),
+    suggestions: Array.isArray(data.suggestions)
+      ? data.suggestions.filter((x): x is string => typeof x === "string").map((s) => s.trim()).filter(Boolean)
+      : undefined,
   };
 }

@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 import { resolveGeminiApiKey } from "@/lib/geminiEnv";
 import { isQuotaOrRateLimitError, resolveGeminiModels, withExponentialBackoff } from "@/lib/geminiRetry";
+import { tryOpenAiClient } from "@/lib/openAiClient";
 import { getOperatorSeedBlock, isExternalLlmBlocked } from "@/lib/operatorRuntimeSettings";
 
 import { openAiModel } from "./config";
@@ -103,34 +104,24 @@ async function pulsoGemini(ciudadHint: string): Promise<string[]> {
 }
 
 async function pulsoOpenAi(ciudadHint: string): Promise<string[]> {
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) throw new Error("sin openai");
+  const openai = tryOpenAiClient();
+  if (!openai) throw new Error("sin openai");
   const prompt = buildPrompt(ciudadHint);
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${key}`,
-    },
-    body: JSON.stringify({
-      model: openAiModel(),
-      temperature: 0.85,
-      max_tokens: 800,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            'Devuelve JSON con clave "lines": array de exactamente 4 strings (noticias diegéticas).',
-        },
-        { role: "user", content: prompt },
-      ],
-    }),
+  const completion = await openai.chat.completions.create({
+    model: openAiModel(),
+    temperature: 0.85,
+    max_tokens: 800,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content:
+          'Devuelve JSON con clave "lines": array de exactamente 4 strings (noticias diegéticas).',
+      },
+      { role: "user", content: prompt },
+    ],
   });
-  const text = await res.text();
-  if (!res.ok) throw new Error(text.slice(0, 400));
-  const data = JSON.parse(text) as { choices?: Array<{ message?: { content?: string } }> };
-  const content = data.choices?.[0]?.message?.content?.trim();
+  const content = completion.choices[0]?.message?.content?.trim();
   if (!content) throw new Error("openai vacío");
   const j = JSON.parse(content) as { lines?: unknown };
   if (Array.isArray(j.lines)) {

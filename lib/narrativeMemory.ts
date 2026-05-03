@@ -32,6 +32,11 @@ function parseLogs(raw: unknown): NarrativeLogEntry[] {
       if (role === "narrador" || role === "jugador" || role === "sistema") {
         const cronistaOut = Boolean((row as NarrativeLogEntry).cronistaOut);
         const strand = normalizeStrand((row as NarrativeLogEntry).strand);
+        const rawSug = (row as NarrativeLogEntry).suggestions;
+        const suggestions =
+          Array.isArray(rawSug) && rawSug.every((x) => typeof x === "string")
+            ? rawSug.map((s) => s.trim()).filter(Boolean).slice(0, 8)
+            : undefined;
         out.push({
           id: (row as NarrativeLogEntry).id,
           role,
@@ -39,6 +44,7 @@ function parseLogs(raw: unknown): NarrativeLogEntry[] {
           ts: (row as NarrativeLogEntry).ts,
           strand,
           ...(cronistaOut ? { cronistaOut: true } : {}),
+          ...(suggestions?.length ? { suggestions } : {}),
         });
       }
     }

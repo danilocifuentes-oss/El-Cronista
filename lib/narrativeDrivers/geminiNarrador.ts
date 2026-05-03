@@ -13,6 +13,7 @@ import { NARRADOR_SYSTEM_INSTRUCTION } from "./prompts";
 export async function generateNarradorWithGemini(userPrompt: string): Promise<{
   narracion: string;
   resumen_actualizado?: string;
+  sugerencias?: string[];
 }> {
   const key = resolveGeminiApiKey();
   if (!key) {
@@ -61,14 +62,19 @@ function getNarradorModel(genAI: GoogleGenerativeAI, modelName: string) {
         properties: {
           narracion: {
             type: SchemaType.STRING,
-            description: "Continuación narrativa inmersiva para el jugador.",
+            description: "Continuación narrativa inmersiva para el jugador (1–4 párrafos cortos).",
           },
           resumen_actualizado: {
             type: SchemaType.STRING,
-            description: "Resumen breve del estado de escena para coherencia (≤350 caracteres).",
+            description: "Resumen breve del estado de escena para coherencia (≤300 caracteres).",
+          },
+          sugerencias: {
+            type: SchemaType.ARRAY,
+            description: "Exactamente tres líneas: posibles siguientes movimientos para el jugador (≤120 caracteres cada una).",
+            items: { type: SchemaType.STRING },
           },
         },
-        required: ["narracion", "resumen_actualizado"],
+        required: ["narracion", "resumen_actualizado", "sugerencias"],
       },
     },
   });
@@ -78,7 +84,7 @@ async function generateNarradorJson(
   genAI: GoogleGenerativeAI,
   modelName: string,
   userPrompt: string,
-): Promise<{ narracion: string; resumen_actualizado?: string }> {
+): Promise<{ narracion: string; resumen_actualizado?: string; sugerencias?: string[] }> {
   const model = getNarradorModel(genAI, modelName);
   const result = await model.generateContent({
     contents: [{ role: "user", parts: [{ text: userPrompt }] }],
@@ -87,9 +93,9 @@ async function generateNarradorJson(
   if (!raw) {
     throw new Error("El modelo no devolvió texto (posible bloqueo de seguridad).");
   }
-  let parsed: { narracion?: string; resumen_actualizado?: string };
+  let parsed: { narracion?: string; resumen_actualizado?: string; sugerencias?: unknown };
   try {
-    parsed = JSON.parse(raw) as { narracion?: string; resumen_actualizado?: string };
+    parsed = JSON.parse(raw) as { narracion?: string; resumen_actualizado?: string; sugerencias?: unknown };
   } catch {
     throw new Error("No se pudo parsear JSON del modelo.");
   }
@@ -97,9 +103,16 @@ async function generateNarradorJson(
   if (!narration) {
     throw new Error("narracion vacía.");
   }
+  const rawSug = parsed.sugerencias;
+  const sugerencias =
+    Array.isArray(rawSug)
+      ? rawSug.map((x) => (typeof x === "string" ? x.trim().slice(0, 160) : "")).filter(Boolean).slice(0, 4)
+      : undefined;
+
   return {
     narracion: narration,
     resumen_actualizado:
       typeof parsed.resumen_actualizado === "string" ? parsed.resumen_actualizado.trim().slice(0, 2000) : undefined,
+    sugerencias: sugerencias?.length ? sugerencias : undefined,
   };
 }
