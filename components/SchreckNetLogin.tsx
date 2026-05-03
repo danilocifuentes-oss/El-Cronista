@@ -2,10 +2,12 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useCallback, useState } from "react";
-import { BLOOD_CIPHER, BLOOD_CIPHER_LENGTH } from "@/lib/sessionMeta";
+import { BLOOD_CIPHER, BLOOD_CIPHER_LENGTH, ROOT_OPERATOR_CIPHER } from "@/lib/sessionMeta";
 
 type Props = {
   onAuthenticate: () => void;
+  /** Código maestro → narrador + Centro de Mando (solo cliente). */
+  onRootAccess?: () => void;
 };
 
 function delay(ms: number) {
@@ -14,13 +16,13 @@ function delay(ms: number) {
 
 const BOOT_LINES = ["[CONEXIÓN_ESTABLECIDA]", "[BORRANDO_RASTROS_IP]", "[ACCEDIENDO_AL_CODEX]"] as const;
 
-export function SchreckNetLogin({ onAuthenticate }: Props) {
+export function SchreckNetLogin({ onAuthenticate, onRootAccess }: Props) {
   const [cipher, setCipher] = useState("");
   const [error, setError] = useState(false);
   const [booting, setBooting] = useState(false);
   const [bootLog, setBootLog] = useState<string[]>([]);
 
-  const runBoot = useCallback(async () => {
+  const runBoot = useCallback(async (afterBoot: () => void) => {
     setBooting(true);
     setBootLog([]);
     for (const line of BOOT_LINES) {
@@ -28,8 +30,8 @@ export function SchreckNetLogin({ onAuthenticate }: Props) {
       setBootLog((p) => [...p, line]);
     }
     await delay(380);
-    onAuthenticate();
-  }, [onAuthenticate]);
+    afterBoot();
+  }, []);
 
   function normalizedCipher(raw: string): string {
     return raw.replace(/\D/g, "").slice(0, BLOOD_CIPHER_LENGTH);
@@ -37,12 +39,17 @@ export function SchreckNetLogin({ onAuthenticate }: Props) {
 
   function submit() {
     const digits = normalizedCipher(cipher);
+    if (digits === ROOT_OPERATOR_CIPHER && onRootAccess) {
+      setError(false);
+      void runBoot(onRootAccess);
+      return;
+    }
     if (digits.length !== BLOOD_CIPHER_LENGTH || digits !== BLOOD_CIPHER) {
       setError(true);
       return;
     }
     setError(false);
-    void runBoot();
+    void runBoot(onAuthenticate);
   }
 
   return (

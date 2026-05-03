@@ -15,6 +15,14 @@ export type NarradorRecentLine = {
   text: string;
 };
 
+/** Configuración diegética enviada al narrador (Génesis / capas automáticas). */
+export type ChroniclePayload = {
+  foundations?: string;
+  AMBIENTE?: string;
+  TENSION?: string;
+  ESTADO_GLOBAL?: string;
+};
+
 /** Payload cliente → POST /api/narrador */
 export type NarradorRequestBody = {
   playerAction: string;
@@ -23,6 +31,9 @@ export type NarradorRequestBody = {
   inquisitionThreat: number;
   mjDirectives: string[];
   rollingSummary?: string;
+  chronicle?: ChroniclePayload;
+  /** Prioridad máxima: inyección del operador (una escena forzada). */
+  synapticDisruption?: string;
 };
 
 /** Respuesta API → cliente */

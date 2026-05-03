@@ -112,13 +112,8 @@ const TOOLTIP_BLOOD_SUFFIX = "Poder de sangre (V5). Subir con ANCILLA o reglas m
 const TEXTO_SUMA_DISC = (actual: number, meta: number, maxDot: number) =>
   `Disciplinas: ${actual}/${meta} puntos entre las tres líneas · máx. ${maxDot} en una disciplina al crear la ficha.`;
 
-type Props = {
-  initial: CharacterSheet;
-  onSave: (sheet: CharacterSheet) => void;
-};
-
-export function CharacterCreation({ initial, onSave }: Props) {
-  const [sheet, setSheet] = useState<CharacterSheet>(() => ({
+function buildSheetFromInitial(initial: CharacterSheet): CharacterSheet {
+  return {
     ...initial,
     conceptPresetId: ((): string | null => {
       if (initial.conceptPresetId === null) return null;
@@ -149,7 +144,18 @@ export function CharacterCreation({ initial, onSave }: Props) {
       (initial.clan === "caitiff" || initial.clan === "other"
         ? clanDefaultCaitiffPicks(initial.clan)
         : null),
-  }));
+  };
+}
+
+type Props = {
+  initial: CharacterSheet;
+  onSave: (sheet: CharacterSheet) => void;
+  /** Solo lectura: muestra la matriz sin permitir edición (p. ej. HOJA tras sellar). */
+  viewOnly?: boolean;
+};
+
+export function CharacterCreation({ initial, onSave, viewOnly }: Props) {
+  const [sheet, setSheet] = useState<CharacterSheet>(() => buildSheetFromInitial(initial));
   const [triedSeal, setTriedSeal] = useState(false);
   const [codexHint, setCodexHint] = useState<string | null>(null);
   const hintClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -170,6 +176,8 @@ export function CharacterCreation({ initial, onSave }: Props) {
       if (hintClearRef.current) clearTimeout(hintClearRef.current);
     };
   }, []);
+
+  const vo = viewOnly === true;
 
   const accent = CLAN_ACCENTS[sheet.clan];
   const clanLabel = CLAN_OPTIONS.find((c) => c.id === sheet.clan)?.label ?? sheet.clan;
@@ -211,6 +219,7 @@ export function CharacterCreation({ initial, onSave }: Props) {
   const canRollRandomMatrix = sheet.name.trim().length > 0;
 
   function applyRandomMatrix() {
+    if (vo) return;
     if (!canRollRandomMatrix) return;
     if (
       !window.confirm(
@@ -278,6 +287,7 @@ export function CharacterCreation({ initial, onSave }: Props) {
   }
 
   function seal() {
+    if (vo) return;
     setTriedSeal(true);
     const picks =
       sheet.clan === "caitiff" || sheet.clan === "other"
@@ -342,6 +352,7 @@ export function CharacterCreation({ initial, onSave }: Props) {
   }
 
   function resetToBlankCodex() {
+    if (vo) return;
     if (
       !window.confirm(
         "¿Restablecer la plantilla CODEX a cero? Se borran titular del CV, concepto y todo el reparto hasta el estado base (atributos en punto base gris; habilidades sin puntos). El borrador en memoria se omite; lo guardado en el Nexo no cambia hasta el próximo sellado.",
@@ -392,17 +403,23 @@ export function CharacterCreation({ initial, onSave }: Props) {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mx-auto max-w-6xl space-y-5 px-5 py-8 md:px-8">
         <header className="flex flex-wrap items-end justify-between gap-4 border-b border-[#161616] pb-5 font-mono">
           <div>
-            <p className="text-[9px] uppercase tracking-[0.35em] text-neutral-600">CODEX_V</p>
-            <h1 className="mt-1 text-sm font-normal tracking-[0.12em] text-neutral-400">Matriz Cainita</h1>
+            <p className="text-[9px] uppercase tracking-[0.35em] text-neutral-600">
+              {vo ? "//_MATRIZ · ARCHIVO" : "CODEX_V"}
+            </p>
+            <h1 className="mt-1 text-sm font-normal tracking-[0.12em] text-neutral-400">
+              {vo ? "Ficha sellada en el Nexo" : "Matriz Cainita"}
+            </h1>
           </div>
-          <button
-            type="button"
-            onClick={resetToBlankCodex}
-            title="Elimina el borrador actual y carga la plantilla CODEX inicial (sin datos en caché)."
-            className="shrink-0 border border-[#2a2a2a] bg-black/40 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500 hover:border-neutral-600 hover:text-neutral-400"
-          >
-            [NUEVA_MATRIZ]
-          </button>
+          {!vo ? (
+            <button
+              type="button"
+              onClick={resetToBlankCodex}
+              title="Elimina el borrador actual y carga la plantilla CODEX inicial (sin datos en caché)."
+              className="shrink-0 border border-[#2a2a2a] bg-black/40 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500 hover:border-neutral-600 hover:text-neutral-400"
+            >
+              [NUEVA_MATRIZ]
+            </button>
+          ) : null}
         </header>
 
         <section className="divide-y divide-[#161616] border border-[#161616] bg-black/20">
@@ -411,6 +428,7 @@ export function CharacterCreation({ initial, onSave }: Props) {
               <label className="text-[9px] uppercase tracking-widest text-neutral-600">&gt;_CV · NOMBRE</label>
               <input
                 value={sheet.name}
+                disabled={vo}
                 onChange={(e) => setSheet((s) => ({ ...s, name: e.target.value }))}
                 className={`${inputBase} mt-2`}
               />
@@ -419,8 +437,9 @@ export function CharacterCreation({ initial, onSave }: Props) {
               <label className="text-[9px] uppercase tracking-widest text-neutral-600">&gt;_LINAJE</label>
               <select
                 value={sheet.clan}
+                disabled={vo}
                 onChange={(e) => setClan(e.target.value as ClanId)}
-                className={`${inputBase} mt-2 cursor-pointer`}
+                className={`${inputBase} mt-2 ${vo ? "cursor-not-allowed opacity-90" : "cursor-pointer"}`}
               >
                 {CLAN_OPTIONS.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -439,6 +458,7 @@ export function CharacterCreation({ initial, onSave }: Props) {
               <input
                 type="checkbox"
                 checked={sheet.antitribu}
+                disabled={vo}
                 onChange={(e) => setSheet((s) => ({ ...s, antitribu: e.target.checked }))}
                 style={{ accentColor: accent }}
               />
@@ -457,21 +477,24 @@ export function CharacterCreation({ initial, onSave }: Props) {
                 }))
               }
               inputBase={inputBase}
+              readOnly={vo}
             />
 
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3 md:col-span-12 md:border-t md:border-[#161616] md:pt-4">
               <span className="text-[9px] text-neutral-600">MOTOR CODEX</span>
-              <label className="flex cursor-pointer items-center gap-2 font-mono text-[10px]">
+              <label className={`flex items-center gap-2 font-mono text-[10px] ${vo ? "" : "cursor-pointer"}`}>
                 <input
                   type="radio"
+                  disabled={vo}
                   checked={sheet.chargenMotor === "v5_sereno"}
                   onChange={() => setSheet((s) => ({ ...s, chargenMotor: "v5_sereno" }))}
                 />
                 SERENO V5 (cliente)
               </label>
-              <label className="flex cursor-pointer items-center gap-2 font-mono text-[10px]">
+              <label className={`flex items-center gap-2 font-mono text-[10px] ${vo ? "" : "cursor-pointer"}`}>
                 <input
                   type="radio"
+                  disabled={vo}
                   checked={sheet.chargenMotor === "classic_rev"}
                   onChange={() => setSheet((s) => ({ ...s, chargenMotor: "classic_rev" }))}
                 />
@@ -479,12 +502,22 @@ export function CharacterCreation({ initial, onSave }: Props) {
               </label>
               <span className="hidden h-3 w-px bg-[#161616] sm:block" aria-hidden />
               <span className="text-[9px] text-neutral-600">GENERACIÓN</span>
-              <label className="flex cursor-pointer items-center gap-2 font-mono text-[10px]">
-                <input type="radio" checked={sheet.generation === "neonato"} onChange={() => applyGeneration("neonato")} />
+              <label className={`flex items-center gap-2 font-mono text-[10px] ${vo ? "" : "cursor-pointer"}`}>
+                <input
+                  type="radio"
+                  disabled={vo}
+                  checked={sheet.generation === "neonato"}
+                  onChange={() => applyGeneration("neonato")}
+                />
                 NEONATO
               </label>
-              <label className="flex cursor-pointer items-center gap-2 font-mono text-[10px]">
-                <input type="radio" checked={sheet.generation === "ancilla"} onChange={() => applyGeneration("ancilla")} />
+              <label className={`flex items-center gap-2 font-mono text-[10px] ${vo ? "" : "cursor-pointer"}`}>
+                <input
+                  type="radio"
+                  disabled={vo}
+                  checked={sheet.generation === "ancilla"}
+                  onChange={() => applyGeneration("ancilla")}
+                />
                 ANCILLA
               </label>
               <span className="font-mono text-[10px] text-neutral-500" title={TOOLTIP_BLOOD_SUFFIX}>
@@ -499,6 +532,7 @@ export function CharacterCreation({ initial, onSave }: Props) {
                   accent={accent}
                   minimal={false}
                   baselineFilled={CHARGEN_HUMANITY_BASE}
+                  disabled={vo}
                   onChange={(v) => setSheet((s) => ({ ...s, humanity: v }))}
                 />
               </span>
@@ -506,8 +540,9 @@ export function CharacterCreation({ initial, onSave }: Props) {
                 <span className="text-[9px] uppercase text-neutral-600">SIGN</span>
                 <select
                   value={sheet.resonance}
+                  disabled={vo}
                   onChange={(e) => setSheet((s) => ({ ...s, resonance: e.target.value }))}
-                  className={`${inputBase} !w-auto`}
+                  className={`${inputBase} !w-auto ${vo ? "cursor-not-allowed opacity-90" : ""}`}
                 >
                   <option value="">—</option>
                   {RESONANCE_OPTIONS.map((r) => (
@@ -531,6 +566,7 @@ export function CharacterCreation({ initial, onSave }: Props) {
                     min={0}
                     max={999}
                     value={sheet.freebiePool}
+                    disabled={vo}
                     onChange={(e) =>
                       setSheet((s) => ({
                         ...s,
@@ -555,24 +591,26 @@ export function CharacterCreation({ initial, onSave }: Props) {
                     Elige la prioridad física · social · mental y los carriles de habilidad; cada combinación muestra los cupos.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  disabled={!canRollRandomMatrix}
-                  title={
-                    canRollRandomMatrix
-                      ? "Llena la matriz al azar según el reglamento (con nombre y linaje ya indicados)."
-                      : "Primero escribe el nombre en el CV."
-                  }
-                  onClick={applyRandomMatrix}
-                  className={`shrink-0 border px-4 py-2 font-mono text-[9px] uppercase tracking-[0.18em] transition-colors ${canRollRandomMatrix ? "border-neutral-700 text-neutral-300 hover:border-[var(--clan-accent)] hover:text-neutral-200" : "cursor-not-allowed border-neutral-800 text-neutral-600"}`}
-                  style={
-                    canRollRandomMatrix
-                      ? { boxShadow: `inset 0 0 0 1px ${accent}14` }
-                      : undefined
-                  }
-                >
-                  Matriz al azar
-                </button>
+                {!vo ? (
+                  <button
+                    type="button"
+                    disabled={!canRollRandomMatrix}
+                    title={
+                      canRollRandomMatrix
+                        ? "Llena la matriz al azar según el reglamento (con nombre y linaje ya indicados)."
+                        : "Primero escribe el nombre en el CV."
+                    }
+                    onClick={applyRandomMatrix}
+                    className={`shrink-0 border px-4 py-2 font-mono text-[9px] uppercase tracking-[0.18em] transition-colors ${canRollRandomMatrix ? "border-neutral-700 text-neutral-300 hover:border-[var(--clan-accent)] hover:text-neutral-200" : "cursor-not-allowed border-neutral-800 text-neutral-600"}`}
+                    style={
+                      canRollRandomMatrix
+                        ? { boxShadow: `inset 0 0 0 1px ${accent}14` }
+                        : undefined
+                    }
+                  >
+                    Matriz al azar
+                  </button>
+                ) : null}
               </div>
               <div className="grid gap-8 md:grid-cols-2">
                 <div className="min-w-0 space-y-2">
@@ -581,13 +619,14 @@ export function CharacterCreation({ initial, onSave }: Props) {
                   </label>
                   <select
                     value={sheet.classicAttrPreset}
+                    disabled={vo}
                     onChange={(e) =>
                       setSheet((s) => ({
                         ...s,
                         classicAttrPreset: Number(e.target.value),
                       }))
                     }
-                    className={`${inputBase} w-full min-w-0 cursor-pointer`}
+                    className={`${inputBase} w-full min-w-0 ${vo ? "cursor-not-allowed opacity-90" : "cursor-pointer"}`}
                   >
                     {classicAttrPresetChoicesForClan(sheet.clan).map((i) => (
                       <option key={i} value={i}>
@@ -612,13 +651,14 @@ export function CharacterCreation({ initial, onSave }: Props) {
                   </label>
                   <select
                     value={sheet.classicSkillPreset}
+                    disabled={vo}
                     onChange={(e) =>
                       setSheet((s) => ({
                         ...s,
                         classicSkillPreset: Number(e.target.value),
                       }))
                     }
-                    className={`${inputBase} w-full min-w-0 cursor-pointer`}
+                    className={`${inputBase} w-full min-w-0 ${vo ? "cursor-not-allowed opacity-90" : "cursor-pointer"}`}
                   >
                     {[0, 1, 2, 3, 4, 5].map((i) => (
                       <option key={i} value={i}>
@@ -684,6 +724,7 @@ export function CharacterCreation({ initial, onSave }: Props) {
                               pokeHint(codexRejectHintAttribute(sheet, key, t))
                             }
                             value={sheet.attributes[key]}
+                            disabled={vo}
                             onChange={(v) => setAttr(key, v)}
                           />
                         </div>
@@ -718,6 +759,7 @@ export function CharacterCreation({ initial, onSave }: Props) {
                           increaseCeiling={codexMaxSkillDots(sheet, key)}
                           onIncreaseBlocked={(t) => pokeHint(codexRejectHintSkill(sheet, key, t))}
                           value={sheet.skills[key] ?? 0}
+                          disabled={vo}
                           onChange={(v) => setSkill(key, v)}
                         />
                       </div>
@@ -746,8 +788,9 @@ export function CharacterCreation({ initial, onSave }: Props) {
                     <select
                       key={slot}
                       value={caitiffEff[slot]}
+                      disabled={vo}
                       onChange={(e) => setPickSlot(slot, e.target.value as DisciplineKey)}
-                      className={`${inputBase} cursor-pointer`}
+                      className={`${inputBase} ${vo ? "cursor-not-allowed opacity-90" : "cursor-pointer"}`}
                     >
                       {DISCIPLINE_POOL.map((d) => (
                         <option key={d.key} value={d.key}>
@@ -770,34 +813,37 @@ export function CharacterCreation({ initial, onSave }: Props) {
                     increaseCeiling={codexMaxDisciplineDots(sheet, k)}
                     onIncreaseBlocked={(t) => pokeHint(codexRejectHintDiscipline(sheet, k, t))}
                     value={(sheet.disciplines[k] as number) ?? 0}
+                    disabled={vo}
                     onChange={(v) => setDisc(k, v)}
                   />
                 </div>
               ))}
 
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
-                onClick={seal}
-                className="mt-6 w-full border bg-black py-3 font-mono text-[10px] font-semibold uppercase tracking-[0.28em]"
-                style={{ borderColor: accent, color: accent, boxShadow: `inset 0 0 0 1px ${accent}22` }}
-              >
-                &gt;_SELLAR_CODEX
-              </motion.button>
-              {pendingSealBits.length > 0 && (
+              {!vo ? (
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  onClick={seal}
+                  className="mt-6 w-full border bg-black py-3 font-mono text-[10px] font-semibold uppercase tracking-[0.28em]"
+                  style={{ borderColor: accent, color: accent, boxShadow: `inset 0 0 0 1px ${accent}22` }}
+                >
+                  &gt;_SELLAR_CODEX
+                </motion.button>
+              ) : null}
+              {!vo && pendingSealBits.length > 0 ? (
                 <p className="mt-2 font-mono text-[8px] leading-relaxed tracking-tight text-[var(--blood)]">
                   Falta para activar el nexo:{" "}
                   <span className="text-neutral-400">{pendingSealBits.join(" · ")}.</span>
                 </p>
-              )}
-              {triedSeal && !discOk && (
+              ) : null}
+              {!vo && triedSeal && !discOk ? (
                 <p className="mt-2 font-mono text-[8px] leading-relaxed text-neutral-500">
                   Para sellar, la suma de las tres disciplinas activas debe ser exactamente{" "}
                   {classicMode ? timeline.classicDisciplineBudget : timeline.v5DisciplineBudget} puntos entre las
                   disciplinas activas (ahora hay {discDotsSum}).
                 </p>
-              )}
+              ) : null}
             </div>
           </section>
         </div>

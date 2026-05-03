@@ -18,6 +18,7 @@ import {
   saveNarrativeLog,
   saveRollingSummary,
 } from "@/lib/narrativeMemory";
+import { consumePendingSynapticDisruption, loadChronicle, peekPendingSynapticDisruption } from "@/lib/chronicleConfig";
 import {
   appendXpLog,
   loadMeta,
@@ -42,6 +43,7 @@ import { streamCronistaMotorWithFallback } from "@/lib/cronistaClient";
 import { serializeV5Roll, type V5RollResult } from "@/lib/dice";
 import {
   createBlankProfile,
+  ensureShadowPackNpcs,
   getActiveProfileId,
   listProfiles,
   migrateLegacyToProfiles,
@@ -49,8 +51,9 @@ import {
   syncActiveBundleFromGlobals,
 } from "@/lib/profileStore";
 import { ProfileHub } from "./ProfileHub";
+import { NarratorCommandCenter } from "./NarratorCommandCenter";
 
-type Phase = "login" | "profileHub" | "chargen" | "nexus" | "sheetReview";
+type Phase = "login" | "profileHub" | "chargen" | "nexus" | "sheetReview" | "commandCenter";
 
 const HEALTH_MAX_UI = 7;
 
@@ -123,6 +126,7 @@ function CronistaAppInner() {
   const [xpLog, setXpLog] = useState(() =>
     typeof window === "undefined" ? [] : loadXpLog(),
   );
+  const [profileIndexTick, setProfileIndexTick] = useState(0);
 
   const {
     isNarrator,
@@ -137,6 +141,16 @@ function CronistaAppInner() {
   } = useGameSession();
 
   const accent = useMemo(() => CLAN_ACCENTS[sheet.clan], [sheet.clan]);
+
+  /** Normalización estable para la vista HOJA (matriz CODEX completa, solo lectura). */
+  const sheetReviewInitial = useMemo(() => mergeStoredSheet(sheet), [sheet]);
+  /** Remount cuando cambia la ficha (evita estado obsoleto sin effect en CharacterCreation). */
+  const sheetReviewKey = useMemo(() => JSON.stringify(sheetReviewInitial), [sheetReviewInitial]);
+
+  const hubProfiles = useMemo(() => {
+    void profileIndexTick;
+    return listProfiles();
+  }, [profileIndexTick]);
 
   const refreshXpLog = useCallback(() => setXpLog(loadXpLog()), []);
 
@@ -186,6 +200,14 @@ function CronistaAppInner() {
   const applyLogin = () => {
     migrateLegacyToProfiles();
     setPhase("profileHub");
+  };
+
+  const applyRootAccess = () => {
+    migrateLegacyToProfiles();
+    setIsNarrator(true);
+    ensureShadowPackNpcs();
+    setProfileIndexTick((n) => n + 1);
+    setPhase("commandCenter");
   };
 
   const finishChargen = (w: CharacterSheet) => {
@@ -276,6 +298,8 @@ function CronistaAppInner() {
         inquisitionThreat,
         mjDirectives: loadMjDirectives(),
         rollingSummary: loadRollingSummary() || undefined,
+        chronicle: loadChronicle(),
+        synapticDisruption: consumePendingSynapticDisruption() || undefined,
       });
       pushLog({ role: "narrador", text: out.narration });
       if (out.rollingSummary) saveRollingSummary(out.rollingSummary);
@@ -321,6 +345,8 @@ function CronistaAppInner() {
             hambre: sheet.hunger,
             input: intent,
             recentLogs,
+            chronicle: loadChronicle(),
+            synapticDisruption: peekPendingSynapticDisruption() || undefined,
           },
           (delta) => {
             acc += delta;
@@ -394,12 +420,35 @@ function CronistaAppInner() {
     setPhase("chargen");
   };
 
-  if (phase === "login") return <SchreckNetLogin onAuthenticate={applyLogin} />;
+  if (phase === "login") {
+    return <SchreckNetLogin onAuthenticate={applyLogin} onRootAccess={applyRootAccess} />;
+  }
+
+  if (phase === "commandCenter") {
+    return (
+      <NarratorCommandCenter
+        profiles={hubProfiles}
+        onProfilesChange={() => setProfileIndexTick((n) => n + 1)}
+        onGoHub={() => setPhase("profileHub")}
+        onGoNexus={() => {
+          const id = getActiveProfileId();
+          if (!id) {
+            window.alert("No hay perfil activo. Abre REGISTRO_CV y selecciona un CV.");
+            return;
+          }
+          if (!selectProfile(id)) return;
+          applyGlobalsToUi(setSheet, setSheetLocked, setLogs, refreshXpLog);
+          setPhase("nexus");
+        }}
+        onRefreshGlobals={() => applyGlobalsToUi(setSheet, setSheetLocked, setLogs, refreshXpLog)}
+      />
+    );
+  }
 
   if (phase === "profileHub") {
     return (
       <ProfileHub
-        profiles={listProfiles()}
+        profiles={hubProfiles}
         onPlayProfile={(id) => enterProfile(id)}
         onNewSheetBlank={startBlankSheet}
         onLogout={goToLogin}
@@ -448,7 +497,7 @@ function CronistaAppInner() {
     return (
       <div className="flex min-h-screen flex-col bg-[var(--void)] techno-grid">
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[#161616] bg-black/70 px-4 py-3 font-mono text-[10px] text-neutral-400">
-          <p className="tracking-[0.25em] text-[var(--terminal)]/90">{"//_HOJA · SOLO_LECTURA"}</p>
+          <p className="tracking-[0.25em] text-[var(--terminal)]/90">{"//_CODEX · MATRIZ"}</p>
           <button
             type="button"
             onClick={() => setPhase("nexus")}
@@ -457,17 +506,14 @@ function CronistaAppInner() {
             Volver al Nexo
           </button>
         </header>
-        <div className="mx-auto flex w-full max-w-md flex-1 flex-col p-4 pb-10 lg:max-w-lg">
-          <CharacterStatusPanel
-            sheet={sheet}
-            onChange={() => {}}
-            xpLog={xpLog}
-            sheetLocked={sheetLocked}
-            isNarrator={isNarrator}
-            readOnlyMode
+        <div className="min-h-0 flex-1 overflow-auto">
+          <CharacterCreation
+            key={sheetReviewKey}
+            initial={sheetReviewInitial}
+            onSave={() => {}}
+            viewOnly
           />
         </div>
-        <SerenoFooter />
       </div>
     );
   }
@@ -515,6 +561,19 @@ function CronistaAppInner() {
             >
               HOJA
             </button>
+            {isNarrator && (
+              <button
+                type="button"
+                onClick={() => {
+                  persistActiveProfile();
+                  setPhase("commandCenter");
+                }}
+                className="border px-3 py-2 text-[9px] uppercase tracking-widest text-[#b91c1c]/95 hover:bg-[#b91c1c]/10"
+                style={{ borderColor: "#b91c1c88" }}
+              >
+                CENTRO_MANDO
+              </button>
+            )}
             {(!sheetLocked || isNarrator) && (
               <button
                 type="button"

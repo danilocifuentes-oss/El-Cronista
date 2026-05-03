@@ -75,7 +75,14 @@ export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout 
                       className="flex w-full items-center justify-between gap-3 border border-[#1a1a1a] bg-black/50 px-4 py-3 text-left sharp-border-inner transition-colors hover:border-[#2a2a2a]"
                     >
                       <span className="min-w-0">
-                        <span className="block truncate font-sans text-xs text-neutral-200">{p.name}</span>
+                        <span className="block truncate font-sans text-xs text-neutral-200">
+                          {p.isNPC ? (
+                            <span className="mr-2 inline-block border border-[#b91c1c]/50 px-1 py-px text-[8px] uppercase tracking-wider text-[#b91c1c]/90">
+                              NPC
+                            </span>
+                          ) : null}
+                          {p.name}
+                        </span>
                         <span className="mt-0.5 block text-[9px] tracking-wide text-neutral-600" style={{ color: accent }}>
                           {clanLabel}
                         </span>

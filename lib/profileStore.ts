@@ -6,6 +6,7 @@ import {
   saveSheet,
   STORAGE_KEY,
 } from "@/lib/character";
+import { SHADOW_PACK_SHEETS } from "@/lib/shadowPack";
 import {
   loadMjDirectives,
   loadNarrativeLog,
@@ -22,12 +23,15 @@ const BUNDLE_PREFIX = "cronista-profile-bundle-v1::";
 const MIGRATION_FLAG = "cronista-migrated-profiles-v1";
 const ACTIVE_ID_KEY = "cronista-active-profile-v1";
 const MAX_PROFILES = 20;
+const SHADOW_PACK_FLAG = "cronista-shadow-pack-seeded-v1";
 
 export type ProfileSummary = {
   id: string;
   name: string;
   clan: ClanId;
   updatedAt: number;
+  /** Metadato de índice; la fuente de verdad sigue en `sheet.isNPC`. */
+  isNPC?: boolean;
 };
 
 type ProfileIndex = {
@@ -148,6 +152,7 @@ export function syncActiveBundleFromGlobals(profileId: string): void {
     name: sheet.name?.trim() || "Sin nombre",
     clan: sheet.clan,
     updatedAt: Date.now(),
+    isNPC: Boolean(sheet.isNPC),
   };
   saveIndex({
     profiles: [summary, ...others].slice(0, MAX_PROFILES),
@@ -274,4 +279,116 @@ export function selectProfile(id: string): boolean {
   setActiveProfileId(id);
   saveIndex({ ...loadIndex(), lastActiveId: id });
   return true;
+}
+
+/** Crea un perfil vacío etiquetado como jugador o NPC (sin semilla Shadow Pack). */
+export function createProfileEntity(isNPC: boolean): string {
+  let idx = loadIndex();
+  while (idx.profiles.length >= MAX_PROFILES) {
+    const oldest = [...idx.profiles].sort((a, b) => a.updatedAt - b.updatedAt)[0];
+    if (!oldest) break;
+    removeProfile(oldest.id);
+    idx = loadIndex();
+  }
+
+  const id = newId();
+  const sheet = emptySheet();
+  sheet.name = isNPC ? "Nuevo NPC" : "Nuevo sujeto";
+  sheet.isNPC = isNPC;
+  if (isNPC) {
+    sheet.concept = "NPC · borrador operador.";
+  }
+  const norm = normalizeCharacterSheet(sheet);
+  const meta: SessionMeta = {
+    sheetLocked: false,
+    lastFamineTickAt: Date.now(),
+    famineIntervalMinutes: loadMeta().famineIntervalMinutes,
+  };
+  const bundle: ProfileBundle = {
+    version: 1,
+    sheet: norm,
+    meta,
+    xpLog: [],
+    narrativeLog: [],
+    rollingSummary: "",
+    mjDirectives: [],
+  };
+  saveBundle(id, bundle);
+  saveIndex({
+    profiles: [
+      {
+        id,
+        name: norm.name?.trim() || "Sin nombre",
+        clan: norm.clan,
+        updatedAt: Date.now(),
+        isNPC,
+      },
+      ...idx.profiles.filter((p) => p.id !== id),
+    ].slice(0, MAX_PROFILES),
+    lastActiveId: id,
+  });
+  setActiveProfileId(id);
+  hydrateGlobalsFromBundle(bundle);
+  return id;
+}
+
+/** Los tres NPC del Shadow Pack (idempotente). */
+export function ensureShadowPackNpcs(): void {
+  if (typeof window === "undefined") return;
+  if (localStorage.getItem(SHADOW_PACK_FLAG)) return;
+
+  const fam = loadMeta().famineIntervalMinutes;
+  const idxStart = loadIndex();
+  const extra: ProfileSummary[] = [];
+
+  for (const template of SHADOW_PACK_SHEETS) {
+    const id = newId();
+    const norm = normalizeCharacterSheet(template);
+    const meta: SessionMeta = {
+      sheetLocked: true,
+      lastFamineTickAt: Date.now(),
+      famineIntervalMinutes: typeof fam === "number" ? Math.max(5, Math.min(240, fam)) : 60,
+    };
+    const bundle: ProfileBundle = {
+      version: 1,
+      sheet: norm,
+      meta,
+      xpLog: [],
+      narrativeLog: [],
+      rollingSummary: "",
+      mjDirectives: [],
+    };
+    saveBundle(id, bundle);
+    extra.push({
+      id,
+      name: norm.name?.trim() || "NPC",
+      clan: norm.clan,
+      updatedAt: Date.now(),
+      isNPC: true,
+    });
+  }
+
+  saveIndex({
+    profiles: [...extra, ...idxStart.profiles].slice(0, MAX_PROFILES),
+    lastActiveId: idxStart.lastActiveId,
+  });
+  localStorage.setItem(SHADOW_PACK_FLAG, "1");
+}
+
+/** Persiste un bundle ya construido (p. ej. edición maestro) y refresca el índice. */
+export function saveProfileBundle(profileId: string, bundle: ProfileBundle): void {
+  saveBundle(profileId, bundle);
+  const idx = loadIndex();
+  const others = idx.profiles.filter((p) => p.id !== profileId);
+  const summary: ProfileSummary = {
+    id: profileId,
+    name: bundle.sheet.name?.trim() || "Sin nombre",
+    clan: bundle.sheet.clan,
+    updatedAt: Date.now(),
+    isNPC: Boolean(bundle.sheet.isNPC),
+  };
+  saveIndex({
+    profiles: [summary, ...others].slice(0, MAX_PROFILES),
+    lastActiveId: idx.lastActiveId,
+  });
 }

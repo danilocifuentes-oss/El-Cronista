@@ -6,6 +6,8 @@ import {
 } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
+import { formatChronicleForPrompt } from "@/lib/chroniclePrompt";
+import type { ChroniclePayload } from "@/lib/narrativeTypes";
 import type { CharacterSheet } from "@/lib/character";
 import type { SerializedV5Roll } from "@/lib/dice";
 
@@ -15,6 +17,8 @@ export const maxDuration = 90;
 const MAX_INPUT = 4000;
 const MAX_LOG = 28;
 const MAX_CODEX_JSON = 28000;
+const MAX_CHRON = 12000;
+const MAX_SYNAPTIC = 4000;
 
 function clampStr(s: unknown, max: number): string {
   if (typeof s !== "string") return "";
@@ -37,6 +41,8 @@ function normalizeCronistaBody(raw: unknown): {
   input: string;
   recentLogs: { role: string; text: string }[];
   stream: boolean;
+  chronicle?: ChroniclePayload;
+  synapticDisruption?: string;
 } | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -64,7 +70,20 @@ function normalizeCronistaBody(raw: unknown): {
       .filter((x): x is { role: string; text: string } => Boolean(x));
   }
 
-  return { codex, tirada, hambre, input, recentLogs, stream };
+  let chronicle: ChroniclePayload | undefined;
+  if (o.chronicle && typeof o.chronicle === "object") {
+    const c = o.chronicle as Record<string, unknown>;
+    chronicle = {
+      foundations: clampStr(c.foundations, MAX_CHRON),
+      AMBIENTE: clampStr(c.AMBIENTE, 2000),
+      TENSION: clampStr(c.TENSION, 2000),
+      ESTADO_GLOBAL: clampStr(c.ESTADO_GLOBAL, 2000),
+    };
+  }
+  const synRaw = o.synapticDisruption ? clampStr(o.synapticDisruption, MAX_SYNAPTIC) : "";
+  const synapticDisruption = synRaw.trim() || undefined;
+
+  return { codex, tirada, hambre, input, recentLogs, stream, chronicle, synapticDisruption };
 }
 
 function buildCronistaPrompt(parts: {
@@ -73,27 +92,31 @@ function buildCronistaPrompt(parts: {
   hambre: number;
   input: string;
   recentLogs: { role: string; text: string }[];
+  chronicle?: ChroniclePayload;
+  synapticDisruption?: string;
 }): string {
   const ctx = parts.recentLogs.map((l) => `[${l.role}] ${l.text}`).join("\n");
-  return [
+  const genesis = formatChronicleForPrompt(parts.chronicle);
+  const disrupt = parts.synapticDisruption?.trim();
+  const chunks: string[] = [
     "═══ ENTRADA MOTOR CRONISTA (PROYECTO SERENO · Codex V) ═══",
-    "",
     `Hambre Σ (0–5): ${parts.hambre}`,
-    "",
-    "═══ Tirada V5 resuelta (ya aplicada en cliente; no la contradigas) ═══",
-    JSON.stringify(parts.tirada, null, 0),
-    "",
-    "═══ Codex (JSON ficha) ═══",
-    parts.codexJson,
-    "",
-    "═══ Intención / foco narrativo del jugador ═══",
-    parts.input.trim() || "(vacío — interpreta solo desde tirada + escena implícita.)",
-    "",
-    "═══ Contexto reciente del canal (orden temporal aproximado) ═══",
-    ctx.length ? ctx : "(vacío.)",
-    "",
-    "Resume consecuencias diegéticas de esta tirada en Santiago urbano gótico-punk. Sin contradecir éxitos/fracasos numéricos ya dados.",
-  ].join("\n");
+    "═══ GÉNESIS DE CRÓNICA (ancla diegética) ═══\n" + genesis,
+  ];
+  if (disrupt) {
+    chunks.push(
+      "═══ DISRUPCIÓN SINÁPTICA (prioridad — integra en la escena de la tirada) ═══\n" + disrupt,
+    );
+  }
+  chunks.push(
+    "═══ Tirada V5 resuelta (ya aplicada en cliente; no la contradigas) ═══\n" + JSON.stringify(parts.tirada, null, 0),
+    "═══ Codex (JSON ficha) ═══\n" + parts.codexJson,
+    "═══ Intención / foco narrativo del jugador ═══\n" +
+      (parts.input.trim() || "(vacío — interpreta solo desde tirada + escena implícita.)"),
+    "═══ Contexto reciente del canal (orden temporal aproximado) ═══\n" + (ctx.length ? ctx : "(vacío.)"),
+    "Resume consecuencias diegéticas de esta tirada en Santiago urbano gótico-punk. Sin contradecir éxitos/fracasos numéricos ya dados. Si hay Disrupción Sináptica, intégrala de forma orgánica.",
+  );
+  return chunks.join("\n\n");
 }
 
 /** Mejorado respecto al borrador: tono, legal fan-work, ancla Santiago sin caricatura. */
@@ -152,6 +175,8 @@ export async function POST(req: Request) {
     hambre: parsed.hambre,
     input: parsed.input,
     recentLogs: parsed.recentLogs,
+    chronicle: parsed.chronicle,
+    synapticDisruption: parsed.synapticDisruption,
   });
 
   if (parsed.stream) {

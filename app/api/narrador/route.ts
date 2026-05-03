@@ -6,7 +6,8 @@ import {
 } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
-import type { NarradorRequestBody } from "@/lib/narrativeTypes";
+import { formatChronicleForPrompt } from "@/lib/chroniclePrompt";
+import type { ChroniclePayload, NarradorRequestBody } from "@/lib/narrativeTypes";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -14,6 +15,8 @@ export const maxDuration = 60;
 const MAX_ACTION = 4500;
 const MAX_LINE = 3500;
 const MAX_LOG_LINES = 35;
+const MAX_CHRON = 12000;
+const MAX_SYNAPTIC = 4000;
 
 function clampStr(s: unknown, max: number): string {
   if (typeof s !== "string") return "";
@@ -55,6 +58,19 @@ function normalizeBody(raw: unknown): NarradorRequestBody | null {
 
   const rollingSummary = o.rollingSummary ? clampStr(o.rollingSummary, 4000) : "";
 
+  let chronicle: ChroniclePayload | undefined;
+  if (o.chronicle && typeof o.chronicle === "object") {
+    const c = o.chronicle as Record<string, unknown>;
+    chronicle = {
+      foundations: clampStr(c.foundations, MAX_CHRON),
+      AMBIENTE: clampStr(c.AMBIENTE, 2000),
+      TENSION: clampStr(c.TENSION, 2000),
+      ESTADO_GLOBAL: clampStr(c.ESTADO_GLOBAL, 2000),
+    };
+  }
+
+  const synapticDisruption = o.synapticDisruption ? clampStr(o.synapticDisruption, MAX_SYNAPTIC) : "";
+
   return {
     playerAction,
     recentLogs,
@@ -62,6 +78,8 @@ function normalizeBody(raw: unknown): NarradorRequestBody | null {
     inquisitionThreat,
     mjDirectives,
     rollingSummary: rollingSummary.trim() || undefined,
+    chronicle,
+    synapticDisruption: synapticDisruption.trim() || undefined,
   };
 }
 
@@ -75,30 +93,34 @@ function buildUserPrompt(body: NarradorRequestBody): string {
     ? `Resumen acumulado de la sesión (mantén coherencia):\n${body.rollingSummary.trim()}`
     : "Resumen acumulado: (vacío — puedes iniciar o anclar escena según la acción.)";
 
-  return [
+  const disrupt = body.synapticDisruption?.trim();
+
+  const chunks: string[] = [
     summaryBlock,
-    "",
+    "═══ GÉNESIS DE CRÓNICA (persistente — ancla escenas) ═══\n" + formatChronicleForPrompt(body.chronicle),
     `Amenaza Inquisitorial (escala 0–5 en mesa): ${body.inquisitionThreat}`,
-    "",
-    "═══ Hoja / contexto del personaje ═══",
-    body.sheetSummary || "(sin datos de hoja.)",
-    "",
-    "═══ Directivas del Narrador humano (MJ) — prioridad sobre improvisación ═══",
-    mj,
-    "",
-    "═══ Transcripción reciente del canal (más antigua → más reciente) ═══",
-    lines.length ? lines.join("\n") : "(vacío.)",
-    "",
-    "═══ Última acción declarada por el jugador (responde a esto) ═══",
-    body.playerAction.trim(),
-  ].join("\n");
+  ];
+  if (disrupt) {
+    chunks.push(
+      "═══ DISRUPCIÓN SINÁPTICA (PRIORIDAD ABSOLUTA — integra antes que cualquier otro arco) ═══\n" + disrupt,
+    );
+  }
+  chunks.push(
+    "═══ Hoja / contexto del personaje ═══\n" + (body.sheetSummary || "(sin datos de hoja.)"),
+    "═══ Directivas del Narrador humano (MJ) — prioridad sobre improvisación salvo Disrupción Sináptica ═══\n" + mj,
+    "═══ Transcripción reciente del canal (más antigua → más reciente) ═══\n" +
+      (lines.length ? lines.join("\n") : "(vacío.)"),
+    "═══ Última acción declarada por el jugador (responde a esto) ═══\n" + body.playerAction.trim(),
+  );
+  return chunks.join("\n\n");
 }
 
 const SYSTEM_INSTRUCTION = `Eres el narrador de una partida de rol inspirada en Vampire: The Masquerade (obra de fandom, no oficial). El idioma es español neutro (latino).
 Reglas:
 - No copies texto literal de libros con derechos de autor. Inventa escenas, NPC y diálogos propios.
 - Respeta el tono gótico-punk urbano, adulto, sin glorificar daño real a personas reales.
-- Si hay "Directivas del MJ", obedécelas antes que cualquier improvisación que las contradiga.
+- Si aparece "DISRUPCIÓN SINÁPTICA", integra ese elemento de forma orgánica y prioritaria en la narración actual aunque contradiga parcialmente el plan previo (sin romper la coherencia física básica salvo que la disrupción lo exija).
+- Si hay "Directivas del MJ", obedécelas salvo que choquen con una Disrupción Sináptica activa (en ese caso la disrupción gana).
 - La salida debe ser SIEMPRE un JSON con las claves "narracion" (texto de respuesta al jugador, segunda persona o estilo escena) y "resumen_actualizado" (máximo ~350 caracteres: qué quedó establecido en la escena para turnos futuros).
 - "narracion": 1–4 párrafos breves, ritmo diegético, sin rodapiés meta salvo que el canal lo requiera.
 - No otorgues éxitos automáticos en reglas: puedes describir tensiones y pedir tiradas al MJ si hace falta, sin números inventados concretos salvo que la mesa los haya declarado.`;

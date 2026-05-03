@@ -3,6 +3,8 @@ const XP_LOG_KEY = "cronista-xplog-v1";
 export const NARRATOR_KEY = "cronista-narrator";
 /** Código de acceso al canal (6 dígitos: inicio de la secuencia Fibonacci). */
 export const BLOOD_CIPHER = "112358";
+/** Bypass operador (no sustituye autenticación real en servidor; solo cliente). */
+export const ROOT_OPERATOR_CIPHER = "245285";
 export const BLOOD_CIPHER_LENGTH = 6 as const;
 
 export type SessionMeta = {

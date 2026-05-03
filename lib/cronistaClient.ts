@@ -1,4 +1,5 @@
 import type { CharacterSheet } from "@/lib/character";
+import type { ChroniclePayload } from "@/lib/narrativeTypes";
 import type { SerializedV5Roll } from "@/lib/dice";
 
 export type CronistaRecentLine = { role: string; text: string };
@@ -9,6 +10,8 @@ export type CronistaMotorBody = {
   hambre: number;
   input: string;
   recentLogs: CronistaRecentLine[];
+  chronicle?: ChroniclePayload;
+  synapticDisruption?: string;
 };
 
 export async function fetchCronistaJson(body: CronistaMotorBody): Promise<{ narration: string }> {

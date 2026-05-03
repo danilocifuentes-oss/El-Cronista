@@ -122,6 +122,8 @@ export interface CharacterSheet {
   bloodPotency: number;
   humanity: number;
   resonance: string;
+  /** Sujeto de metadatos: no es un registro de jugador (Nexo / índice). */
+  isNPC?: boolean;
 }
 
 export const STORAGE_KEY = "cronista-sheet-v1";
@@ -252,6 +254,7 @@ export function emptySheet(): CharacterSheet {
     bloodPotency: bloodPotencyForGeneration(gen),
     humanity: CHARGEN_HUMANITY_BASE,
     resonance: "",
+    isNPC: false,
   };
 }
 
@@ -316,6 +319,7 @@ export function normalizeCharacterSheet(partial: Partial<CharacterSheet>): Chara
     bloodPotency: partial.bloodPotency ?? bloodPotencyForGeneration(gen),
     humanity: partial.humanity ?? base.humanity,
     resonance: partial.resonance ?? base.resonance,
+    isNPC: typeof partial.isNPC === "boolean" ? partial.isNPC : base.isNPC,
   };
 }
 
