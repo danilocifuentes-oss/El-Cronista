@@ -241,6 +241,11 @@ export function migrateLegacyToProfiles(): void {
 
   try {
     const sheet = normalizeCharacterSheet(JSON.parse(raw) as Partial<CharacterSheet>);
+    /** Evita recrear un “perfil fantasma” tras reinicio (hoja global vacía sin nombre sellado). */
+    if (!sheet.name?.trim() && !sheet.isNPC) {
+      localStorage.setItem(MIGRATION_FLAG, "1");
+      return;
+    }
     const id = newId();
     const bundle: ProfileBundle = {
       version: 1,
@@ -318,11 +323,33 @@ export function createBlankProfile(): string {
 }
 
 /** Borra índice, bundles activos y marcas NPC semilla locales. No borra Génesis (`chronicleConfig`). */
+/** Marca migración como hecha sin crear perfil (p. ej. hoja global vacía tras limpieza). */
+export function markProfileRegistryClean(): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(MIGRATION_FLAG, "1");
+}
+
+/** Borra sólo personajes del hub + hoja activa; no borra Génesis, log Nexo ni mundo cliente. */
+export function clearLocalPlayerProfilesOnly(): void {
+  wipeAllLocalProfiles();
+  saveSheet(emptySheet());
+  markProfileRegistryClean();
+}
+
 export function wipeAllLocalProfiles(): void {
   if (typeof window === "undefined") return;
   const idx = loadIndex();
   for (const p of idx.profiles) {
     localStorage.removeItem(bundleKey(p.id));
+  }
+  /** Cualquier bundle huérfano (índice corrupto o migraciones viejas). */
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(BUNDLE_PREFIX)) localStorage.removeItem(k);
+    }
+  } catch {
+    /* ignore */
   }
   saveIndex({ profiles: [], lastActiveId: null });
   setActiveProfileId(null);

@@ -9,6 +9,8 @@ type Props = {
   onPlayProfile: (id: string) => void;
   onNewSheetBlank: () => void;
   onLogout: () => void;
+  /** Vacía el registro de personajes en este navegador (no remoto; conserva Génesis y conversación Nexo). */
+  onClearLocalProfiles: () => void;
 };
 
 /** Solo personajes de jugador en el registro (NPC quedan en Centro de Mando / narrador). */
@@ -16,7 +18,7 @@ function playerProfiles(list: ProfileSummary[]) {
   return list.filter((p) => p.isNPC !== true);
 }
 
-export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout }: Props) {
+export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout, onClearLocalProfiles }: Props) {
   const visible = playerProfiles(profiles);
   return (
     <div className="relative flex min-h-screen flex-col bg-[#050505] px-4 py-10 font-mono text-neutral-300 crt-wrap techno-grid">
@@ -61,6 +63,23 @@ export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout 
             className="border border-[var(--blood)]/40 px-4 py-2.5 text-[9px] uppercase tracking-[0.25em] text-[var(--blood)]/90 hover:bg-[var(--blood)]/10"
           >
             Volver al login
+          </motion.button>
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.99 }}
+            onClick={() => {
+              if (
+                !window.confirm(
+                  "¿Borrar todos los personajes guardados en ESTE equipo? No borra la Génesis ni el chat Nexo; sólo el registro local de fichas.",
+                )
+              )
+                return;
+              if (!window.confirm("Confirmación final: se pierden las fichas locales listadas abajo.")) return;
+              onClearLocalProfiles();
+            }}
+            className="border border-amber-900/50 px-4 py-2.5 text-[9px] uppercase tracking-[0.22em] text-amber-200/90 hover:bg-amber-950/30"
+          >
+            Borrar personajes locales
           </motion.button>
         </div>
 

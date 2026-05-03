@@ -68,6 +68,7 @@ import { TechnicalHud } from "./TechnicalHud";
 import { streamCronistaMotorWithFallback } from "@/lib/cronistaClient";
 import { serializeV5Roll, type V5RollResult } from "@/lib/dice";
 import {
+  clearLocalPlayerProfilesOnly,
   createBlankProfile,
   ensureShadowPackNpcs,
   getActiveProfileId,
@@ -917,6 +918,11 @@ function CronistaAppInner() {
         onPlayProfile={(id) => enterProfile(id)}
         onNewSheetBlank={startBlankSheet}
         onLogout={goToLogin}
+        onClearLocalProfiles={() => {
+          clearLocalPlayerProfilesOnly();
+          applyGlobalsToUi(setSheet, setSheetLocked, setLogs, commitStrand);
+          setProfileIndexTick((n) => n + 1);
+        }}
       />
     );
   }
