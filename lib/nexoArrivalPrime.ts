@@ -72,23 +72,26 @@ export function resonanceFromPeerCodexes(activeProfileId: string | null): string
   }
 
   if (sealed === 0) {
-    return `Mesa provisional: otros PJ registrados sin CODEX cerrado; el tono público puede cristalizar contigo.`;
+    return `Arriba el rumor de otros nombres registrados, pero aún sin cerrar el trato con la noche; vos podés ser el primero en afirmar cómo suena la ciudad.`;
   }
 
   const topClans = [...clans.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2);
   const clanLine =
     topClans.length === 0
       ? ""
-      : `Presencia camarilla dispersa (${topClans.map(([k, n]) => `${k}×${n}`).join(", ")}).`;
+      : `Se adivina repetición de linaje en el registro (${topClans.map(([k, n]) => `${k}×${n}`).join(", ")}): el barrio ya aprendió patrones de sed.`;
 
   const conceptHint =
     concepts.length >= 2
-      ? `Motivos paralelos (${concepts.slice(0, 2).join(" · ")}) sugieren vectores donde la ciudad ya os estaba midiendo antes de esta noche visible.`
+      ? `Historias que se cruzan antes de verse: ${concepts.slice(0, 2).join(" · ")} — la calle podría estar calculando el mismo choque que vos.`
       : concepts.length === 1
-        ? `Otro sellado navega tema afín: «${clip(concepts[0]!, 180)}».`
+        ? `Algún otro nombre arrastra un deseo parecido al tuyo: «${clip(concepts[0]!, 180)}».`
         : "";
 
-  const countLine = sealed === 1 ? "Hay otro inmortal sellado registrado como jugable." : `Hay ${sealed} vampiros jugables sellados además del tuyo.`;
+  const countLine =
+    sealed === 1
+      ? "Hay otro vampiro activo además tuyo — el mapa ya no es solamente tuyo cuando cruzás la esquina."
+      : `Hay ${sealed} otros como vos con identidad sellada; la ciudad reparte testigos entre vosotros antes de que nadie hable.`;
 
   return [countLine, clanLine, conceptHint].filter(Boolean).join("\n\n");
 }
@@ -108,21 +111,21 @@ export function buildSyntheticArrivalAction(
   const reso = clip((sheet.resonance ?? "").toString(), 80);
 
   const lines = [
-    "Interior · no es onboarding: llevas décadas o más en Sangre.",
-    `Hoy reaplico atención al presente nexo donde ${concept || "tu silueta"} toca la ciudad.`,
+    "No es tu primera noche; el tiempo en Sangre ya te dejó cicatrices operativas antes de este instante.",
+    `Reenfocás el ahora ${concept ? `donde «${concept}» marca tu sombra` : "con la ciudad pegada a los hombros"}.`,
     resonanceToneLine(reso),
-    anchors ? `Cimientos de mesa (${anchors})` : "",
-    beat ? `Continuidad de mundo nexo (${beat})` : "",
-    tableResonance ? `Resonancia con otros CODEX (${tableResonance})` : "",
-    "Pidamos el mismo viento térmico: Segunda Inquisición como rumor háptico más que folklore; Santiago gótico-punk húmedo.",
-    "Necesito la escena YA: presión urbana cercana sin infodump; segunda persona visceral donde encaje.",
+    anchors ? `Lo acordado sobre el mundo (${anchors})` : "",
+    beat ? `Lo que ya se movió antes de que abrieras los ojos (${beat})` : "",
+    tableResonance ? `Ecos de otros en el registro: ${tableResonance}` : "",
+    "Mantené la Inquisición como peso en el aire, rumor en la piel; Santiago húmedo, neón viejo, hierro y comercio que no duerme.",
+    "Abrí escena inmediata: calles y cuerpos cercanos, segunda persona; nada de prólogos didácticos ni etiquetas de modo.",
   ];
   return lines.filter(Boolean).join("\n");
 }
 
 function resonanceToneLine(reso: string): string {
-  if (!reso) return "Tu resonancia con la presa modela qué esquinas del mapa te reclaman primero.";
-  return `Tu resonancia declarada (${reso}) tira de la ciudad hacia texturas concretas antes que hacia el genérico.`;
+  if (!reso) return "La marca de lo que bebés ordena qué esquinas sentís primero antes que el resto.";
+  return `Lo que declaraste como resonancia (${reso}) tira el relato hacia ciertos olores y luces antes que hacia el neutro.`;
 }
 
 /** Cuerpo mínimo coherente con el narrador Gemini/interno. */
@@ -151,7 +154,8 @@ export function buildArrivalNarradorPayload(args: {
 
   return {
     playerAction,
-    recentLogs: [{ role: "sistema", text: "[ARRIBO_INTERIOR]: CODEX cerrado · umbral Nexo principal." }],
+    /** El modelo no necesita eco «sistema»; el propio playerAction y la ficha bastan. */
+    recentLogs: [],
     sheetSummary: buildSheetSummaryLite(args.sheet),
     inquisitionThreat: Math.max(0, Math.min(5, Math.round(args.inquisitionThreat))),
     mjDirectives: [],

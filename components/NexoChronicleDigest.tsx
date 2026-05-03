@@ -1,6 +1,6 @@
 "use client";
 
-/** Resumen vivo del Nexo — solo lectura, sin jargon de backstage. */
+/** Resumen vivo de contexto — lectura sólo texto diegético. */
 
 import type { ChronicleConfig } from "@/lib/chronicleConfig";
 import type { NarrativeStrand } from "@/lib/narrativeStrands";
@@ -35,27 +35,37 @@ export function NexoChronicleDigest({
   return (
     <div className="space-y-6 px-5 py-6 font-sans text-[13px] leading-relaxed tracking-[0.01em]">
       <div className="space-y-1 border-b border-white/[0.06] pb-4">
-        <p className="text-[10px] font-medium uppercase tracking-[0.32em] text-neutral-600">Eco reciente</p>
-        <p className="text-neutral-300">{beat ? clip(beat, 520) : "La ciudad espera tu próximo movimiento."}</p>
+        <p className="text-[10px] font-medium uppercase tracking-[0.32em] text-neutral-600">
+          Rumor fresco en esta esquina
+        </p>
+        <p className="text-neutral-300">
+          {beat ? clip(beat, 520) : "Algo en la ciudad aún guarda lugar para cuando decidas mover tu sombra primero que el resto."}
+        </p>
       </div>
 
       <dl className="grid gap-3 text-[11px] text-neutral-500 sm:grid-cols-2">
         <div>
-          <dt className="uppercase tracking-[0.22em] text-neutral-600">Índice σ</dt>
+          <dt className="uppercase tracking-[0.22em] text-neutral-600">Presión ciudadana contra lo oculto (σ)</dt>
           <dd className="mt-1 text-lg font-light tabular-nums text-neutral-200">{inquisitionThreat}</dd>
           <dd className="mt-1 text-[10px] leading-snug text-neutral-600">
-            Presión observable de la segunda inquisición; sube cuando el entorno sospecha o fuerzas muestras a la Luz.
+            Antena práctica sobre cuántos ojos institucionales pueden estar enfocándose vosotros; sube cuando el barrio registra fugas imprudentes.
           </dd>
         </div>
         <div>
-          <dt className="uppercase tracking-[0.22em] text-neutral-600">Ritmo activo</dt>
-          <dd className="mt-1 text-neutral-300">{STRAND_LABEL[activeStrand]}</dd>
-          <dd className="mt-1 text-[10px] leading-snug text-neutral-600">
+          <dt className="uppercase tracking-[0.22em] text-neutral-600">Espacio donde estás oyendo la ciudad</dt>
+          <dd className="mt-1 text-neutral-300">
             {activeStrand === "principal"
-              ? "Todos comparten esta crónica."
+              ? "El mapa común donde varias criaturas de noche cargan rumor compartido."
               : activeStrand === "paralela"
-                ? "Solo tu personaje lleva estas escenas sin doblegar lo común."
-                : "Sin uso en Nexo por ahora."}
+                ? "Versión cerrada sólo tras tu vista — otros no heredan estos detalles salvo cuando los citás."
+                : STRAND_LABEL[activeStrand]}
+          </dd>
+          <dd className="mt-1 text-[10px] leading-snug text-neutral-600">
+            {activeStrand === "vivo"
+              ? "Reserva para lo que cargás vivido cara a cara; aquí apenas se registra hueco táctico."
+              : activeStrand === "principal"
+                ? "Cada golpe público tiene testigos cruzados; lo que hagas deja marca accesible antes del alba siguiente."
+                : "Podés llevar consecuencias personales antes de exponerlos al rumor general."}
           </dd>
         </div>
       </dl>

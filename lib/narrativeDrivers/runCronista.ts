@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { formatOrchestrationForPrompt, orchestrateManifestTurn } from "@/lib/gameWorld";
 import { isNarratorChannelPaused } from "@/lib/operatorRuntimeSettings";
 import { formatNexoApiFailure } from "@/lib/nexoErrors";
+import { sanitizePlayerFacingNarration } from "@/lib/playerFacingText";
 import { isQuotaOrRateLimitError } from "@/lib/geminiRetry";
 
 import type { NormalizedCronistaBody } from "./cronistaPayload";
@@ -88,7 +89,7 @@ async function cronistaJsonResponse(parsed: NormalizedCronistaBody): Promise<Res
         const raw = await jsonCronistaGemini(userPrompt);
         const narration = parseNarracionJson(raw);
         if (narration) {
-          return NextResponse.json({ narration });
+          return NextResponse.json({ narration: sanitizePlayerFacingNarration(narration) });
         }
         throw new Error("narracion vacía (Gemini JSON).");
       }
@@ -96,12 +97,12 @@ async function cronistaJsonResponse(parsed: NormalizedCronistaBody): Promise<Res
         const raw = await jsonCronistaOpenAi(userPrompt);
         const narration = parseNarracionJson(raw);
         if (narration) {
-          return NextResponse.json({ narration });
+          return NextResponse.json({ narration: sanitizePlayerFacingNarration(narration) });
         }
         throw new Error("narracion vacía (OpenAI JSON).");
       }
       const narration = internalNarration(parsed);
-      return NextResponse.json({ narration });
+      return NextResponse.json({ narration: sanitizePlayerFacingNarration(narration) });
     } catch (e) {
       lastErr = e;
       console.warn("[cronista json] driver:", driver, e);

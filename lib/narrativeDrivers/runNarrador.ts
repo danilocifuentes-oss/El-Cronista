@@ -1,6 +1,7 @@
 import type { NarradorRequestBody, NarradorRollPrompt } from "@/lib/narrativeTypes";
 import { inferRollPrompt } from "@/lib/narrativeRollHint";
 import { isNarratorChannelPaused } from "@/lib/operatorRuntimeSettings";
+import { sanitizePlayerFacingNarration, sanitizeSuggestionLine } from "@/lib/playerFacingText";
 
 import { formatOrchestrationForPrompt, orchestrateChannelTurn } from "@/lib/gameWorld";
 
@@ -44,9 +45,9 @@ export async function executeNarradorPipeline(body: NarradorRequestBody): Promis
       if (driver === "gemini") {
         const r = await generateNarradorWithGemini(userPrompt);
         return {
-          narration: r.narracion,
+          narration: sanitizePlayerFacingNarration(r.narracion),
           rollingSummary: r.resumen_actualizado,
-          suggestions: r.sugerencias,
+          suggestions: r.sugerencias?.map(sanitizeSuggestionLine),
           rollPrompt,
           driverUsed: "gemini",
         };
@@ -54,18 +55,18 @@ export async function executeNarradorPipeline(body: NarradorRequestBody): Promis
       if (driver === "openai") {
         const r = await generateNarradorWithOpenAi(userPrompt);
         return {
-          narration: r.narracion,
+          narration: sanitizePlayerFacingNarration(r.narracion),
           rollingSummary: r.resumen_actualizado,
-          suggestions: r.sugerencias,
+          suggestions: r.sugerencias?.map(sanitizeSuggestionLine),
           rollPrompt,
           driverUsed: "openai",
         };
       }
       const r = generateInternalNarrador(body);
       return {
-        narration: r.narracion,
+        narration: sanitizePlayerFacingNarration(r.narracion),
         rollingSummary: r.resumen_actualizado,
-        suggestions: r.sugerencias,
+        suggestions: r.sugerencias?.map(sanitizeSuggestionLine),
         rollPrompt,
         driverUsed: "internal",
       };

@@ -190,7 +190,7 @@ export function NarrativeFlow({
                   {entry.role === "narrador" && !entry.cronistaOut && entry.suggestions?.length ? (
                     <div className="mt-3 space-y-1.5 border-t border-white/[0.04] pt-3">
                       <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-neutral-600">
-                        Posibles siguientes pasos
+                        Siguiente movimiento plausible
                       </p>
                       <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap">
                         {entry.suggestions.map((s, i) => (

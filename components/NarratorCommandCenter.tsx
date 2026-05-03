@@ -26,6 +26,8 @@ type Props = {
   onGoHub: () => void;
   onGoNexus: () => void;
   onRefreshGlobals: () => void;
+  /** Borra personajes locales, conversación, mundo cliente; conserva Génesis + motor servidor. */
+  onFactoryReset: () => void;
 };
 
 export function NarratorCommandCenter({
@@ -34,6 +36,7 @@ export function NarratorCommandCenter({
   onGoHub,
   onGoNexus,
   onRefreshGlobals,
+  onFactoryReset,
 }: Props) {
   const [tab, setTab] = useState<Tab>("sheets");
   const [entityNpc, setEntityNpc] = useState(false);
@@ -612,6 +615,39 @@ export function NarratorCommandCenter({
             >
               {orchDisplay.trim() ? orchDisplay : orchBusy ? "…" : "(pulsa Refrescar)"}
             </pre>
+
+            <section className="mt-4 space-y-2 border-t pt-4" style={{ borderColor: "#333" }}>
+              <p className="text-[9px] uppercase tracking-[0.28em] text-neutral-500">Mesa nueva desde cero · solo este equipo</p>
+              <p className="text-[10px] leading-relaxed text-neutral-500">
+                Borra perfiles CV, bitácoras Nexo locales, resúmenes, misiones marcadas en el cliente y hoja activa. Conserva la{" "}
+                <strong className="text-neutral-400">Génesis</strong> (pestaña homónima) para que cada reinicio parte del mismo ancla
+                mundano hasta que vos la edites. El Motor Nexo (<code className="text-neutral-600">GET/POST operator-settings</code>) vive en
+                servidor independiente — no es reseteado desde aquí.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    !window.confirm(
+                      "¿Reinicio de mesa local? Conserva la Génesis guardada. Se borran fichas Nexo locales, conversación Nexo local, mundo local y bitácora cliente.",
+                    )
+                  )
+                    return;
+                  if (!window.confirm("Confirmación final: pérdida de datos jugables en esta máquina. ¿Seguir?")) return;
+                  try {
+                    onFactoryReset();
+                    setOrchStatusLine("Cliente Nexo reinicializado preservando Génesis.");
+                    window.setTimeout(() => setOrchStatusLine(null), 5200);
+                  } catch (e) {
+                    setOrchStatusLine(e instanceof Error ? e.message : String(e));
+                  }
+                }}
+                className="border px-3 py-2 text-[9px] uppercase tracking-widest text-amber-200/95"
+                style={{ borderColor: "#b45309" }}
+              >
+                Reinicio primer arranque (local · conserva génesis)
+              </button>
+            </section>
 
             <section className="mt-4 space-y-2 border-t pt-4" style={{ borderColor: "#333" }}>
               <p className="text-[9px] uppercase tracking-[0.28em] text-neutral-500">Coordinar arranque · solo este dispositivo</p>

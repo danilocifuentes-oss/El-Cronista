@@ -228,7 +228,7 @@ export function resetNarrativeChannel(opts?: NarrativeResetOptions): NarrativeLo
     const boot: NarrativeLogEntry = {
       id: `boot_${Date.now()}`,
       role: "narrador",
-      text: "Aquí empieza otra página de esta noche.",
+      text: "Algo en la ciudad vuelve a quedar abierto ante vos, como una página apenas humedecida.",
       ts: Date.now(),
       strand: only,
     };
@@ -240,7 +240,7 @@ export function resetNarrativeChannel(opts?: NarrativeResetOptions): NarrativeLo
   const boot: NarrativeLogEntry = {
     id: `boot_${Date.now()}`,
     role: "narrador",
-    text: "La página queda abierta esperando nuevo calor.",
+    text: "El silencio no es ausencia de escena; es la ciudad midiendo hasta dónde te quedás quieto esta noche.",
     ts: Date.now(),
     strand: loadActiveStrand(),
   };

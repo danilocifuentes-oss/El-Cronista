@@ -1,5 +1,8 @@
 import { normalizeStrand, type NarrativeStrand } from "@/lib/narrativeStrands";
 import type { NarradorRequestBody } from "@/lib/narrativeTypes";
+import { assembleNarrativeWeaveBrief, parseCodexSignalsFromSheetSummary } from "@/lib/narrativeAssembly";
+import { weaveKnowledgeIntoActionSuggestions } from "@/lib/narrativeAssembly/actionKnowledge";
+import { selectLoreFragments } from "@/lib/narratorKnowledge/selectLore";
 
 function clip(s: string, max: number): string {
   const t = s.trim();
@@ -64,10 +67,20 @@ function classifyIntent(action: string): Intent {
 function threatTone(n: number): string {
   const tiers = [
     "La calle apenas susurra riesgo: podrías fingir normalidad otro trecho.",
+    "La ciudad concede un respiro corto; el peligro sigue siendo rumor antes que sentencia escrita.",
     "La noche sigue su ritmo; el peligro es rumor, no certeza.",
     "La ciudad te devuelve una mirada fría, calculadora.",
-    "El telón urbano parece más delgado: sombras con intención.",
-    "Hay demasiadas antenas mirando tu misma dirección.",
+    "El rumor de patrullas se mezcla con metal húmedo y decisiones pendientes en la esquina siguiente.",
+    "El telón urbano parece más delgado: sombras arrastran intención como quien arrastra cola de deudas.",
+    "Cada farola parece anotar tus pasos como si cobrara peaje por cada metro nocturno recorrido.",
+    "El silencio no garantiza ausencia de testigos: algunos clips cargan tarde y con título mentiroso listo.",
+    "Repetir tres noches el mismo patrón es firma silenciosa para quien archiva rutas en servidor ajeno.",
+    "Hay demasiadas antenas mirando tu misma dirección desde ángulos que no coinciden entre sí.",
+    "Un dron barato puede ser turismo banal o doctrina portátil hasta que enseña un logo frío en pantalla.",
+    "El cordón policial viejo huele a permiso recién timbrado y a rumor caro ganando volumen en subida.",
+    "La multitud finge indiferencia hasta que gritan seguridad ciudadana con voz de acero sin rostro claro.",
+    "Un neón titila con ritmo de cazador que mide si vale la pena dejarte otro minuto en la calle.",
+    "Cuando el rumor urbano etiqueta tu bloque, caminá como si hubiese segunda visita sellada en agenda fría.",
   ];
   const idx = Math.min(tiers.length - 1, Math.max(0, Math.floor((n ?? 2) / 2)));
   return tiers[idx]!;
@@ -79,37 +92,70 @@ const OPENERS: Record<Intent, readonly string[]> = {
     "Algo en la habitación — o en la calle — nota tu saludo antes de que puedas hacerlo insignificante.",
     "Tu palabra queda suspendida entre neón viejo y aire cargado de metal húmedo.",
     "No hay respuesta clara todavía, pero el tiempo se reparte igual: después del saludo sigue otro borde.",
+    "El eco del saludo golpea un vidrio sucio y vuelve como pregunta que no llegaste a formular del todo.",
+    "Alguien en la penumbra acomodó la respiración para escucharte sin moverse tanto como vos.",
+    "La cortesía funciona igual moneda aceptada: el barrio prefiere ruido educado que silencio demasiado limpio.",
+    "Sembrás un hola pequeño y lo sentís asentarse donde no aparece titular conocido ni permiso cortés.",
+    "Una risa lejana te corta la frase como si hubiera turno de interrupciones en esta vereda igual.",
+    "Tu saludo queda entre dos corrientes de aire: una cansada mortal, otra con hambre que disimula mejor.",
   ],
   survival_probe: [
     "Cuerpo en aviso: la Sangre y el agua corriente compiten por tu atención en el mismo mapa mental.",
     "Localizar refugio o víveres no es turismo: es trazar una ruta donde la geografía no vende tus costillas.",
     "Tu pregunta de supervivencia se traduce como ‘quién tiene llave aquí’, aunque el edificio no tenga nombre.",
+    "Tu cuerpo pide víveres y cobertura con urgencia vulgar de quien ya no cuenta horas igual humanas igual.",
+    "Cada techo nuevo tiene dueño nuevo de secretos: elegís quién conoce tu sombra mejor que tus excusas rápidas.",
+    "Olores a cocina económica funcionan igual que rumores modestos de hambre común pisando esta vereda igual que vos igual.",
+    "El mapa callejero lúcido lleva olores industriales que mienten y farolas cansadas que aún dicen verdades prácticas.",
+    "La calle cobra tus rutas igual cobra nueva deuda silenciosa cuando dos noches repetís camino igual sin nuevo testigo medio.",
+    "Rutas con testigos ágiles cuestan oídos y favores igual sin recibo igual claro todavía para tu contabilidad nueva.",
+    "Refugios con dueño nuevo áspero a veces igual vencen al techo libre con cámara oculta que finge candidez fría.",
   ],
   localization: [
     "Pedir ubicación en esta ciudad equivale a decir quién debe enterarse de que vas en camino.",
     "Orientarte implica datos sucios — farolas, vigilantes improvisados y olores industriales falsos.",
     "Ningún mapa traza la segunda ciudad que se sobrepone a la primera entre medianoche y el alba.",
+    "Pedís dirección y el matiz de tu prisa llega antes que tu cara lo confirme con palabras humanas tranquilas.",
+    "La geografía táctica aparece sólo después de ubicar vigilantes improvisados y fugas de olor conocidas por otros.",
+    "El ancla real suele ser zumbido oxidado en un transformador que marca un cruce donde el cartel mentiría igual.",
+    "Transporte rápido y vereda lateral te venden amenazas distintas: elegí según rumor que podés cargar esta noche igual.",
+    "Apps limpias igual no arreglan patios sucios ni libretas camarilla con tinta distinta y fecha al margen igual.",
+    "Decidir radio desde barrio o hito concreto cambia el siguiente movimiento de escenografía a movimiento real.",
   ],
   examine: [
     "Afirmas la mirada / el gesto investigador y lo que llega viene en paquetes incompletos — polvo, silencios negociados, ausencias demasiado limpias.",
+    "Lo percibido llega en dos capas: una humana inmediata y otra cargada de memoria que nadie envió por correo mortal.",
+    "Hasta el polvo puede elegir mostrarse después si conviene al rumor que ordena esta esquina fría igual.",
   ],
   move: [
     "El paso redefine el lienzo urbano; Santiago tiende cortes cinematográficos: transición rápida, siguiente conflicto en la esquina.",
+    "Cada zancada reescribe coordenadas: semáforo nuevo, rumor nuevo, sombra nueva antes de fichar la próxima manzana igual.",
+    "La distancia de hoy vuelve mañana como pregunta de testigos ocasionales que vos nunca llamaste igual.",
   ],
   social: [
     "Las sílabas cargan etiquetas adhesivas entre ustedes: lo dicho ordena quién debe ceder medio paso.",
+    "Cada frase reordena cercanías aceptadas; el pacto inmortal registra el roce antes de que humanos sellen etiquetas.",
+    "Bajás la voz un poco y obligás acercamiento de oído: la Bestia mide distancia aceptada igual sin permiso explícito medio.",
   ],
   violence: [
     "El cuerpo memoriza antes que el protocolo — roce, frenado abrupto y el rumor metálico del entorno infiltrándose en la escena.",
+    "Hombros quietos anuncian golpe antes que modales humanos alcancen a negociar la escena con palabras secas.",
+    "El pavimento guarda huellas de lo que empujaste antes de que el papel oficial aclare permisos o culpas.",
   ],
   flee: [
     "Primero la salida: el entorno se desplaza en rutas paralelas hasta que una se queda marcada.",
+    "Varias fugas compiten hasta que sólo una arrastra sombra fría pegada al taco recién usado.",
+    "La ciudad archiva huidas igual archiva deudas mal liquidadas en cajón repetido de temporada fría.",
   ],
   magic: [
     "El don estira lo visible hacia registros prohibidos — sombras con memoria, tiempo que tropieza y quien observa desde afuera toma apuntes.",
+    "El tiempo tropieza en escalón donde plan carnal no llega; tus sombras cargan memoria incómoda para testigos rápidos igual.",
+    "Olor fugaz a ozono y reglas torcidas: mirada distraída termina llamando a quien sí sabe cobrar el secreto.",
   ],
   ambient: [
     "Superficies húmedas reverberan despacio; un neón agoniza en el marco del escaparate y ninguna radio termina de encenderse.",
+    "Radios repiten bucles como mal chiste; la ciudad lo toma igual en serio igual que advertencia administrativa fría.",
+    "Goteras y vientos con olor a goma quemada llevan confesiones a medias hasta próxima vereda despierta nueva.",
   ],
 };
 
@@ -281,6 +327,7 @@ export function generateInternalNarrador(body: NarradorRequestBody): {
   const strand: NarrativeStrand = normalizeStrand(body.narrativeStrand);
   const intent = classifyIntent(body.playerAction);
   const disrupt = body.synapticDisruption?.trim();
+  const weave = assembleNarrativeWeaveBrief(body);
 
   const hBase = stableHash([
     strand,
@@ -289,18 +336,39 @@ export function generateInternalNarrador(body: NarradorRequestBody): {
     chronicleFingerprint(body.chronicle),
     (body.rollingSummary ?? "").slice(0, 200),
     (body.worldNexusContext ?? "").slice(0, 320),
+    weave.stableSeedParts.join("·"),
     ...(body.recentLogs?.slice(-4).map((l) => l.text.slice(0, 80)) ?? []),
   ]);
 
   const opener = pick(OPENERS[intent], hBase, 0);
   const mid = pick(MID[intent], hBase, 3);
-  const sugerencias = pickThreeActionLines(PLAYER_BEATS[intent], hBase, PLAYER_BEATS_COMMON);
+  const codexSignals = parseCodexSignalsFromSheetSummary(body.sheetSummary ?? "");
+  const sugerencias = weaveKnowledgeIntoActionSuggestions(
+    codexSignals,
+    pickThreeActionLines(PLAYER_BEATS[intent], hBase, PLAYER_BEATS_COMMON),
+    hBase,
+  );
+
+  const loreBits = selectLoreFragments({
+    narrativeStrand: strand,
+    inquisitionThreat: body.inquisitionThreat,
+    sheetSummary: body.sheetSummary,
+    chronicle: body.chronicle,
+    playerAction: body.playerAction,
+    rollingSummary: body.rollingSummary,
+    worldNexusContext: body.worldNexusContext,
+  });
+  const loreBlock = loreBits.length ? `\n\n${loreBits.join("\n")}` : "";
+
+  const weaveBlock = weave.internalSceneFragment.trim()
+    ? `\n\n${weave.internalSceneFragment.trim()}`
+    : "";
 
   const disruptBlock = disrupt
     ? `\n\nAlgo irrumpió en lo previsto — ${disrupt.slice(0, 900)}`
     : "";
 
-  const narracion = [opener, mid, "", threatTone(body.inquisitionThreat), disruptBlock].join("\n").trim();
+  const narracion = [opener, mid, loreBlock, weaveBlock, "", threatTone(body.inquisitionThreat), disruptBlock].join("\n").trim();
 
   const resumen_actualizado = clip(
     `${clip(body.playerAction, 120)} · ${intent} · tensión ciudad ${body.inquisitionThreat}`,

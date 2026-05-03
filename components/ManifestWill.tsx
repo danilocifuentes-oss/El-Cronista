@@ -52,7 +52,7 @@ export function ManifestWill({
     const r = rollPoolV5(pool, hungerDicePool, rollDifficulty);
     const ledger = summarizeRollNarrator(r);
     const pen = poolPenalty > 0 ? ` · LETARGO:-${poolPenalty}` : "";
-    const detail = `[MANIFEST]: sujeto emite voluntad · ${attrKey}+${skillKey} · pool:${pool}(Σh:${hungerDicePool}) · DF:${rollDifficulty}${pen} · ${ledger}`;
+    const detail = `Voluntad emitida · ${attrKey}+${skillKey} · reserva ${pool} (hambre en dados: ${hungerDicePool}) · dificultad ${rollDifficulty}${pen} · ${ledger}`;
     setLastPlayerLabel(r.outcome);
     void onManifest({ roll: r, intent: intent.trim(), ledgerLine: detail });
   }

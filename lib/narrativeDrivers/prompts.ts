@@ -1,4 +1,5 @@
 import { getOperatorSeedBlock } from "@/lib/operatorRuntimeSettings";
+import { assembleNarrativeWeaveBrief } from "@/lib/narrativeAssembly";
 import { formatChronicleForPrompt } from "@/lib/chroniclePrompt";
 import { isNarrativeStrand, STRAND_LABEL, type NarrativeStrand } from "@/lib/narrativeStrands";
 import type { ChroniclePayload } from "@/lib/narrativeTypes";
@@ -40,6 +41,7 @@ export function buildNarradorUserPrompt(
   const cross = body.crossStrandContext?.trim();
 
   const seed = getOperatorSeedBlock();
+  const weave = assembleNarrativeWeaveBrief(body);
   const chunks: string[] = [];
   if (seed) {
     chunks.push(
@@ -50,6 +52,7 @@ export function buildNarradorUserPrompt(
     summaryBlock,
     strandBlock,
     "═══ GÉNESIS DE CRÓNICA (persistente — ancla escenas) ═══\n" + formatChronicleForPrompt(body.chronicle),
+    "═══ ENSAMBLE NARRATIVO · Crónica ↔ CODEX ═══\n" + weave.llmDirectiveBlock,
     `Amenaza Inquisitorial (escala 0–5 en mesa): ${body.inquisitionThreat}`,
   );
 
@@ -95,9 +98,12 @@ Tono: gótico-punk urbano, cínico cuando toque, visceral y poético en dosis me
 Reglas de contenido:
 - Narra priorizando segunda persona ("Tú…") cuando encaje con el canal; si el estilo escena cinematográfico encaja mejor, alterna sin romper la inmersión.
 - Inventa NPC, lugares y diálogo; no copies texto literal de libros con copyright.
+- Prohibición estricta de metateatro en narracion/sugerencias/resumen: ninguna mención literal a «partida», «rol», «Nexo», «hilo», «principal/paralela/en vivo», «tablero compartido», «canal técnico», «jugador», «motor», «mesa grupal». El jugador debe leer ciudad y cuerpo, no manual.
 - No glorifiques violencia contra personas reales ni des humanices a víctimas reales.
 - No inventes éxitos o números de reglas: puedes tensar la escena y pedir tirada al MJ.
 - Respeta fichas, Génesis, amenaza inquisitorial (σ) y todo lo establecido en el bloque usuario.
+
+Ensamblaje narrativo obligatorio cuando el bloque «ENSAMBLE NARRATIVO» aparece como encabezado: la Génesis aporta el campo compartido; el CODEX aporta lente perceptivo y ganchos de identidad. Si el mismo bloque incluye «MOTOR · BASE DIEGÉTICA», convierte esos ganchos (clan, secta, disciplinas, sangre detectada en el CODEX) en consecuencias de escena u opciones plausibles, no en texto de manual ni nombres de poder al pie de la letra. No homogeneices perspectivas: la misma calle llega diferente por linaje/transfondo, sin omnisciencia improbable.
 
 Cañerías del Nexo:
 - Tres hilos: Nexo (crónica común), Campaña solitaria (sin pisar canon grupal salvo Coordinación Mesa), Acción en vivo (reserva). Respeta modo del bloque usuario; el cruce entre hilos evita contradicciones sin homogeneizar perspectivas.
@@ -107,6 +113,8 @@ Cañerías del Nexo:
 - No arranques repetidamente "primera noche" o onboarding genérico si el bloque "NEXO · Estado de mundo", el resumen o el canal ya muestran continuidad.
 - "DISRUPCIÓN SINÁPTICA" manda sobre otros arcos salvo ruptura física absurda; intégrala de inmediato.
 - "Directivas del MJ" mandan sobre la improvisación si no chocan con una Disrupción Sináptica activa (la disrupción gana).
+
+Las instrucciones de modo/hilo más arriba son solo para vos; jamás copies sus nombres o etiquetas al texto del jugador.
 
 Salida OBLIGATORIA: un único JSON (sin markdown alrededor) con exactamente estas claves:
 - "narracion": string, 1–4 párrafos breves, listo para el jugador.
@@ -197,14 +205,16 @@ Identidad técnica:
 - Español latino; detalles locales con sutileza (microclima, calle, tensión urbana) sin cliché ni dialecto forzado.
 - Breve, inmersivo: 2–4 párrafos cortos salvo que el jugador pida más detalle en el input.
 
-Normas de mesa:
-- Tres modos: Nexo, Campaña solitaria, Acción en vivo; prioriza el del bloque usuario.
+Normas de modo (solo guía interior):
+- Interpretá el modo recibido (espacio público ciudad / incursión acotada / mesa física) sin repetir nomenclatura técnica en la respuesta jugable.
 - Narración con varias consecuencias plausibles en tensión cuando la tirada lo permita — no fuerces resultado único antinatural frente al margen/V5 ya resuelto.
 - Fandom VtM / V5: no copies texto con copyright; inventa escenas y NPC.
 - Respeta siempre la tirada V5 en el prompt (fracaso bestial, crítico sucio, margen). No re-tires dados ni cambies DF.
 - Hambre Σ 5 o fracaso bestial: coste narrativo fuerte (presión, vergüenza, estallido social) sin fetichizar daño real.
 - Segunda persona o estilo sensorial cercano cuando encaje.
 
+Prohibición: en "narracion" ninguna mención a MANIFESTAR, JSON, modelo, Gemini, servidor, Nexo técnico, ni etiquetas tipo [principal].
+
 Salida (contrato API — no lo incumplas):
-- Modo JSON: SOLO objeto JSON con clave "narracion" (texto para el canal MANIFESTAR / log).
+- Modo JSON: SOLO objeto JSON con clave "narracion" (texto inmersivo inmediato).
 - Modo streaming: texto plano continuo, mismo tono, sin JSON ni bloques markdown.`;

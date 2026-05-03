@@ -46,7 +46,9 @@ import {
   touchSignificantAction,
 } from "@/lib/impulseUnits";
 import { formatWorldNexusPromptBlock, ingestRollingSummary, loadNexusWorldState, saveNexusWorldState } from "@/lib/nexusWorldState";
+import { factoryResetLocalNexoPreserveGenesis } from "@/lib/clientNexoReset";
 import { formatNexoApiFailure } from "@/lib/nexoErrors";
+import { sanitizePlayerFacingNarration, sanitizeSuggestionLine } from "@/lib/playerFacingText";
 import { buildSheetSummaryLite } from "@/lib/sheetSummary";
 import type { NarrativeLogEntry, NarradorRecentLine } from "@/lib/narrativeTypes";
 import { CharacterCreation } from "./CharacterCreation";
@@ -130,7 +132,7 @@ function famineSealWallClock(): number {
 const BOOT_STREAM: NarrativeLogEntry = {
   id: "0",
   role: "narrador",
-  text: "El Nexo templa lo que ya eras: ciudad vieja sobre concrete, cicatrices en la humedad. El siguiente latido será escena — aquí mismo — cuando muevas voluntad sobre el mundo.",
+  text: "La ciudad te recuerda igual de fría cuando el día la suelta al neón viejo y al ruido de metal húmedo. El siguiente movimiento será escena apenas cruces la primera sombra donde el mapa sí te reconoce.",
   ts: 0,
   strand: "principal",
 };
@@ -243,7 +245,11 @@ function CronistaAppInner() {
     return listProfiles();
   }, [profileIndexTick]);
 
-  const displayLogs = useMemo(() => filterLogsByStrand(logs, activeStrand), [logs, activeStrand]);
+  const displayLogs = useMemo(() => {
+    const scoped = filterLogsByStrand(logs, activeStrand);
+    if (isNarrator) return scoped;
+    return scoped.filter((e) => !(e.role === "sistema" && /^\[\s*MJ_PIPE\s*\]:/i.test(e.text.trim())));
+  }, [logs, activeStrand, isNarrator]);
 
   useEffect(() => {
     logsRef.current = logs;
@@ -350,9 +356,9 @@ function CronistaAppInner() {
               role: "narrador",
               strand: "principal",
               ts: Date.now(),
-              text: out.narracion.trim(),
+              text: sanitizePlayerFacingNarration(out.narracion.trim()),
               ...(Array.isArray(out.suggestions) && out.suggestions.length
-                ? { suggestions: out.suggestions.slice(0, 8) }
+                ? { suggestions: out.suggestions.slice(0, 8).map(sanitizeSuggestionLine) }
                 : {}),
             },
           ];
@@ -720,7 +726,7 @@ function CronistaAppInner() {
         if (metaNow.impulseUnits <= 0) {
           pushLog({
             role: "sistema",
-            text: "[IMPULSE_LOCK]: Sin Unidades de Impulso — espera el ciclo de 24 h o mantén actividad en el canal.",
+            text: "Todavía no sentís el impulso que exige manifestar voluntad frente a esta ciudad — esperá el ciclo o movete más en el canal antes de volver a tirar.",
           });
           return;
         }
@@ -776,7 +782,9 @@ function CronistaAppInner() {
             setLogs((prev) => prev.map((e) => (e.id === streamId ? { ...e, text: acc } : e)));
           },
         );
-        const finalText = acc.trim() || "[SILENCIO_CRONISTA]";
+        const finalText =
+          sanitizePlayerFacingNarration(acc.trim()) ||
+          "El silencio pesa igual que evidencia vieja pegada en la suela hasta que decidís pisar más fuerte de nuevo.";
         setLogs((prev) => {
           const next = prev.map((e) => (e.id === streamId ? { ...e, text: finalText } : e));
           saveNarrativeLog(next);
@@ -858,7 +866,7 @@ function CronistaAppInner() {
     if (!selectProfile(id)) return;
     applyGlobalsToUi(setSheet, setSheetLocked, setLogs, commitStrand);
     navigateToPhase("nexus");
-    pushLog({ role: "sistema", text: `[CV]: ${loadSheet()?.name || id}` });
+    appendXpLog(`Sesión cargada · ${loadSheet()?.name?.trim() || id}`);
   };
 
   const startBlankSheet = () => {
@@ -876,6 +884,14 @@ function CronistaAppInner() {
       <NarratorCommandCenter
         profiles={hubProfiles}
         onProfilesChange={() => setProfileIndexTick((n) => n + 1)}
+        onFactoryReset={() => {
+          factoryResetLocalNexoPreserveGenesis();
+          applyGlobalsToUi(setSheet, setSheetLocked, setLogs, commitStrand);
+          setProfileIndexTick((n) => n + 1);
+          setComposer("");
+          setInquisitionThreat(2);
+          navigateToPhase("profileHub");
+        }}
         onGoHub={() => navigateToPhase("profileHub")}
         onGoNexus={() => {
           const id = getActiveProfileId();
@@ -923,7 +939,7 @@ function CronistaAppInner() {
       setSheet(next);
       persistActiveProfile();
       navigateToPhase("nexus");
-      pushLog({ role: "sistema", text: `CODEX actualizado · ${next.name?.trim() || "—"}` });
+      appendXpLog(`Identidad marcada · ${next.name?.trim() || "—"}`);
     }
 
     return (
@@ -974,7 +990,7 @@ function CronistaAppInner() {
 
       <header className="flex shrink-0 flex-col gap-3 border-b border-[#1a1a1e] bg-[#050506] px-4 py-4 font-sans text-[10px] text-neutral-500 sm:gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:px-6">
         <div className="min-w-0 flex-1 space-y-1.5 xl:hidden">
-          <p className="text-[11px] font-light tracking-[0.32em] text-neutral-300">Codex V · Nexo</p>
+          <p className="text-[11px] font-light tracking-[0.32em] text-neutral-300">Codex V · ciudad</p>
           <p className="truncate text-[13px] font-medium tracking-tight text-neutral-100">
             <span style={{ color: accent }}>{sheet.name?.trim() || "Sin nombre"}</span>
             <span className="text-neutral-600"> · </span>

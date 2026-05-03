@@ -317,6 +317,24 @@ export function createBlankProfile(): string {
   return id;
 }
 
+/** Borra índice, bundles activos y marcas NPC semilla locales. No borra Génesis (`chronicleConfig`). */
+export function wipeAllLocalProfiles(): void {
+  if (typeof window === "undefined") return;
+  const idx = loadIndex();
+  for (const p of idx.profiles) {
+    localStorage.removeItem(bundleKey(p.id));
+  }
+  saveIndex({ profiles: [], lastActiveId: null });
+  setActiveProfileId(null);
+  try {
+    localStorage.removeItem(MIGRATION_FLAG);
+    localStorage.removeItem(SHADOW_PACK_FLAG);
+    localStorage.removeItem(LEGACY_GLOBAL_IDEAS_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function removeProfile(id: string): void {
   const idx = loadIndex();
   const nextProfiles = idx.profiles.filter((p) => p.id !== id);

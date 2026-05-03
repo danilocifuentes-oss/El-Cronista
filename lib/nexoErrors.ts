@@ -1,23 +1,21 @@
 /**
- * Mensajes diegéticos para el canal (evita volcar errores crudos de Google al jugador).
+ * Texto breve sin códigos backstage para errores visible en canal (operador revisa servidor).
  */
 export function formatNexoApiFailure(raw: string): string {
   const msg = raw.trim();
-  if (/^\[(ERR_|PIPE_ERR)/.test(msg)) {
-    return msg;
+  if (msg.includes("OPERATOR_CHANNEL_PAUSED") || msg.includes("NEXO_CHANNEL_PAUSED")) {
+    return "El canal desde acá está en pausa. Quien lleva los mandos debe reactivar el flujo antes de seguir jugando estas líneas.";
   }
 
   if (/GEMINI_API_KEY no está definida|GEMINI_API_KEY/i.test(msg) && /definida|Configura/i.test(msg)) {
-    return "[ERR_CONFIG]: El Nexo no tiene clave de motor GEMINI en el servidor. Revisa .env.local o Vercel.";
+    return "Algo del lado servidor no encuentra llave válida para el motor remoto — conviene revisar despliegue y variables antes de insistir.";
   }
 
   if (
-    /API key not valid|API_KEY_INVALID|invalid API key|leaked|was reported|API key.*not valid|Permission denied on API key|PERMISSION_DENIED.*key/i.test(
-      msg,
-    ) ||
+    /API key not valid|API_KEY_INVALID|invalid API key|leaked|was reported|PERMISSION_DENIED.*key/i.test(msg) ||
     (/(^|\D)(401|403)(\D|$)/.test(msg) && /generative|googleapis|GoogleGenerative|gemini|API key/i.test(msg))
   ) {
-    return "[ERR_CLAVE]: La clave GEMINI no es aceptada (revocada, errónea o con restricción). Crea otra en https://aistudio.google.com/apikey y pégala en Vercel → Settings → Environment Variables → GEMINI_API_KEY (Production), luego Redeploy.";
+    return "La llamada rechazó la llave configurada como si fuera fría ya— conviene revisar credenciales en el servidor y volver a desplegar.";
   }
 
   if (
@@ -25,21 +23,21 @@ export function formatNexoApiFailure(raw: string): string {
     msg.includes("Too Many Requests") ||
     /quota|Quota exceeded|RESOURCE_EXHAUSTED|free_tier|rate.?limit/i.test(msg)
   ) {
-    return "[ERR_NODO_SATURADO]: La red de La Chimba está bajo vigilancia intensa. Protocolo de silencio activado temporalmente. Espera a que la señal se estabilice y vuelve a intentar.";
+    return "Hay demasiada cola cargando detrás — la señal pide esperar un momento antes del próximo mensaje.";
   }
 
   if (/timed out|Task timed out|504|Gateway Timeout|FUNCTION_INVOCATION_TIMEOUT|Runtime Timeout/i.test(msg)) {
-    return "[ERR_TIEMPO]: El servidor cortó la llamada por límite de tiempo (Vercel). Reintenta; si persiste, acorta Génesis/repositorio o revisa cuota Gemini. En Pro puedes subir maxDuration del route.";
+    return "La red cortó antes de llegar respuesta larga — reintentá tras unos segundos o más breve donde puedas.";
   }
 
   if (/503|502|fetch failed|network/i.test(msg)) {
-    return "[ERR_RELÉ]: El canal SchreckNet perdió pulso momentáneo. Reintenta en unos segundos.";
+    return "El vínculo con el servidor se quebró un instante; probá de nuevo cuando el pulso estabilice.";
   }
 
   if (/no devolvió JSON|Respuesta no JSON|no JSON/i.test(msg)) {
-    return "[ERR_RELÉ]: El servidor respondió con texto/HTML en lugar de JSON (caída, timeout o proxy). Abre /api/health y revisa el deploy en Vercel.";
+    return "En vez de historia llegó algo ilegible al canal — tocó caída o proxy cortado.";
   }
 
-  const short = msg.length > 280 ? `${msg.slice(0, 280)}…` : msg;
-  return `[PIPE_ERR]: ${short}`;
+  const short = msg.length > 220 ? `${msg.slice(0, 220)}…` : msg;
+  return short ? `Algo falló antes de llegar la escena: ${short}` : "Algo falló antes de llegar la escena.";
 }
