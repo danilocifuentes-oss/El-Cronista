@@ -1,10 +1,9 @@
+import { getOperatorSeedBlock } from "@/lib/operatorRuntimeSettings";
 import { formatChronicleForPrompt } from "@/lib/chroniclePrompt";
 import { isNarrativeStrand, STRAND_LABEL, type NarrativeStrand } from "@/lib/narrativeStrands";
 import type { ChroniclePayload } from "@/lib/narrativeTypes";
 import type { NarradorRequestBody } from "@/lib/narrativeTypes";
 import type { SerializedV5Roll } from "@/lib/dice";
-
-const NEXO_RECENT_TURNS = 5;
 
 /** Igual que la API: construye el bloque usuario para Gemini/OpenAI/internal. */
 export function buildNarradorUserPrompt(body: NarradorRequestBody): string {
@@ -26,12 +25,19 @@ export function buildNarradorUserPrompt(body: NarradorRequestBody): string {
     : "";
   const cross = body.crossStrandContext?.trim();
 
-  const chunks: string[] = [
+  const seed = getOperatorSeedBlock();
+  const chunks: string[] = [];
+  if (seed) {
+    chunks.push(
+      "═══ CONTEXTO GLOBAL DEL OPERADOR (impulso de campaña — honrar en cada respuesta) ═══\n" + seed,
+    );
+  }
+  chunks.push(
     summaryBlock,
     strandBlock,
     "═══ GÉNESIS DE CRÓNICA (persistente — ancla escenas) ═══\n" + formatChronicleForPrompt(body.chronicle),
     `Amenaza Inquisitorial (escala 0–5 en mesa): ${body.inquisitionThreat}`,
-  ];
+  );
   if (cross) {
     chunks.push(cross);
   }
@@ -82,12 +88,19 @@ export function buildCronistaUserPrompt(parts: {
   const ideas = parts.ideasRepository?.trim();
   const strandLine = `Hilo activo: ${STRAND_LABEL[parts.narrativeStrand]}`;
   const cross = parts.crossStrandContext?.trim();
-  const chunks: string[] = [
+  const seed = getOperatorSeedBlock();
+  const chunks: string[] = [];
+  if (seed) {
+    chunks.push(
+      "═══ CONTEXTO GLOBAL DEL OPERADOR (impulso de campaña — honrar en esta tirada) ═══\n" + seed,
+    );
+  }
+  chunks.push(
     "═══ ENTRADA MOTOR CRONISTA (PROYECTO SERENO · Codex V) ═══",
     `Hambre Σ (0–5): ${parts.hambre}`,
     strandLine,
     "═══ GÉNESIS DE CRÓNICA (ancla diegética) ═══\n" + genesis,
-  ];
+  );
   if (cross) {
     chunks.push(cross);
   }

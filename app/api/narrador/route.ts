@@ -114,6 +114,16 @@ export async function POST(req: Request) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[api/narrador]", msg);
+    if (msg.includes("OPERATOR_CHANNEL_PAUSED")) {
+      return NextResponse.json(
+        {
+          error: formatNexoApiFailure(
+            "Canal narrativo en pausa. El operador puede reactivarlo en Centro de Mando → Motor Nexo.",
+          ),
+        },
+        { status: 503 },
+      );
+    }
     const immersive = formatNexoApiFailure(msg);
     const status = isQuotaOrRateLimitError(e) ? 503 : 502;
     return NextResponse.json({ error: immersive }, { status });

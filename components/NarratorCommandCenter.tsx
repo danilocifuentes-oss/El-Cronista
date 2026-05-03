@@ -1,16 +1,19 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createProfileEntity } from "@/lib/profileStore";
 import type { ProfileSummary } from "@/lib/profileStore";
 import type { ChronicleConfig } from "@/lib/chronicleConfig";
 import { loadChronicle, saveChronicle, setPendingSynapticDisruption } from "@/lib/chronicleConfig";
+import { parseFetchJson } from "@/lib/parseFetchJson";
 import { MasterSheetEditor } from "./MasterSheetEditor";
+
+const MOTOR_CIPHER_STORAGE = "cronista-motor-cipher";
 
 const ROOT = "#b91c1c";
 
-type Tab = "sheets" | "genesis" | "synaptic";
+type Tab = "sheets" | "genesis" | "synaptic" | "motor";
 
 type Props = {
   profiles: ProfileSummary[];
@@ -32,6 +35,103 @@ export function NarratorCommandCenter({
   const [chronicle, setChronicle] = useState<ChronicleConfig>(() => loadChronicle());
   const [synInput, setSynInput] = useState("");
   const [synStatus, setSynStatus] = useState<string | null>(null);
+
+  const [motorCipher, setMotorCipher] = useState("");
+  const [motorExtLlm, setMotorExtLlm] = useState(true);
+  const [motorPaused, setMotorPaused] = useState(false);
+  const [motorSeed, setMotorSeed] = useState("");
+  const [motorStatus, setMotorStatus] = useState<string | null>(null);
+  const [motorLoading, setMotorLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      const c = sessionStorage.getItem(MOTOR_CIPHER_STORAGE);
+      if (c) setMotorCipher(c);
+    } catch {
+      /* privado */
+    }
+  }, []);
+
+  async function pullMotorSettings() {
+    const cipher = motorCipher.trim();
+    if (!cipher) {
+      setMotorStatus("Introduce la clave raíz para leer el estado del servidor.");
+      return;
+    }
+    setMotorLoading(true);
+    setMotorStatus(null);
+    try {
+      const res = await fetch("/api/operator-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cipher, action: "get" }),
+      });
+      const data = await parseFetchJson<{
+        ok?: boolean;
+        externalLlmEnabled?: boolean;
+        narratorChannelPaused?: boolean;
+        seedContext?: string;
+        error?: string;
+      }>(res);
+      if (!res.ok) {
+        setMotorStatus(data.error || `HTTP ${res.status}`);
+        return;
+      }
+      setMotorExtLlm(data.externalLlmEnabled ?? true);
+      setMotorPaused(data.narratorChannelPaused ?? false);
+      setMotorSeed(typeof data.seedContext === "string" ? data.seedContext : "");
+      try {
+        sessionStorage.setItem(MOTOR_CIPHER_STORAGE, cipher);
+      } catch {
+        /* */
+      }
+      setMotorStatus("Estado del Motor Nexo sincronizado.");
+      window.setTimeout(() => setMotorStatus(null), 3200);
+    } catch (e) {
+      setMotorStatus(e instanceof Error ? e.message : String(e));
+    } finally {
+      setMotorLoading(false);
+    }
+  }
+
+  async function pushMotorSettings() {
+    const cipher = motorCipher.trim();
+    if (!cipher) {
+      setMotorStatus("Clave raíz requerida para guardar.");
+      return;
+    }
+    setMotorLoading(true);
+    setMotorStatus(null);
+    try {
+      const res = await fetch("/api/operator-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cipher,
+          action: "save",
+          externalLlmEnabled: motorExtLlm,
+          narratorChannelPaused: motorPaused,
+          seedContext: motorSeed,
+        }),
+      });
+      const data = await parseFetchJson<{ ok?: boolean; error?: string }>(res);
+      if (!res.ok) {
+        setMotorStatus(data.error || `HTTP ${res.status}`);
+        return;
+      }
+      try {
+        sessionStorage.setItem(MOTOR_CIPHER_STORAGE, cipher);
+      } catch {
+        /* */
+      }
+      setMotorStatus("Motor Nexo guardado en el servidor.");
+      window.setTimeout(() => setMotorStatus(null), 3800);
+    } catch (e) {
+      setMotorStatus(e instanceof Error ? e.message : String(e));
+    } finally {
+      setMotorLoading(false);
+    }
+  }
 
   function persistGenesis() {
     saveChronicle(chronicle);
@@ -61,6 +161,7 @@ export function NarratorCommandCenter({
     { id: "sheets", label: "CODEX · Maestro" },
     { id: "genesis", label: "Génesis" },
     { id: "synaptic", label: "Disrupción" },
+    { id: "motor", label: "Motor Nexo" },
   ];
 
   return (
@@ -86,8 +187,8 @@ export function NarratorCommandCenter({
             </p>
             <h1 className="mt-1 text-lg font-normal tracking-[0.18em] text-neutral-100">CENTRO_DE_MANDO</h1>
             <p className="mt-2 max-w-xl text-[10px] leading-relaxed text-neutral-500">
-              Gestión local de fichas, Génesis diegética y tubería sináptica hacia Gemini. Sin autorización en servidor:
-              trátalo como llave de desarrollo.
+              Gestión de fichas, Génesis, disrupción y control del Motor Nexo (APIs / pausa / contexto de campaña). Memoria
+              de servidor en instancia; para cortes duros usa también variables en Vercel.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -252,6 +353,93 @@ export function NarratorCommandCenter({
             >
               ARMAR_DISRUPCIÓN
             </button>
+          </div>
+        ) : null}
+
+        {tab === "motor" ? (
+          <div className="space-y-5">
+            <p className="text-[10px] leading-relaxed text-neutral-500">
+              Control global del pipeline narrativo (transparente para jugadores). La clave raíz es la misma que abre este
+              centro. Tras un reinicio en frío del servidor (Vercel), vuelve a cargar o define{" "}
+              <span className="text-neutral-400">NEXO_FORCE_INTERNAL_ONLY</span> /{" "}
+              <span className="text-neutral-400">NEXO_CHANNEL_PAUSED</span> en el deploy.
+            </p>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[9px] uppercase tracking-widest text-neutral-500">Clave operador (245285…)</span>
+              <input
+                type="password"
+                autoComplete="off"
+                value={motorCipher}
+                onChange={(e) => setMotorCipher(e.target.value)}
+                className="border bg-black/80 px-3 py-2 text-[11px] text-neutral-200"
+                style={{ borderColor: ROOT }}
+                placeholder="••••••"
+              />
+            </label>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                disabled={motorLoading}
+                onClick={() => void pullMotorSettings()}
+                className="border px-4 py-2 text-[9px] uppercase tracking-widest text-neutral-300 disabled:opacity-40"
+                style={{ borderColor: ROOT }}
+              >
+                Cargar estado
+              </button>
+              <button
+                type="button"
+                disabled={motorLoading}
+                onClick={() => void pushMotorSettings()}
+                className="border px-4 py-2 text-[9px] uppercase tracking-widest disabled:opacity-40"
+                style={{ borderColor: ROOT, color: ROOT }}
+              >
+                Guardar en servidor
+              </button>
+            </div>
+
+            <label className="flex items-center gap-2 text-[10px] text-neutral-400">
+              <input
+                type="checkbox"
+                checked={motorExtLlm}
+                onChange={(e) => setMotorExtLlm(e.target.checked)}
+                disabled={motorLoading}
+              />
+              Permitir APIs externas (Gemini / OpenAI). Si se desactiva, solo motor interno — bitácora y canal usan
+              reglas locales.
+            </label>
+
+            <label className="flex items-center gap-2 text-[10px] text-neutral-400">
+              <input
+                type="checkbox"
+                checked={motorPaused}
+                onChange={(e) => setMotorPaused(e.target.checked)}
+                disabled={motorLoading}
+              />
+              Pausar canal del jugador (bloquea narrador + MANIFESTAR; no afecta esta consola).
+            </label>
+
+            <label className="flex flex-col gap-2">
+              <span className="text-[9px] uppercase tracking-widest text-neutral-500">
+                Contexto global de campaña (impulso para empezar o continuar)
+              </span>
+              <textarea
+                value={motorSeed}
+                onChange={(e) => setMotorSeed(e.target.value)}
+                rows={10}
+                disabled={motorLoading}
+                className="w-full border bg-black/80 px-3 py-2 text-[11px] leading-relaxed text-neutral-200"
+                style={{ borderColor: ROOT }}
+                placeholder="Ej.: Año 2026 · El Sheriff exige tributo simbólico antes del solsticio. Rumor: infiltracamarilla en Providencia. Nadie menciona el incidente del Metro aún."
+              />
+            </label>
+
+            {motorStatus ? (
+              <p className="border px-3 py-2 text-[10px] text-neutral-400" style={{ borderColor: ROOT }}>
+                {motorStatus}
+              </p>
+            ) : null}
           </div>
         ) : null}
       </div>

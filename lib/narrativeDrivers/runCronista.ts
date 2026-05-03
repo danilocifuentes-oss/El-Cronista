@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { isNarratorChannelPaused } from "@/lib/operatorRuntimeSettings";
 import { formatNexoApiFailure } from "@/lib/nexoErrors";
 import { isQuotaOrRateLimitError } from "@/lib/geminiRetry";
 
@@ -162,6 +163,16 @@ async function cronistaStreamResponse(parsed: NormalizedCronistaBody): Promise<R
 }
 
 export async function executeCronistaRoute(parsed: NormalizedCronistaBody): Promise<Response> {
+  if (isNarratorChannelPaused()) {
+    return NextResponse.json(
+      {
+        error: formatNexoApiFailure(
+          "OPERATOR_CHANNEL_PAUSED · El canal narrativo está en pausa (Centro de Mando o NEXO_CHANNEL_PAUSED).",
+        ),
+      },
+      { status: 503 },
+    );
+  }
   if (parsed.stream) {
     return cronistaStreamResponse(parsed);
   }

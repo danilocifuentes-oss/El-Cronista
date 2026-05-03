@@ -12,6 +12,7 @@
  */
 
 import { resolveGeminiApiKey } from "@/lib/geminiEnv";
+import { isExternalLlmBlocked } from "@/lib/operatorRuntimeSettings";
 
 export type LlmDriverId = "gemini" | "openai" | "internal";
 
@@ -42,8 +43,16 @@ function preferInAuto(): "gemini" | "openai" {
 /**
  * Cadena de intentos ante fallo de red/cuota/modelo.
  * Siempre termina en `internal` para que la mesa nunca quede sin respuesta.
+ * Operador o env pueden forzar solo motor interno (sin APIs de pago / externas).
  */
 export function resolveDriverChain(): LlmDriverId[] {
+  if (isExternalLlmBlocked()) {
+    return ["internal"];
+  }
+  return resolveDriverChainBase();
+}
+
+function resolveDriverChainBase(): LlmDriverId[] {
   const mode = normalizedProvider();
   const g = hasGeminiKey();
   const o = hasOpenAiKey();
@@ -94,12 +103,14 @@ export function describeDriverResolution(): {
   chain: LlmDriverId[];
   hasGemini: boolean;
   hasOpenAi: boolean;
+  externalLlmBlocked: boolean;
 } {
   return {
     providerEnv: normalizedProvider(),
     chain: resolveDriverChain(),
     hasGemini: hasGeminiKey(),
     hasOpenAi: hasOpenAiKey(),
+    externalLlmBlocked: isExternalLlmBlocked(),
   };
 }
 

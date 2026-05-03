@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 
 import { isGeminiConfigured, whichGeminiEnvName } from "@/lib/geminiEnv";
 import { describeDriverResolution, hasOpenAiKey } from "@/lib/narrativeDrivers/config";
+import {
+  getOperatorRuntimeState,
+  isExternalLlmBlocked,
+  isNarratorChannelPaused,
+} from "@/lib/operatorRuntimeSettings";
 import type { NarradorRequestBody } from "@/lib/narrativeTypes";
 
 export const runtime = "nodejs";
@@ -31,6 +36,7 @@ export async function GET() {
   };
 
   const driver = describeDriverResolution();
+  const op = getOperatorRuntimeState();
 
   return NextResponse.json({
     ok: true,
@@ -47,6 +53,16 @@ export async function GET() {
     narrativePreferEnv: "NEXO_LLM_PREFER=gemini|openai (solo con auto)",
     /** Cadena de intento ante fallo (API → API → motor interno). No expone secretos. */
     narrativeDriverChain: driver.chain,
+    operatorRuntime: {
+      channelPausedEffective: isNarratorChannelPaused(),
+      externalLlmBlockedEffective: isExternalLlmBlocked(),
+      seedContextChars: op.seedContext.trim().length,
+      settingsAgeMs: op.updatedAt ? Date.now() - op.updatedAt : null,
+    },
+    operatorEnvHints: {
+      NEXO_FORCE_INTERNAL_ONLY: "1 fuerza solo motor interno (sin Gemini/OpenAI).",
+      NEXO_CHANNEL_PAUSED: "1 pausa canal jugador (narrador + manifestar).",
+    },
     /** Solo comprueba que la variable exista en runtime; no valida la clave contra Google. */
     note:
       "El nombre «Gemini API Key» en Google AI Studio es solo etiqueta. En Vercel debe llamarse la variable GEMINI_API_KEY (o alias GOOGLE_GENERATIVE_AI_API_KEY). Para ChatGPT/OpenAI define OPENAI_API_KEY. Marca Production y Redeploy.",
@@ -54,6 +70,8 @@ export async function GET() {
       health: "GET /api/health",
       narrador: "POST /api/narrador — motor según NEXO_LLM_PROVIDER (fallback automático a interno)",
       cronista: "POST /api/cronista — mismo pipeline que narrador",
+      pulsoMundo: "POST /api/pulso-mundo — bitácora (mismo criterio de APIs / interno)",
+      operatorSettings: "POST /api/operator-settings — clave 245285 · action get|save",
     },
     ejemploPostNarrador: {
       url: "/api/narrador",

@@ -1,4 +1,5 @@
 import type { NarradorRequestBody } from "@/lib/narrativeTypes";
+import { isNarratorChannelPaused } from "@/lib/operatorRuntimeSettings";
 
 import { resolveDriverChain, type LlmDriverId } from "./config";
 import { generateNarradorWithGemini } from "./geminiNarrador";
@@ -18,6 +19,9 @@ export type NarradorSuccess = {
  * El motor interno no lanza: siempre hay respuesta usable.
  */
 export async function executeNarradorPipeline(body: NarradorRequestBody): Promise<NarradorSuccess> {
+  if (isNarratorChannelPaused()) {
+    throw new Error("OPERATOR_CHANNEL_PAUSED");
+  }
   const userPrompt = buildNarradorUserPrompt(body);
   const chain = resolveDriverChain();
   let lastErr: unknown;
