@@ -59,8 +59,8 @@ export function ManifestWill({ sheet, hungerLevel, accent, onManifest, isProcess
           onChange={(e) => setIntent(e.target.value)}
           disabled={isProcessing}
           rows={2}
-          placeholder="// foco de escena, tono, objetivo inmediato..."
-          className="mt-1.5 w-full resize-none border border-[#161616] bg-black/50 px-2 py-2 text-[10px] text-neutral-400 focus:border-[var(--terminal)]/35 focus:outline-none disabled:opacity-45"
+          placeholder="Opcional: tono, objetivo o detalle para el Cronista (tirada + intención)…"
+          className="mt-1.5 w-full resize-none border border-[#161616] bg-black/50 px-2 py-2 text-[10px] text-neutral-300 placeholder:text-neutral-600 focus:border-[var(--terminal)]/40 focus:outline-none focus:ring-1 focus:ring-[var(--terminal)]/12 disabled:opacity-45"
         />
       </label>
 

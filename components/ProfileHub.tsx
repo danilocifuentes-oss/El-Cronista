@@ -17,7 +17,10 @@ export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout 
       <div className="mx-auto w-full max-w-lg space-y-8">
         <header className="space-y-4 border-b border-[#161616] pb-6">
           <p className="text-[10px] uppercase tracking-[0.35em] text-[var(--terminal)]/90">SCHRECK_NET</p>
-          <h1 className="text-sm font-semibold uppercase tracking-[0.2em] text-neutral-200">Índice Codex V</h1>
+          <h1 className="font-sans text-lg font-semibold tracking-tight text-neutral-100">¿Quién cruza el Nexo?</h1>
+          <p className="text-[11px] leading-relaxed text-neutral-500">
+            Elige un vástago para la sesión o crea uno nuevo en el CODEX y vente cuando estés listo para jugar.
+          </p>
           <div className="relative overflow-hidden border border-[#1c1c1c] bg-gradient-to-r from-black/80 via-[#0a0a0a] to-black/80 px-3 py-2.5 sharp-border-inner">
             <div
               className="pointer-events-none absolute inset-0 opacity-[0.12]"
@@ -41,9 +44,9 @@ export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout 
             type="button"
             whileTap={{ scale: 0.99 }}
             onClick={onNewSheetBlank}
-            className="border border-[var(--terminal)]/40 bg-neutral-950/80 px-4 py-2.5 text-[9px] font-semibold uppercase tracking-[0.28em] text-[var(--terminal)] sharp-border-inner hover:bg-[var(--terminal)]/10"
+            className="border border-[var(--terminal)]/40 bg-neutral-950/80 px-5 py-2.5 text-[9px] font-semibold uppercase tracking-[0.28em] text-[var(--terminal)] sharp-border-inner hover:bg-[var(--terminal)]/10"
           >
-            Nuevo registro
+            Nuevo personaje
           </motion.button>
           <motion.button
             type="button"
@@ -58,8 +61,10 @@ export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout 
         <section className="space-y-3">
           <p className="text-[9px] uppercase tracking-[0.32em] text-neutral-600">Últimos Vástagos Registrados</p>
           {profiles.length === 0 ? (
-            <p className="border border-[#161616] bg-black/40 px-4 py-6 text-[10px] text-neutral-600">
-              [SIN_REGISTROS] · Pulsa «Nuevo registro» para abrir un CV vacío en el CODEX.
+            <p className="border border-[#161616] bg-black/40 px-4 py-8 text-center text-[11px] leading-relaxed text-neutral-500">
+              Aquí aparecerán tus personajes. Pulsa{" "}
+              <span className="text-[var(--terminal)]/90">«Nuevo personaje»</span> para abrir el CODEX y sellar tu primera
+              ficha.
             </p>
           ) : (
             <ul className="space-y-2">
@@ -87,7 +92,7 @@ export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout 
                           {clanLabel}
                         </span>
                       </span>
-                      <span className="shrink-0 text-[8px] uppercase tracking-widest text-neutral-600">Entrar →</span>
+                      <span className="shrink-0 text-[8px] uppercase tracking-widest text-neutral-500">Jugar →</span>
                     </motion.button>
                   </li>
                 );

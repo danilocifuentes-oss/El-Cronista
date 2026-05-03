@@ -63,6 +63,9 @@ export function SchreckNetLogin({ onAuthenticate, onRootAccess }: Props) {
         <header className="space-y-1 border-b border-neutral-700/70 pb-4 text-[10px] uppercase leading-relaxed tracking-[0.18em] text-neutral-400">
           <p className="text-[var(--terminal)]/95">CANAL SCHRECK_NET · MNEMÓSYNE</p>
           <p className="text-neutral-600">CODEX V</p>
+          <p className="mt-2 normal-case tracking-normal text-[10px] leading-snug text-neutral-500">
+            Introduce el código de acceso e inicia la sesión en el Nexo.
+          </p>
         </header>
 
         {!booting ? (

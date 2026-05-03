@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   CLAN_ACCENTS,
+  CLAN_OPTIONS,
   emptySheet,
   loadSheet,
   normalizeCharacterSheet,
@@ -141,6 +142,12 @@ function CronistaAppInner() {
   } = useGameSession();
 
   const accent = useMemo(() => CLAN_ACCENTS[sheet.clan], [sheet.clan]);
+
+  const clanLabelDisplay = useMemo(
+    () => CLAN_OPTIONS.find((c) => c.id === sheet.clan)?.label ?? sheet.clan,
+    [sheet.clan],
+  );
+  const identityHint = `${sheet.name?.trim() || "Sin nombre"} · ${clanLabelDisplay}`;
 
   /** Normalización estable para la vista HOJA (matriz CODEX completa, solo lectura). */
   const sheetReviewInitial = useMemo(() => mergeStoredSheet(sheet), [sheet]);
@@ -538,6 +545,11 @@ function CronistaAppInner() {
       <header className="flex shrink-0 flex-col gap-3 border-b border-[#161616] bg-black/55 px-4 py-4 font-mono text-[10px] sm:gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:px-6">
         <div className="min-w-0 flex-1 space-y-2 text-neutral-500">
           <p className="text-[var(--terminal)]/90 tracking-[0.25em]">CANAL SCHRECK_NET · NEXO_LATAM</p>
+          <p className="truncate font-sans text-[12px] font-medium tracking-tight text-neutral-200">
+            <span style={{ color: accent }}>{sheet.name?.trim() || "Sin nombre"}</span>
+            <span className="text-neutral-600"> · </span>
+            <span className="text-neutral-400">{clanLabelDisplay}</span>
+          </p>
           <p className="tracking-tight">
             RUNTIME:PROYECTO_SERENO ·{" "}
             <span style={{ color: accent }} className="font-mono font-semibold">
@@ -621,6 +633,7 @@ function CronistaAppInner() {
             onSend={sendPlayer}
             accent={accent}
             processing={cronistaProcessing}
+            identityHint={identityHint}
           />
           <ManifestWill
             key={`${sheet.hunger}-${sheet.name}`}

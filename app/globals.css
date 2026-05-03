@@ -19,6 +19,7 @@ body {
   background: var(--void);
   color: var(--foreground);
   font-family: var(--font-inter), system-ui, sans-serif;
+  text-rendering: optimizeLegibility;
 }
 
 .font-mono {
@@ -183,4 +184,9 @@ body {
   background-clip: text;
   color: transparent;
   filter: drop-shadow(0 0 1px rgba(57, 255, 20, 0.22));
+}
+
+/* Panel principal del stream · Nexo */
+.nexo-stream-panel {
+  border-radius: 2px;
 }

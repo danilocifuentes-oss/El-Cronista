@@ -13,9 +13,9 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PROYECTO_SERENO · NEXO_LATAM",
+  title: "El Cronista de las Sombras · Nexo",
   description:
-    "Cliente de mesa inspirado en Vampire V5 (no oficial): interfaz tipo SchreckNet, hoja CODEX y motor Sereno.",
+    "Mesa digital inspirada en Vampire V5 (no oficial): SchreckNet, CODEX, dados Sereno y narrador por IA. Entra y juega.",
 };
 
 export default function RootLayout({
