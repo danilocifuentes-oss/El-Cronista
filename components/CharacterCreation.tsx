@@ -344,7 +344,7 @@ export function CharacterCreation({ initial, onSave }: Props) {
   function resetToBlankCodex() {
     if (
       !window.confirm(
-        "¿Restablecer la plantilla CODEX a cero? Se borran operador, concepto y todo el reparto hasta el estado base (atributos en punto base gris; habilidades sin puntos). El borrador en memoria se omite; lo guardado en el Nexo no cambia hasta el próximo sellado.",
+        "¿Restablecer la plantilla CODEX a cero? Se borran titular del CV, concepto y todo el reparto hasta el estado base (atributos en punto base gris; habilidades sin puntos). El borrador en memoria se omite; lo guardado en el Nexo no cambia hasta el próximo sellado.",
       )
     ) {
       return;
@@ -408,7 +408,7 @@ export function CharacterCreation({ initial, onSave }: Props) {
         <section className="divide-y divide-[#161616] border border-[#161616] bg-black/20">
           <div className="grid gap-4 p-4 md:grid-cols-12">
             <div className="md:col-span-4">
-              <label className="text-[9px] uppercase tracking-widest text-neutral-600">&gt;_OPERADOR</label>
+              <label className="text-[9px] uppercase tracking-widest text-neutral-600">&gt;_CV · NOMBRE</label>
               <input
                 value={sheet.name}
                 onChange={(e) => setSheet((s) => ({ ...s, name: e.target.value }))}
@@ -561,7 +561,7 @@ export function CharacterCreation({ initial, onSave }: Props) {
                   title={
                     canRollRandomMatrix
                       ? "Llena la matriz al azar según el reglamento (con nombre y linaje ya indicados)."
-                      : "Primero escribe el nombre del operador."
+                      : "Primero escribe el nombre en el CV."
                   }
                   onClick={applyRandomMatrix}
                   className={`shrink-0 border px-4 py-2 font-mono text-[9px] uppercase tracking-[0.18em] transition-colors ${canRollRandomMatrix ? "border-neutral-700 text-neutral-300 hover:border-[var(--clan-accent)] hover:text-neutral-200" : "cursor-not-allowed border-neutral-800 text-neutral-600"}`}

@@ -314,7 +314,7 @@ function CronistaAppInner() {
     if (!selectProfile(id)) return;
     applyGlobalsToUi(setSheet, setSheetLocked, setLogs, refreshXpLog);
     setPhase("nexus");
-    pushLog({ role: "sistema", text: `[PERFIL]: ${loadSheet()?.name || id}` });
+    pushLog({ role: "sistema", text: `[CV]: ${loadSheet()?.name || id}` });
   };
 
   const startBlankSheet = () => {
@@ -461,7 +461,7 @@ function CronistaAppInner() {
               onClick={goToProfileHub}
               className="border border-[#2a2a2a] px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-500 hover:border-neutral-600 hover:text-neutral-400"
             >
-              PERFILES
+              REGISTRO CV
             </button>
             <button
               type="button"

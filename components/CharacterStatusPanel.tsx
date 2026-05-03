@@ -33,7 +33,7 @@ export function CharacterStatusPanel({
   return (
     <aside className="flex h-full flex-col gap-5 border-[#161616] bg-black/30 p-3 font-mono text-[10px] text-neutral-500 lg:w-64 lg:shrink-0">
       <div>
-        <p className="text-[9px] uppercase tracking-[0.38em] text-neutral-700">{"//_OPERADOR"}</p>
+        <p className="text-[9px] uppercase tracking-[0.38em] text-neutral-700">{"//_CV"}</p>
         <p className="mt-2 font-sans text-sm tracking-tight text-neutral-300">{sheet.name || "—"}</p>
         <p className={`mt-1 text-[10px] ${sheet.antitribu ? "line-through opacity-55" : ""}`} style={{ color: accent }}>
           {linajeLabel}

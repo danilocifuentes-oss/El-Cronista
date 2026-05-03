@@ -15,13 +15,25 @@ export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout 
   return (
     <div className="relative flex min-h-screen flex-col bg-[#050505] px-4 py-10 font-mono text-neutral-300 crt-wrap techno-grid">
       <div className="mx-auto w-full max-w-lg space-y-8">
-        <header className="space-y-2 border-b border-[#161616] pb-6">
+        <header className="space-y-4 border-b border-[#161616] pb-6">
           <p className="text-[10px] uppercase tracking-[0.35em] text-[var(--terminal)]/90">SCHRECK_NET</p>
-          <h1 className="text-sm font-semibold uppercase tracking-[0.2em] text-neutral-200">Índice de operadores</h1>
-          <p className="text-[10px] leading-relaxed text-neutral-600">
-            Elige un personaje guardado en este dispositivo, crea uno nuevo en blanco o vuelve al login para otra
-            sesión. Cada perfil conserva hoja, bitácora y auditoría por separado (MVP local).
-          </p>
+          <h1 className="text-sm font-semibold uppercase tracking-[0.2em] text-neutral-200">Índice Codex V</h1>
+          <div className="relative overflow-hidden border border-[#1c1c1c] bg-gradient-to-r from-black/80 via-[#0a0a0a] to-black/80 px-3 py-2.5 sharp-border-inner">
+            <div
+              className="pointer-events-none absolute inset-0 opacity-[0.12]"
+              style={{
+                backgroundImage:
+                  "repeating-linear-gradient(90deg, transparent, transparent 2px, var(--terminal) 2px, var(--terminal) 3px)",
+              }}
+            />
+            <div className="relative flex items-center gap-2.5">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--terminal)]/40" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--terminal)]/90" />
+              </span>
+              <p className="text-[9px] uppercase tracking-[0.28em] text-neutral-500">CV · canal local · no remoto</p>
+            </div>
+          </div>
         </header>
 
         <div className="flex flex-wrap gap-2">
@@ -31,7 +43,7 @@ export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout 
             onClick={onNewSheetBlank}
             className="border border-[var(--terminal)]/40 bg-neutral-950/80 px-4 py-2.5 text-[9px] font-semibold uppercase tracking-[0.28em] text-[var(--terminal)] sharp-border-inner hover:bg-[var(--terminal)]/10"
           >
-            + Tabla en blanco
+            Nuevo registro
           </motion.button>
           <motion.button
             type="button"
@@ -44,10 +56,10 @@ export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout 
         </div>
 
         <section className="space-y-3">
-          <p className="text-[9px] uppercase tracking-[0.32em] text-neutral-600">Personajes guardados</p>
+          <p className="text-[9px] uppercase tracking-[0.32em] text-neutral-600">Últimos Vástagos Registrados</p>
           {profiles.length === 0 ? (
             <p className="border border-[#161616] bg-black/40 px-4 py-6 text-[10px] text-neutral-600">
-              [VACÍO] · Usa «Tabla en blanco» para abrir el CODEX sin datos previos.
+              [SIN_REGISTROS] · Pulsa «Nuevo registro» para abrir un CV vacío en el CODEX.
             </p>
           ) : (
             <ul className="space-y-2">
