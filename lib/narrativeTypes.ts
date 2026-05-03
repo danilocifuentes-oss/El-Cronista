@@ -6,6 +6,8 @@ export type NarrativeLogEntry = {
   role: NarrativeRole;
   text: string;
   ts: number;
+  /** Respuesta del motor Cronista (MANIFESTAR): estilo terminal degradado */
+  cronistaOut?: boolean;
 };
 
 export type NarradorRecentLine = {

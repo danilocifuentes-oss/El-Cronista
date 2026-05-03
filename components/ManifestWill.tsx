@@ -5,17 +5,18 @@ import { useMemo, useState } from "react";
 import type { CharacterSheet } from "@/lib/character";
 import { ATTRIBUTE_KEYS } from "@/lib/character";
 import { SERENO_SKILLS } from "@/lib/sereno";
-import { rollPoolV5, summarizeRollNarrator, outcomeCode, type PlayerOutcomeLabel } from "@/lib/dice";
+import { rollPoolV5, summarizeRollNarrator, outcomeCode, type PlayerOutcomeLabel, type V5RollResult } from "@/lib/dice";
 import { useGameSession } from "@/context/GameSessionContext";
 
 type Props = {
   sheet: CharacterSheet;
   hungerLevel: number;
   accent: string;
-  onResolve: (narratorLine: string, playerFacing: PlayerOutcomeLabel) => void;
+  onManifest: (payload: { roll: V5RollResult; intent: string; ledgerLine: string }) => void | Promise<void>;
+  isProcessing?: boolean;
 };
 
-export function ManifestWill({ sheet, hungerLevel, accent, onResolve }: Props) {
+export function ManifestWill({ sheet, hungerLevel, accent, onManifest, isProcessing }: Props) {
   const { isNarrator, rollDifficulty, setRollDifficulty } = useGameSession();
 
   const [attrKey, setAttrKey] = useState<(typeof ATTRIBUTE_KEYS)[number]["key"]>("wit");
@@ -23,6 +24,7 @@ export function ManifestWill({ sheet, hungerLevel, accent, onResolve }: Props) {
     SERENO_SKILLS.find((sk) => sk.key === "tecnologia")?.key ?? SERENO_SKILLS[0].key,
   );
   const [lastPlayerLabel, setLastPlayerLabel] = useState<PlayerOutcomeLabel | null>(null);
+  const [intent, setIntent] = useState("");
 
   const pool = useMemo(() => {
     const a = sheet.attributes[attrKey];
@@ -34,18 +36,33 @@ export function ManifestWill({ sheet, hungerLevel, accent, onResolve }: Props) {
 
   function manifest(e: React.FormEvent) {
     e.preventDefault();
+    if (isProcessing) return;
     const r = rollPoolV5(pool, hungerDicePool, rollDifficulty);
     const ledger = summarizeRollNarrator(r);
     const detail = `[MANIFEST]: sujeto emite voluntad · ${attrKey}+${skillKey} · pool:${pool}(Σh:${hungerDicePool}) · DF:${rollDifficulty} · ${ledger}`;
     setLastPlayerLabel(r.outcome);
-    onResolve(detail, r.outcome);
+    void onManifest({ roll: r, intent: intent.trim(), ledgerLine: detail });
   }
 
   return (
     <section className="relative mt-6 border border-[#161616] bg-black/30 p-4 font-mono text-[10px] text-neutral-500">
       <header className="mb-4 border-b border-[#161616] pb-3 font-mono text-[9px] uppercase tracking-[0.32em] text-neutral-600">
-        {"//_VOLUNTAD"}
+        {"//_VOLUNTAD · MOTOR_CRONISTA"}
       </header>
+
+      <label className="mb-3 block">
+        <span className="text-[9px] uppercase tracking-wider text-neutral-600" style={{ color: accent }}>
+          &gt;_INTENCIÓN (opcional — contexto para el Cronista)
+        </span>
+        <textarea
+          value={intent}
+          onChange={(e) => setIntent(e.target.value)}
+          disabled={isProcessing}
+          rows={2}
+          placeholder="// foco de escena, tono, objetivo inmediato..."
+          className="mt-1.5 w-full resize-none border border-[#161616] bg-black/50 px-2 py-2 text-[10px] text-neutral-400 focus:border-[var(--terminal)]/35 focus:outline-none disabled:opacity-45"
+        />
+      </label>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1">
@@ -55,7 +72,8 @@ export function ManifestWill({ sheet, hungerLevel, accent, onResolve }: Props) {
           <select
             value={attrKey}
             onChange={(e) => setAttrKey(e.target.value as keyof CharacterSheet["attributes"])}
-            className="cursor-pointer border border-[#161616] bg-black/60 px-2 py-2 text-neutral-400 focus:border-[var(--terminal)]/40 focus:outline-none"
+            disabled={isProcessing}
+            className="cursor-pointer border border-[#161616] bg-black/60 px-2 py-2 text-neutral-400 focus:border-[var(--terminal)]/40 focus:outline-none disabled:opacity-45"
           >
             {ATTRIBUTE_KEYS.map((a) => (
               <option key={a.key} value={a.key}>
@@ -71,7 +89,8 @@ export function ManifestWill({ sheet, hungerLevel, accent, onResolve }: Props) {
           <select
             value={skillKey}
             onChange={(e) => setSkillKey(e.target.value)}
-            className="cursor-pointer border border-[#161616] bg-black/60 px-2 py-2 text-neutral-400 focus:border-[var(--terminal)]/40 focus:outline-none"
+            disabled={isProcessing}
+            className="cursor-pointer border border-[#161616] bg-black/60 px-2 py-2 text-neutral-400 focus:border-[var(--terminal)]/40 focus:outline-none disabled:opacity-45"
           >
             {SERENO_SKILLS.map(({ key, label }) => (
               <option key={key} value={key}>
@@ -87,7 +106,7 @@ export function ManifestWill({ sheet, hungerLevel, accent, onResolve }: Props) {
           VECTOR:{pool} · N:{Math.max(0, pool - hungerDicePool)} · Σh:{hungerDicePool}
         </p>
       ) : (
-        <p className="mt-3 border border-[#161616] bg-black/40 px-2 py-1.5 opacity-75">[&gt;_EN_COLA_PIPELINE]</p>
+        <p className="mt-3 border border-[#161616] bg-black/40 px-2 py-1.5 opacity-75">[&gt;_PIPE_LOCAL]</p>
       )}
 
       {isNarrator && (
@@ -99,21 +118,28 @@ export function ManifestWill({ sheet, hungerLevel, accent, onResolve }: Props) {
             max={8}
             value={rollDifficulty}
             onChange={(e) => setRollDifficulty(Number(e.target.value))}
-            className="border border-[#161616] bg-black/60 px-2 py-1.5 text-neutral-300 focus:outline-none"
+            disabled={isProcessing}
+            className="border border-[#161616] bg-black/60 px-2 py-1.5 text-neutral-300 focus:outline-none disabled:opacity-45"
           />
         </label>
       )}
 
-      <form onSubmit={manifest} className="mt-5 flex justify-center">
+      <form onSubmit={manifest} className="mt-5 flex flex-col items-center gap-2">
         <motion.button
           type="submit"
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-          className="border px-14 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.4em]"
+          disabled={isProcessing}
+          whileHover={{ scale: isProcessing ? 1 : 1.01 }}
+          whileTap={{ scale: isProcessing ? 1 : 0.99 }}
+          className="border px-14 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.4em] disabled:opacity-45"
           style={{ borderColor: accent, color: accent, boxShadow: `inset 0 0 18px ${accent}26` }}
         >
           MANIFESTAR
         </motion.button>
+        {isProcessing ? (
+          <p className="animate-pulse font-mono text-[9px] uppercase tracking-[0.35em] text-[var(--terminal)]">
+            PROCESANDO<span className="inline-block w-3 animate-pulse">█</span>
+          </p>
+        ) : null}
       </form>
 
       <div className="mt-4 border-t border-[#161616] pt-4">

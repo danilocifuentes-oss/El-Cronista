@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   CLAN_ACCENTS,
   emptySheet,
@@ -38,7 +38,8 @@ import { ManifestWill } from "./ManifestWill";
 import { ForcedDestinyOverlay } from "./ForcedDestinyOverlay";
 import { SerenoFooter } from "./SerenoFooter";
 import { TechnicalHud } from "./TechnicalHud";
-import { outcomeCode } from "@/lib/dice";
+import { streamCronistaMotorWithFallback } from "@/lib/cronistaClient";
+import { serializeV5Roll, type V5RollResult } from "@/lib/dice";
 import {
   createBlankProfile,
   getActiveProfileId,
@@ -112,6 +113,9 @@ function CronistaAppInner() {
     typeof window === "undefined" ? false : loadMeta().sheetLocked,
   );
   const [logs, setLogs] = useState<NarrativeLogEntry[]>(() => [BOOT_STREAM]);
+  const logsRef = useRef(logs);
+  const [beastPulse, setBeastPulse] = useState(false);
+  const [cronistaProcessing, setCronistaProcessing] = useState(false);
   const [composer, setComposer] = useState("");
   const [adminOpen, setAdminOpen] = useState(false);
   const [inquisitionThreat, setInquisitionThreat] = useState(2);
@@ -137,6 +141,10 @@ function CronistaAppInner() {
   const refreshXpLog = useCallback(() => setXpLog(loadXpLog()), []);
 
   useEffect(() => {
+    logsRef.current = logs;
+  }, [logs]);
+
+  useEffect(() => {
     const saved = loadNarrativeLog();
     if (saved.length === 0) return;
     queueMicrotask(() => {
@@ -153,6 +161,12 @@ function CronistaAppInner() {
         : 60,
     );
   }, [phase, setFamineIntervalMinutesCtx]);
+
+  useEffect(() => {
+    if (!beastPulse) return;
+    const t = window.setTimeout(() => setBeastPulse(false), 14000);
+    return () => window.clearTimeout(t);
+  }, [beastPulse]);
 
   const handleSheetMutation = useCallback(
     (next: CharacterSheet, logLine?: string) => {
@@ -232,6 +246,7 @@ function CronistaAppInner() {
       ts: part.ts ?? Date.now(),
       role: part.role,
       text: part.text,
+      ...(part.cronistaOut ? { cronistaOut: true } : {}),
     };
     setLogs((prev) => {
       const next = [...prev, entry];
@@ -281,6 +296,60 @@ function CronistaAppInner() {
     setAdminOpen(false);
   };
 
+  const handleManifestMotor = useCallback(
+    async ({ roll, intent, ledgerLine }: { roll: V5RollResult; intent: string; ledgerLine: string }) => {
+      pushLog({ role: "sistema", text: ledgerLine });
+      if (roll.fracasoBestial || sheet.hunger >= 5) setBeastPulse(true);
+
+      const streamId = uid();
+      setCronistaProcessing(true);
+      setLogs((prev) => [
+        ...prev,
+        { id: streamId, role: "narrador", text: "", ts: Date.now(), cronistaOut: true },
+      ]);
+
+      const recentLogs = [...logsRef.current.map(({ role, text }) => ({ role, text })), { role: "sistema", text: ledgerLine }].slice(
+        -20,
+      );
+
+      try {
+        let acc = "";
+        await streamCronistaMotorWithFallback(
+          {
+            codex: sheet,
+            tirada: serializeV5Roll(roll),
+            hambre: sheet.hunger,
+            input: intent,
+            recentLogs,
+          },
+          (delta) => {
+            acc += delta;
+            setLogs((prev) => prev.map((e) => (e.id === streamId ? { ...e, text: acc } : e)));
+          },
+        );
+        const finalText = acc.trim() || "[SILENCIO_CRONISTA]";
+        setLogs((prev) => {
+          const next = prev.map((e) => (e.id === streamId ? { ...e, text: finalText } : e));
+          saveNarrativeLog(next);
+          queueMicrotask(() => {
+            const aid = getActiveProfileId();
+            if (aid) syncActiveBundleFromGlobals(aid);
+          });
+          return next;
+        });
+      } catch (e) {
+        setLogs((prev) => prev.filter((e) => e.id !== streamId));
+        pushLog({
+          role: "sistema",
+          text: `[CRONISTA_ERR]: ${e instanceof Error ? e.message : String(e)}`,
+        });
+      } finally {
+        setCronistaProcessing(false);
+      }
+    },
+    [sheet],
+  );
+
   const tweakRemoteSimulation = () => {
     if (!isNarrator) return;
     handleSheetMutation({ ...sheet, hunger: Math.min(5, sheet.hunger + 1) }, "[SIM]: Σh+1");
@@ -297,8 +366,10 @@ function CronistaAppInner() {
     refreshXpLog();
   };
 
-  const mainFrameClass =
-    sheet.hunger >= 5 ? "flex min-h-screen flex-col crt-wrap ravenous-frame" : "flex min-h-screen flex-col crt-wrap";
+  const ravenousVisual = sheet.hunger >= 5 || beastPulse;
+  const mainFrameClass = ravenousVisual
+    ? "flex min-h-screen flex-col crt-wrap ravenous-frame"
+    : "flex min-h-screen flex-col crt-wrap";
 
   const goToLogin = () => {
     persistActiveProfile();
@@ -490,22 +561,15 @@ function CronistaAppInner() {
             onComposer={setComposer}
             onSend={sendPlayer}
             accent={accent}
+            processing={cronistaProcessing}
           />
           <ManifestWill
             key={`${sheet.hunger}-${sheet.name}`}
             sheet={sheet}
             hungerLevel={sheet.hunger}
             accent={accent}
-            onResolve={(narratorLine, playerLabel) => {
-              if (isNarrator) {
-                pushLog({ role: "sistema", text: narratorLine });
-              } else {
-                pushLog({
-                  role: "sistema",
-                  text: `[EVENTO_MANIFEST]: canal narrativo cerrado · dificultad oculta · ${outcomeCode(playerLabel)}`,
-                });
-              }
-            }}
+            onManifest={handleManifestMotor}
+            isProcessing={cronistaProcessing}
           />
         </div>
 
@@ -526,7 +590,7 @@ function CronistaAppInner() {
         command={mjCmd}
         onCommand={setMjCmd}
         onEmitCommand={emitMj}
-        remoteSheetHint="//_PERSIST: hoja y bitácora en localStorage. Narrador: POST /api/narrador (Gemini) — clave en .env.local"
+        remoteSheetHint="//_PERSIST: local · TX→/api/narrador · MANIFESTAR→/api/cronista (Gemini)"
         onStressHunger={tweakRemoteSimulation}
         onForcedFrenesy={() => requestForcedRoll("frenesy", rollDifficulty)}
         onForcedRage={() => requestForcedRoll("enardecimiento", rollDifficulty)}

@@ -11,14 +11,21 @@ type Props = {
   onComposer: (v: string) => void;
   onSend: () => void;
   accent: string;
+  processing?: boolean;
 };
 
-export function NarrativeFlow({ logs, composer, onComposer, onSend, accent }: Props) {
+export function NarrativeFlow({ logs, composer, onComposer, onSend, accent, processing }: Props) {
   return (
     <section className="flex min-h-0 flex-1 flex-col border border-[#161616] bg-black/25 lg:min-h-[320px]">
       <header className="shrink-0 border-b border-[#161616] px-4 py-2 font-mono text-[9px] uppercase tracking-[0.32em]" style={{ color: accent }}>
         {"//_STREAM"}
       </header>
+      {processing ? (
+        <div className="shrink-0 border-b border-[var(--terminal)]/15 bg-black/40 px-4 py-1.5 font-mono text-[9px] uppercase tracking-[0.35em] text-[var(--terminal)]/85">
+          <span className="animate-pulse">PROCESANDO</span>
+          <span className="ml-1 inline-block min-w-[0.6rem] animate-pulse">█</span>
+        </div>
+      ) : null}
       <div className="min-h-[200px] flex-1 overflow-y-auto space-y-3 px-4 py-3">
         <AnimatePresence mode="popLayout">
           {logs.map((entry) => (
@@ -31,7 +38,9 @@ export function NarrativeFlow({ logs, composer, onComposer, onSend, accent }: Pr
                 entry.role === "sistema"
                   ? "text-neutral-600"
                   : entry.role === "narrador"
-                    ? "border-l border-[#252525] pl-3 text-neutral-500"
+                    ? entry.cronistaOut
+                      ? "border-l border-[var(--terminal)]/25 pl-3"
+                      : "border-l border-[#252525] pl-3 text-neutral-500"
                     : "text-neutral-400"
               }`}
             >
@@ -40,7 +49,15 @@ export function NarrativeFlow({ logs, composer, onComposer, onSend, accent }: Pr
                   <span className="mr-2 text-[8px] uppercase text-neutral-700">
                     {entry.role === "jugador" ? "//_IN" : "//_OUT"}
                   </span>
-                  <span className="whitespace-pre-wrap">{entry.text}</span>
+                  <span
+                    className={
+                      entry.role === "narrador" && entry.cronistaOut
+                        ? "cronista-out-text whitespace-pre-wrap"
+                        : "whitespace-pre-wrap"
+                    }
+                  >
+                    {entry.text}
+                  </span>
                 </>
               ) : (
                 <span className="whitespace-pre-wrap text-[var(--terminal)]/55">{entry.text}</span>

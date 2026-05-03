@@ -29,7 +29,8 @@ export async function GET() {
     geminiConfigured,
     endpoints: {
       health: "GET /api/health",
-      narrador: "POST /api/narrador (requiere GEMINI_API_KEY en el servidor)",
+      narrador: "POST /api/narrador (canal TX — requiere GEMINI_API_KEY)",
+      cronista: "POST /api/cronista (MANIFESTAR — stream o JSON; misma clave)",
     },
     ejemploPostNarrador: {
       url: "/api/narrador",

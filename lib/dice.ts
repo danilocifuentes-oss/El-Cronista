@@ -110,3 +110,32 @@ export function summarizeRollNarrator(r: V5RollResult): string {
   const nm = marks.length ? `${marks.join("")} ` : "";
   return `[TRACE:N:${r.normalDice.join("|") || "∅"}│H:${r.hungerDice.join("|") || "∅"}] XS:${r.successes}/${r.difficulty} ${nm}${outcomeCode(r.outcome)}`.trimEnd();
 }
+
+/** Tirada serializable para POST `/api/cronista` (sin referencias circulares). */
+export type SerializedV5Roll = {
+  successes: number;
+  difficulty: number;
+  passed: boolean;
+  margin: number;
+  criticalNormal: boolean;
+  messyCritical: boolean;
+  fracasoBestial: boolean;
+  outcome: PlayerOutcomeLabel;
+  traceNormal: number[];
+  traceHunger: number[];
+};
+
+export function serializeV5Roll(r: V5RollResult): SerializedV5Roll {
+  return {
+    successes: r.successes,
+    difficulty: r.difficulty,
+    passed: r.passed,
+    margin: r.margin,
+    criticalNormal: r.criticalNormal,
+    messyCritical: r.messyCritical,
+    fracasoBestial: r.fracasoBestial,
+    outcome: r.outcome,
+    traceNormal: [...r.normalDice],
+    traceHunger: [...r.hungerDice],
+  };
+}

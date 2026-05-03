@@ -20,11 +20,13 @@ function parseLogs(raw: unknown): NarrativeLogEntry[] {
     ) {
       const role = (row as NarrativeLogEntry).role;
       if (role === "narrador" || role === "jugador" || role === "sistema") {
+        const cronistaOut = Boolean((row as NarrativeLogEntry).cronistaOut);
         out.push({
           id: (row as NarrativeLogEntry).id,
           role,
           text: (row as NarrativeLogEntry).text,
           ts: (row as NarrativeLogEntry).ts,
+          ...(cronistaOut ? { cronistaOut: true } : {}),
         });
       }
     }
