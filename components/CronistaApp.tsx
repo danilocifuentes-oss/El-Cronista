@@ -1,6 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { fetchCampaignTail, pushCampaignEntry } from "@/lib/campaignClient";
+import {
+  loadCampaignSyncSettings,
+  saveCampaignSyncSettings,
+  type CampaignSyncSettings,
+} from "@/lib/campaignLocalSettings";
+import { mergeCampaignIntoLog, recentLinesFromCampaign } from "@/lib/campaignMerge";
+import { normalizeCampaignId, normalizePlayerTag } from "@/lib/campaignTypes";
 import {
   CLAN_ACCENTS,
   CLAN_OPTIONS,
@@ -45,11 +53,12 @@ import {
 import { formatWorldNexusPromptBlock, ingestRollingSummary, loadNexusWorldState, saveNexusWorldState } from "@/lib/nexusWorldState";
 import { formatNexoApiFailure } from "@/lib/nexoErrors";
 import { buildSheetSummaryLite } from "@/lib/sheetSummary";
-import type { NarrativeLogEntry } from "@/lib/narrativeTypes";
+import type { NarrativeLogEntry, NarradorRecentLine } from "@/lib/narrativeTypes";
 import { CharacterCreation } from "./CharacterCreation";
 import { CharacterStatusPanel } from "./CharacterStatusPanel";
 import type { ConclaveMate } from "./ConclavePanel";
 import { ConclavePanel } from "./ConclavePanel";
+import { CampaignSyncBar } from "./CampaignSyncBar";
 import { AdminConsole } from "./AdminConsole";
 import { NarrativeFlow } from "./NarrativeFlow";
 import { SidebarMesa } from "./SidebarMesa";
@@ -164,6 +173,11 @@ function CronistaAppInner() {
   const [impulseRev, setImpulseRev] = useState(0);
   /** Invalida paneles que leen `nexusWorldState` tras contestar el narrador. */
   const [worldRev, setWorldRev] = useState(0);
+  /** Multimesa: mismo `campaignId` + Upstash fusiona turnos en el hilo activo. */
+  const [campaignSync, setCampaignSync] = useState<CampaignSyncSettings>(() => loadCampaignSyncSettings());
+  const [remoteCampaignStore, setRemoteCampaignStore] = useState(false);
+  const campaignSyncRef = useRef(campaignSync);
+  campaignSyncRef.current = campaignSync;
   const [ideasRepo, setIdeasRepo] = useState("");
   const [activeStrand, setActiveStrand] = useState<NarrativeStrand>(() =>
     typeof window === "undefined" ? "principal" : loadActiveStrand(),
@@ -232,6 +246,52 @@ function CronistaAppInner() {
   useEffect(() => {
     logsRef.current = logs;
   }, [logs]);
+
+  /** Detecta Upstash en servidor (GET devuelve storeDisabled: false). */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/campaign/entry?campaignId=nexo-ping-store&strand=principal&limit=1`, {
+          cache: "no-store",
+        });
+        const j = (await res.json()) as { storeDisabled?: boolean };
+        if (!cancelled && res.ok && j.storeDisabled === false) setRemoteCampaignStore(true);
+      } catch {
+        /* solo-local */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** Fusiona turnos remotos en el buffer local (mismo id-sala + hilo). */
+  useEffect(() => {
+    if (!campaignSync.enabled) return;
+    const cid = normalizeCampaignId(campaignSync.campaignId);
+    if (!cid) return;
+
+    const run = async () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      const { entries } = await fetchCampaignTail(cid, activeStrand, 48);
+      if (!entries.length) return;
+      setLogs((prev) => {
+        const merged = mergeCampaignIntoLog(prev, entries);
+        if (merged.length === prev.length) return prev;
+        saveNarrativeLog(merged);
+        queueMicrotask(() => {
+          const aid = getActiveProfileId();
+          if (aid) syncActiveBundleFromGlobals(aid);
+        });
+        return merged;
+      });
+    };
+
+    void run();
+    const id = window.setInterval(() => void run(), 32000);
+    return () => window.clearInterval(id);
+  }, [campaignSync.enabled, campaignSync.campaignId, activeStrand]);
 
   useEffect(() => {
     setIdeasRepo(loadIdeasRepository());
@@ -430,10 +490,10 @@ function CronistaAppInner() {
     return () => window.clearInterval(id);
   }, [refreshXpLog]);
 
-  function pushLog(part: Omit<NarrativeLogEntry, "id" | "ts"> & { ts?: number }) {
+  function pushLog(part: Omit<NarrativeLogEntry, "id" | "ts"> & { ts?: number; id?: string }) {
     const strand = part.strand ?? activeStrandRef.current;
     const entry: NarrativeLogEntry = {
-      id: uid(),
+      id: part.id?.trim() ? part.id.trim() : uid(),
       ts: part.ts ?? Date.now(),
       role: part.role,
       text: part.text,
@@ -499,13 +559,35 @@ function CronistaAppInner() {
     const t = composer.trim();
     if (!t) return;
     setComposer("");
-    pushLog({ role: "jugador", text: t });
+    const playerMsgId = uid();
+    pushLog({ id: playerMsgId, role: "jugador", text: t });
 
     const strand = activeStrandRef.current;
     const prior = recentLinesForStrand(logs, strand, 4);
-    const recentLogs = [...prior, { role: "jugador" as const, text: t }].slice(-5);
-      const cross = buildCrossStrandContext(strand, loadRollingByStrand());
-      const worldNexusContext = formatWorldNexusPromptBlock(loadNexusWorldState(), strand);
+    const cmp = campaignSync;
+    const cid = normalizeCampaignId(cmp.campaignId);
+    const tag = normalizePlayerTag(cmp.playerTag || sheet.name?.trim() || "PJ") || "PJ";
+
+    let recentLogs: NarradorRecentLine[];
+    if (cmp.enabled && cid && remoteCampaignStore) {
+      await pushCampaignEntry({
+        campaignId: cid,
+        playerTag: tag,
+        strand,
+        role: "jugador",
+        text: t,
+        id: playerMsgId,
+        ts: Date.now(),
+      });
+      const { entries } = await fetchCampaignTail(cid, strand, 32);
+      const fromCamp = recentLinesFromCampaign(entries, strand, 6);
+      recentLogs = fromCamp.length ? fromCamp : [...prior, { role: "jugador" as const, text: t }].slice(-5);
+    } else {
+      recentLogs = [...prior, { role: "jugador" as const, text: t }].slice(-5);
+    }
+
+    const cross = buildCrossStrandContext(strand, loadRollingByStrand());
+    const worldNexusContext = formatWorldNexusPromptBlock(loadNexusWorldState(), strand);
 
     try {
       const out = await askCronista({
@@ -522,11 +604,24 @@ function CronistaAppInner() {
         crossStrandContext: cross.trim() || undefined,
         worldNexusContext,
       });
+      const narrId = uid();
       pushLog({
+        id: narrId,
         role: "narrador",
         text: out.narration,
         ...(out.suggestions?.length ? { suggestions: out.suggestions } : {}),
       });
+      if (cmp.enabled && cid && remoteCampaignStore) {
+        void pushCampaignEntry({
+          campaignId: cid,
+          playerTag: tag,
+          strand,
+          role: "narrador",
+          text: out.narration.slice(0, 4500),
+          id: narrId,
+          ts: Date.now(),
+        });
+      }
       if (out.rollingSummary) saveRollingSummary(out.rollingSummary);
       saveNexusWorldState(ingestRollingSummary(loadNexusWorldState(), out.rollingSummary));
       setWorldRev((n) => n + 1);
@@ -624,6 +719,20 @@ function CronistaAppInner() {
           });
           return next;
         });
+        const cmp = campaignSyncRef.current;
+        const cid = normalizeCampaignId(cmp.campaignId);
+        const tag = normalizePlayerTag(cmp.playerTag || sheet.name?.trim() || "PJ") || "PJ";
+        if (remoteCampaignStore && cmp.enabled && cid) {
+          void pushCampaignEntry({
+            campaignId: cid,
+            playerTag: tag,
+            strand,
+            role: "narrador",
+            text: finalText.slice(0, 4500),
+            id: streamId,
+            ts: Date.now(),
+          });
+        }
       } catch (e) {
         setLogs((prev) => prev.filter((e) => e.id !== streamId));
         pushLog({
@@ -634,7 +743,7 @@ function CronistaAppInner() {
         setCronistaProcessing(false);
       }
     },
-    [sheet, ideasRepo, isNarrator],
+    [sheet, ideasRepo, isNarrator, remoteCampaignStore],
   );
 
   const tweakRemoteSimulation = () => {
@@ -921,6 +1030,15 @@ function CronistaAppInner() {
           </div>
         </div>
       </header>
+
+      <CampaignSyncBar
+        value={campaignSync}
+        onChange={(next) => {
+          saveCampaignSyncSettings(next);
+          setCampaignSync(next);
+        }}
+        remoteStoreReady={remoteCampaignStore}
+      />
 
       <div className="flex min-h-0 flex-1 flex-col xl:flex-row xl:items-stretch">
         <SidebarMesa

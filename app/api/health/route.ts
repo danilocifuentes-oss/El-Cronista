@@ -72,6 +72,8 @@ export async function GET() {
       cronista: "POST /api/cronista — mismo pipeline que narrador",
       pulsoMundo: "POST /api/pulso-mundo — bitácora (mismo criterio de APIs / interno)",
       operatorSettings: "POST /api/operator-settings — clave 245285 · action get|save",
+      campaignEntry:
+        "GET|POST /api/campaign/entry — cola mesa multijugador (requiere UPSTASH_REDIS_REST_URL + TOKEN en servidor)",
     },
     ejemploPostNarrador: {
       url: "/api/narrador",
