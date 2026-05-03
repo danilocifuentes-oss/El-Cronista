@@ -39,12 +39,18 @@ type BackoffOpts = {
   maxAttempts: number;
   baseDelayMs: number;
   label: string;
+  /**
+   * Techo por espera ante 429 (ms). En serverless (Vercel) hay que evitar sumar > maxDuration.
+   * Por defecto 10s; antes se usaba hasta 55s e ilimitado con 4 intentos → fácil superar 60s.
+   */
+  capWaitMs?: number;
 };
 
 /**
  * Reintento con backoff exponencial; si el error incluye "retry in Xs", respeta un techo razonable.
  */
 export async function withExponentialBackoff<T>(fn: () => Promise<T>, opts: BackoffOpts): Promise<T> {
+  const cap = opts.capWaitMs ?? 10_000;
   let lastErr: unknown;
   for (let attempt = 0; attempt < opts.maxAttempts; attempt++) {
     try {
@@ -56,7 +62,7 @@ export async function withExponentialBackoff<T>(fn: () => Promise<T>, opts: Back
       const msg = e instanceof Error ? e.message : String(e);
       const hint = parseRetryDelayMs(msg);
       const exp = opts.baseDelayMs * Math.pow(2, attempt);
-      const waitMs = Math.min(55000, hint ?? exp);
+      const waitMs = Math.min(cap, Math.min(55_000, hint ?? exp));
       console.warn(`[gemini:${opts.label}] 429/cuota · intento ${attempt + 1}/${opts.maxAttempts} · espera ${waitMs}ms`);
       await sleep(waitMs);
     }

@@ -20,7 +20,7 @@ import type { CharacterSheet } from "@/lib/character";
 import type { SerializedV5Roll } from "@/lib/dice";
 
 export const runtime = "nodejs";
-export const maxDuration = 90;
+export const maxDuration = 120;
 
 const MAX_INPUT = 3500;
 /** Contexto reciente acotado (tokens). */
@@ -277,17 +277,19 @@ export async function POST(req: Request) {
       let streamResult: Awaited<ReturnType<typeof streamGenerate>>;
       try {
         streamResult = await withExponentialBackoff(() => streamGenerate(primary), {
-          maxAttempts: 3,
-          baseDelayMs: 2000,
+          maxAttempts: 2,
+          baseDelayMs: 1200,
           label: primary,
+          capWaitMs: 10_000,
         });
       } catch (e1) {
         if (!isQuotaOrRateLimitError(e1) || primary === fallback) throw e1;
         console.warn("[api/cronista stream] fallback →", fallback);
         streamResult = await withExponentialBackoff(() => streamGenerate(fallback), {
-          maxAttempts: 3,
-          baseDelayMs: 2000,
+          maxAttempts: 2,
+          baseDelayMs: 1200,
           label: fallback,
+          capWaitMs: 10_000,
         });
       }
 
@@ -326,17 +328,19 @@ export async function POST(req: Request) {
     let result: Awaited<ReturnType<typeof jsonGenerate>>;
     try {
       result = await withExponentialBackoff(() => jsonGenerate(primary), {
-        maxAttempts: 3,
-        baseDelayMs: 1800,
+        maxAttempts: 2,
+        baseDelayMs: 1200,
         label: primary,
+        capWaitMs: 10_000,
       });
     } catch (e1) {
       if (!isQuotaOrRateLimitError(e1) || primary === fallback) throw e1;
       console.warn("[api/cronista json] fallback →", fallback);
       result = await withExponentialBackoff(() => jsonGenerate(fallback), {
-        maxAttempts: 3,
-        baseDelayMs: 1800,
+        maxAttempts: 2,
+        baseDelayMs: 1200,
         label: fallback,
+        capWaitMs: 10_000,
       });
     }
 

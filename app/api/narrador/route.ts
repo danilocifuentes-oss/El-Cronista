@@ -18,7 +18,8 @@ import { isNarrativeStrand, STRAND_LABEL, type NarrativeStrand } from "@/lib/nar
 import type { ChroniclePayload, NarradorRequestBody } from "@/lib/narrativeTypes";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+/** Vercel: por defecto el route debe terminar antes del timeout de la plataforma (504). Hobby suele topar en 10–60s según plan; Pro permite hasta 300s. */
+export const maxDuration = 120;
 
 const MAX_ACTION = 4500;
 const MAX_LINE = 1800;
@@ -256,14 +257,14 @@ export async function POST(req: Request) {
     try {
       parsed = await withExponentialBackoff(
         () => generateNarradorJson(genAI, primary, userPrompt),
-        { maxAttempts: 4, baseDelayMs: 1800, label: primary },
+        { maxAttempts: 2, baseDelayMs: 1200, label: primary, capWaitMs: 10_000 },
       );
     } catch (e1) {
       if (!isQuotaOrRateLimitError(e1) || primary === fallback) throw e1;
       console.warn("[api/narrador] fallback →", fallback);
       parsed = await withExponentialBackoff(
         () => generateNarradorJson(genAI, fallback, userPrompt),
-        { maxAttempts: 3, baseDelayMs: 1600, label: fallback },
+        { maxAttempts: 2, baseDelayMs: 1200, label: fallback, capWaitMs: 10_000 },
       );
     }
 

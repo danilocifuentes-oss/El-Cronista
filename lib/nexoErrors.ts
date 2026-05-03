@@ -28,6 +28,10 @@ export function formatNexoApiFailure(raw: string): string {
     return "[ERR_NODO_SATURADO]: La red de La Chimba está bajo vigilancia intensa. Protocolo de silencio activado temporalmente. Espera a que la señal se estabilice y vuelve a intentar.";
   }
 
+  if (/timed out|Task timed out|504|Gateway Timeout|FUNCTION_INVOCATION_TIMEOUT|Runtime Timeout/i.test(msg)) {
+    return "[ERR_TIEMPO]: El servidor cortó la llamada por límite de tiempo (Vercel). Reintenta; si persiste, acorta Génesis/repositorio o revisa cuota Gemini. En Pro puedes subir maxDuration del route.";
+  }
+
   if (/503|502|fetch failed|network/i.test(msg)) {
     return "[ERR_RELÉ]: El canal SchreckNet perdió pulso momentáneo. Reintenta en unos segundos.";
   }
