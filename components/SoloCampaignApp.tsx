@@ -6,6 +6,7 @@ import { CLAN_OPTIONS } from "@/lib/character";
 import { disciplineLabel } from "@/lib/sereno";
 import { getSoloChapter, getSoloScene } from "@/lib/soloCampaign/chapters";
 import { checkOptionAvailability, listFailReasons, resolveDisciplineTierText } from "@/lib/soloCampaign/requirementEngine";
+import { filterSoloOptionsForSheet, sortSoloOptionsForDisplay } from "@/lib/soloCampaign/optionPresentation";
 import { saveSheet } from "@/lib/character";
 import { loadSoloProgress, saveSoloProgress } from "@/lib/soloCampaign/progressStore";
 import type { SoloOption, SoloProgress, SoloSceneEffect } from "@/lib/soloCampaign/types";
@@ -223,6 +224,11 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
   }, [progress.sceneId, progress.chapterId]);
   const chapter = useMemo(() => getSoloChapter(progress.chapterId), [progress.chapterId]);
   const scene = useMemo(() => getSoloScene(progress.chapterId, progress.sceneId), [progress.chapterId, progress.sceneId]);
+  const displayedOptions = useMemo(() => {
+    if (!scene) return [];
+    return sortSoloOptionsForDisplay(filterSoloOptionsForSheet(scene.options, sheet));
+  }, [scene, sheet]);
+  const gatedOptionsWereHidden = Boolean(scene && displayedOptions.length < scene.options.length);
   const chapterContextBlock = getSoloChapterContextBlock(progress.chapterId);
   const clanIntroGateDone = progress.chapterId !== "chapter01" || progress.flags.clan_intro_seen === true;
   const chapterContextGateDone = isSoloChapterContextDismissed(progress, progress.chapterId);
@@ -535,7 +541,13 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
             ) : null}
 
             <section className="space-y-3">
-              {scene.options.map((option) => {
+              {gatedOptionsWereHidden ? (
+                <p className="rounded border border-neutral-800 bg-black/30 px-3 py-2 text-xs leading-relaxed text-neutral-500">
+                  Algunos caminos con tirada no se muestran porque tu Codex no alcanza aún ese requisito (disciplina, clan…).
+                  Sigues teniendo todas las rutas narrativas de diálogo; las mecánicas aparecen sólo cuando la ficha califica.
+                </p>
+              ) : null}
+              {displayedOptions.map((option) => {
                 const state = checkOptionAvailability(option, sheet);
                 const fail = listFailReasons(option, sheet);
                 const optionText = resolveDisciplineTierText(option, sheet);
