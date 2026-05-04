@@ -259,9 +259,22 @@ function CronistaAppInner() {
     return scoped.filter((e) => !(e.role === "sistema" && /^\[\s*MJ_PIPE\s*\]:/i.test(e.text.trim())));
   }, [logs, activeStrand, isNarrator]);
 
+  const soloParalelaLogs = useMemo(() => {
+    const scoped = filterLogsByStrand(logs, "paralela");
+    if (isNarrator) return scoped;
+    return scoped.filter((e) => !(e.role === "sistema" && /^\[\s*MJ_PIPE\s*\]:/i.test(e.text.trim())));
+  }, [logs, isNarrator]);
+
+  const healthHudFilled = HEALTH_MAX_UI - Math.min(sheet.healthDamage, HEALTH_MAX_UI);
+
   useEffect(() => {
     logsRef.current = logs;
   }, [logs]);
+
+  useEffect(() => {
+    if (phase !== "soloCampaign") return;
+    commitStrand("paralela");
+  }, [phase, commitStrand]);
 
   /** Detecta Upstash en servidor (GET devuelve storeDisabled: false). */
   useEffect(() => {
@@ -985,16 +998,84 @@ function CronistaAppInner() {
       return null;
     }
     return (
-      <SoloCampaignApp
-        key={activeId}
-        profileId={activeId}
-        sheet={sheet}
-        onExit={() => navigateToPhase("nexus")}
-        onSheetSynced={(next) => {
-          setSheet(mergeStoredSheet(next));
-          persistActiveProfile();
-        }}
-      />
+      <div
+        className={`${mainFrameClass} min-h-0 overflow-hidden`}
+        style={{ ["--accent-clan"]: accent } as CSSProperties}
+      >
+        <ForcedDestinyOverlay
+          forced={forcedRoll}
+          sheet={sheet}
+          hungerLevel={sheet.hunger}
+          onConsume={(line) => {
+            appendXpLog(line);
+            pushLog({ role: "sistema", text: line });
+            clearForcedRoll();
+          }}
+        />
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#1a1a1e] bg-[#050506] px-3 py-3 font-sans text-[10px] text-neutral-500 sm:px-4">
+          <div className="min-w-0 flex-1 truncate">
+            <span style={{ color: accent }} className="font-medium text-neutral-200">
+              {sheet.name?.trim() || "Sin nombre"}
+            </span>
+            <span className="text-neutral-600"> · </span>
+            <span className="text-neutral-400">{clanLabelDisplay}</span>
+          </div>
+          <TechnicalHud
+            healthFilled={healthHudFilled}
+            healthMax={HEALTH_MAX_UI}
+            hunger={sheet.hunger}
+            compactLabels
+            className="shrink-0"
+          />
+          <button
+            type="button"
+            onClick={() => navigateToPhase("nexus")}
+            className="shrink-0 border border-white/10 px-3 py-2 text-[9px] uppercase tracking-[0.16em] text-neutral-400 hover:border-neutral-600 hover:text-neutral-200"
+          >
+            Puerta · Nexo
+          </button>
+        </header>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+          <div className="flex min-h-[32vh] min-w-0 flex-col border-b border-white/[0.06] lg:min-h-0 lg:max-w-[min(44%,28rem)] lg:flex-none lg:border-b-0 lg:border-r">
+            <NarrativeFlow
+              logs={soloParalelaLogs}
+              composer=""
+              onComposer={() => {}}
+              onSend={() => {}}
+              accent={accent}
+              processing={false}
+              identityHint={identityHint}
+              showTechnicalAnchors={isNarrator}
+              activeStrand="paralela"
+              onStrandChange={() => {}}
+              glyphContext={{ inquisitionThreat, hunger: sheet.hunger }}
+              channelMode="witness"
+            />
+          </div>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <SoloCampaignApp
+              key={activeId}
+              profileId={activeId}
+              sheet={sheet}
+              embedded
+              emitParalelaNarration={(text) => pushLog({ role: "narrador", text, strand: "paralela" })}
+              onExit={() => navigateToPhase("nexus")}
+              onSheetSynced={(next) => {
+                setSheet(mergeStoredSheet(next));
+                persistActiveProfile();
+              }}
+            />
+          </div>
+          <aside className="hidden min-h-0 w-[min(19rem,30vw)] shrink-0 border-l border-white/[0.06] bg-[linear-gradient(180deg,#060607,#0a0a0d)] lg:flex lg:flex-col lg:overflow-hidden">
+            <div className="border-b border-white/[0.05] px-4 py-3 font-sans text-[10px] font-light uppercase tracking-[0.3em] text-neutral-500">
+              Continuidad
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <NexoChronicleDigest {...chronicleAsideProps} activeStrand="paralela" />
+            </div>
+          </aside>
+        </div>
+      </div>
     );
   }
 
@@ -1049,8 +1130,6 @@ function CronistaAppInner() {
   if (phase === "nexus") {
     return <NexoComingSoon onGoSolo={() => navigateToPhase("soloCampaign")} onGoHub={goToProfileHub} />;
   }
-
-  const healthHudFilled = HEALTH_MAX_UI - Math.min(sheet.healthDamage, HEALTH_MAX_UI);
 
   return (
     <div

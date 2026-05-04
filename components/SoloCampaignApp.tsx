@@ -16,10 +16,6 @@ import {
   CHRONICLE_PRELUDE_CONTENT_VERSION,
   CHRONICLE_PRELUDE_MASK_STINGER,
 } from "@/lib/soloCampaign/preludeCopy";
-import {
-  getSoloChapterContextBlock,
-  isSoloChapterContextDismissed,
-} from "@/lib/soloCampaign/chapterContextCopy";
 import { getPendingNextChapter } from "@/lib/soloCampaign/soloProgressSelectors";
 import { syncActiveBundleFromGlobals } from "@/lib/profileStore";
 import { NexusLibrary } from "@/components/icons/NexusLibrary";
@@ -87,6 +83,10 @@ type Props = {
   onExit: () => void;
   /** Tras persistir CODEX desde la campaña, actualiza Nexo/React (nombre, vitae, etc.). */
   onSheetSynced?: (next: CharacterSheet) => void;
+  /** Incrustado en el marco Nexo (canal + digest): sin segunda columna de estado duplicada. */
+  embedded?: boolean;
+  /** Inyecta texto al hilo paralelo del SchreckNet (eco narrativo). */
+  emitParalelaNarration?: (text: string) => void;
 };
 
 const SOLO_SUPPORTED_CLANS: ClanId[] = ["brujah", "ventrue", "toreador", "malkavian"];
@@ -207,7 +207,14 @@ function ensureProgress(profileId: string, sheet: CharacterSheet): SoloProgress 
   return base;
 }
 
-export function SoloCampaignApp({ profileId, sheet, onExit, onSheetSynced }: Props) {
+export function SoloCampaignApp({
+  profileId,
+  sheet,
+  onExit,
+  onSheetSynced,
+  embedded = false,
+  emitParalelaNarration,
+}: Props) {
   const isSupported = isSoloSupportedClan(sheet.clan);
   /** Estado inicial sólo en montaje (el componente lleva key de perfil; no reprocesar al mutar hambre en vivo). */
   const [initialProgress] = useState(() => ensureProgress(profileId, sheet));
@@ -241,15 +248,31 @@ export function SoloCampaignApp({ profileId, sheet, onExit, onSheetSynced }: Pro
 
   return (
     <SoloCampaignProvider key={profileId} initialProgress={initialProgress}>
-      <SoloCampaignScreen profileId={profileId} sheet={sheet} onExit={onExit} onSheetSynced={onSheetSynced} />
+      <SoloCampaignScreen
+        profileId={profileId}
+        sheet={sheet}
+        onExit={onExit}
+        onSheetSynced={onSheetSynced}
+        embedded={embedded}
+        emitParalelaNarration={emitParalelaNarration}
+      />
     </SoloCampaignProvider>
   );
 }
 
-function SoloCampaignScreen({ profileId, sheet, onExit, onSheetSynced }: Props) {
+function SoloCampaignScreen({
+  profileId,
+  sheet,
+  onExit,
+  onSheetSynced,
+  embedded = false,
+  emitParalelaNarration,
+}: Props) {
   const { progress, setProgress } = useSoloCampaign();
   const transitionLockRef = useRef(false);
   const [lastRollLine, setLastRollLine] = useState<string>("");
+  const preludeChannelKeyRef = useRef("");
+  const clanChannelKeyRef = useRef("");
 
   useEffect(() => {
     transitionLockRef.current = false;
@@ -260,10 +283,7 @@ function SoloCampaignScreen({ profileId, sheet, onExit, onSheetSynced }: Props) 
     if (!scene) return [];
     return sortSoloOptionsForDisplay(filterSoloOptionsForSheet(scene.options, sheet));
   }, [scene, sheet]);
-  const gatedOptionsWereHidden = Boolean(scene && displayedOptions.length < scene.options.length);
-  const chapterContextBlock = getSoloChapterContextBlock(progress.chapterId);
   const clanIntroGateDone = progress.chapterId !== "chapter01" || progress.flags.clan_intro_seen === true;
-  const chapterContextGateDone = isSoloChapterContextDismissed(progress, progress.chapterId);
   const pendingNextChapter = getPendingNextChapter(progress);
   const clanLabel = CLAN_OPTIONS.find((c) => c.id === sheet.clan)?.label ?? sheet.clan;
   const preludeStinger =
@@ -287,9 +307,27 @@ function SoloCampaignScreen({ profileId, sheet, onExit, onSheetSynced }: Props) 
   const openingVitalsApplied = Boolean(progress.flags[SOLO_FLAG_OPENING_VITALS]);
 
   useEffect(() => {
+    if (!emitParalelaNarration) return;
+    if (preludeGateDoneUi) return;
+    const key = `${profileId}:${CHRONICLE_PRELUDE_CONTENT_VERSION}:prelude`;
+    if (preludeChannelKeyRef.current === key) return;
+    emitParalelaNarration(`${CHRONICLE_PRELUDE_COMMON}\n\n${preludeStinger}`.trim());
+    preludeChannelKeyRef.current = key;
+  }, [emitParalelaNarration, preludeGateDoneUi, profileId, preludeStinger]);
+
+  useEffect(() => {
+    if (!emitParalelaNarration) return;
+    if (!preludeGateDoneUi) return;
+    if (progress.chapterId !== "chapter01" || progress.flags.clan_intro_seen) return;
+    const key = `${profileId}:clan_intro_echo`;
+    if (clanChannelKeyRef.current === key) return;
+    emitParalelaNarration(clanIntro);
+    clanChannelKeyRef.current = key;
+  }, [emitParalelaNarration, preludeGateDoneUi, progress.chapterId, progress.flags.clan_intro_seen, profileId, clanIntro]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
-    const canNarrative =
-      preludeGateDoneUi && clanIntroGateDone && chapterContextGateDone && scene?.id === CHRONICLE_OPENING_SCENE_ID;
+    const canNarrative = preludeGateDoneUi && clanIntroGateDone && scene?.id === CHRONICLE_OPENING_SCENE_ID;
     if (!canNarrative || openingVitalsApplied) return;
     const latest = loadSoloProgress(profileId, sheet.clan);
     if (!latest) return;
@@ -307,17 +345,7 @@ function SoloCampaignScreen({ profileId, sheet, onExit, onSheetSynced }: Props) 
     };
     saveSoloProgress(progFlag);
     setProgress(progFlag);
-  }, [
-    preludeGateDoneUi,
-    clanIntroGateDone,
-    chapterContextGateDone,
-    scene?.id,
-    openingVitalsApplied,
-    profileId,
-    sheet.clan,
-    setProgress,
-    onSheetSynced,
-  ]);
+  }, [preludeGateDoneUi, clanIntroGateDone, scene?.id, openingVitalsApplied, profileId, sheet.clan, setProgress, onSheetSynced]);
 
   const applyOption = (option: SoloOption) => {
     if (transitionLockRef.current) return;
@@ -475,74 +503,74 @@ function SoloCampaignScreen({ profileId, sheet, onExit, onSheetSynced }: Props) 
   const sceneHeadingId = `solo-scene-title-${scene.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#0f1118_0%,#050505_45%,#030303_100%)] px-4 py-8 font-mono text-neutral-300">
-      <div className="mx-auto grid max-w-6xl gap-5 xl:grid-cols-[18rem_1fr]">
-        <aside
-          className="space-y-4 border border-neutral-900 bg-black/35 p-4"
-          aria-label="Estado del personaje en Campaña Solitaria"
-        >
-          <p className="text-[10px] uppercase tracking-[0.3em] text-[var(--terminal)]">Ficha activa</p>
-          <p className="font-sans text-lg text-neutral-100">{sheet.name || "Sin nombre"}</p>
-          <p className={`text-xs uppercase tracking-[0.16em] ${CLAN_TONE[sheet.clan] ?? "text-neutral-300"}`}>{clanLabel}</p>
-          <div className="space-y-2 border-t border-neutral-900 pt-3 text-xs text-neutral-500">
-            <p className="font-mono">Humanidad · {sheet.humanity}</p>
-            <p className="flex items-center gap-2">
-              <NexusLibrary.Sangre className="h-4 w-4 shrink-0" pulse={sheet.hunger > 2} />
-              <span>Hambre (Vitae Nexo) · {sheet.hunger}/5</span>
-            </p>
-            <p>
-              Integridad física · {CHRONICLE_HEALTH_TRACK_UI - Math.min(sheet.healthDamage, CHRONICLE_HEALTH_TRACK_UI)}/
-              {CHRONICLE_HEALTH_TRACK_UI} cajones · WP {sheet.willpowerCur}/{sheet.willpowerMax}
-            </p>
-            <p>Reputación · {progress.reputation}</p>
-            <p>PX Crónica · {progress.chronicleExperience ?? 0}</p>
-            <p className="text-[10px] leading-snug text-neutral-600">
-              Los efectos narrativos (incluida la tirada si triunfas) modifican CODEX/Nexo · +{CHRONICLE_XP_ROLL_SUCCESS_DEFAULT} PX por éxito
-              (+{CHRONICLE_XP_CRITICAL_EXTRA} en crítico). Las disciplinas restan voluntad antes del dado; si no hay margen, sube la presión de
-              hambre. El fracaso en tirada puede subir hambre u otras marcas sin que muevas la ficha a mano.
-            </p>
-            <p>Capítulo · {chapter.title}</p>
-            <p>Decisiones · {progress.decisionHistory.length}</p>
-          </div>
-          {(progress.soloSceneBackStack?.length ?? 0) > 0 ? (
-            <div className="mt-2 space-y-2 border-t border-neutral-900 pt-3">
-              <button
-                type="button"
-                onClick={() => revertToPrevScene()}
-                className="w-full border border-dashed border-amber-800/70 bg-amber-950/20 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-amber-200"
-              >
-                ← Escena anterior (beta QA)
-              </button>
-              <p className="text-[10px] leading-snug text-neutral-600">
-                El retroceso no restaura tiradas, sangre ni marcas en ficha: solo la escena (y quita la última decisión si
-                corresponde).
-              </p>
-            </div>
-          ) : null}
-          <button
-            type="button"
-            onClick={onExit}
-            className="mt-2 w-full border border-neutral-700 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-neutral-300"
+    <div
+      className={
+        embedded
+          ? "min-h-0 min-w-0 flex-1 overflow-y-auto bg-black/20 px-3 py-4 font-mono text-neutral-300 sm:px-4"
+          : "min-h-screen bg-[radial-gradient(circle_at_top,#0f1118_0%,#050505_45%,#030303_100%)] px-4 py-8 font-mono text-neutral-300"
+      }
+    >
+      <div className={embedded ? "mx-auto max-w-3xl space-y-6" : "mx-auto grid max-w-6xl gap-5 xl:grid-cols-[18rem_1fr]"}>
+        {!embedded ? (
+          <aside
+            className="space-y-4 border border-neutral-900 bg-black/35 p-4"
+            aria-label="Estado del personaje"
           >
-            Volver al Nexo
-          </button>
-        </aside>
+            <p className="font-sans text-lg text-neutral-100">{sheet.name || "Sin nombre"}</p>
+            <p className={`text-xs uppercase tracking-[0.16em] ${CLAN_TONE[sheet.clan] ?? "text-neutral-300"}`}>{clanLabel}</p>
+            <div className="space-y-2 border-t border-neutral-900 pt-3 text-xs text-neutral-500">
+              <p className="font-mono">Humanidad · {sheet.humanity}</p>
+              <p className="flex items-center gap-2">
+                <NexusLibrary.Sangre className="h-4 w-4 shrink-0" pulse={sheet.hunger > 2} />
+                <span>Hambre · {sheet.hunger}/5</span>
+              </p>
+              <p>
+                Integridad · {CHRONICLE_HEALTH_TRACK_UI - Math.min(sheet.healthDamage, CHRONICLE_HEALTH_TRACK_UI)}/
+                {CHRONICLE_HEALTH_TRACK_UI} · WP {sheet.willpowerCur}/{sheet.willpowerMax}
+              </p>
+              <p>{chapter.title}</p>
+            </div>
+            {(progress.soloSceneBackStack?.length ?? 0) > 0 ? (
+              <div className="mt-2 border-t border-neutral-900 pt-3">
+                <button
+                  type="button"
+                  onClick={() => revertToPrevScene()}
+                  className="w-full border border-dashed border-amber-800/70 bg-amber-950/20 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-amber-200"
+                >
+                  ← Escena anterior
+                </button>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={onExit}
+              className="mt-2 w-full border border-neutral-700 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-neutral-300"
+            >
+              Salir
+            </button>
+          </aside>
+        ) : null}
 
-        <main className="space-y-6 min-w-0" aria-label="Historia y opciones">
-        <header className="space-y-2 border-b border-neutral-900 pb-4">
-          <p className="text-[10px] uppercase tracking-[0.3em] text-[var(--terminal)]">Campaña Solitaria</p>
-          <h1 className="font-sans text-2xl font-semibold text-neutral-100">{chapter.title}</h1>
-          <p className="text-sm text-neutral-500">{chapter.description}</p>
-          <p className="text-xs text-neutral-500">
-            {sheet.name || "Sin nombre"} · <span className={CLAN_TONE[sheet.clan] ?? "text-neutral-300"}>{clanLabel}</span>
-          </p>
-        </header>
+        <main className="min-w-0 space-y-6" aria-label="Historia y opciones">
+        {!embedded ? (
+          <header className="space-y-2 border-b border-neutral-900 pb-4">
+            <h1 className="font-sans text-2xl font-semibold text-neutral-100">{chapter.title}</h1>
+            <p className="text-xs text-neutral-500">
+              {sheet.name || "Sin nombre"} · <span className={CLAN_TONE[sheet.clan] ?? "text-neutral-300"}>{clanLabel}</span>
+            </p>
+          </header>
+        ) : null}
 
         {!isChroniclePreludeDismissed(progress) ? (
           <section className="space-y-4 border border-[var(--terminal)]/25 bg-black/55 p-5 sharp-border-inner">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--terminal)]">Preludio de crónica</p>
-            <p className="whitespace-pre-line text-sm leading-relaxed text-neutral-300">{CHRONICLE_PRELUDE_COMMON}</p>
-            <p className={`text-sm leading-relaxed italic ${CLAN_TONE[sheet.clan] ?? "text-neutral-200"}`}>{preludeStinger}</p>
+            {emitParalelaNarration ? (
+              <p className="text-sm text-neutral-500">El arranque quedó en el canal.</p>
+            ) : (
+              <>
+                <p className="whitespace-pre-line text-sm leading-relaxed text-neutral-300">{CHRONICLE_PRELUDE_COMMON}</p>
+                <p className={`text-sm leading-relaxed italic ${CLAN_TONE[sheet.clan] ?? "text-neutral-200"}`}>{preludeStinger}</p>
+              </>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -557,15 +585,16 @@ function SoloCampaignScreen({ profileId, sheet, onExit, onSheetSynced }: Props) 
               }}
               className="border border-[var(--terminal)]/40 bg-neutral-950/80 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-[var(--terminal)]"
             >
-              Comenzar con esta voz
+              Continuar
             </button>
           </section>
         ) : null}
 
         {isChroniclePreludeDismissed(progress) && progress.chapterId === "chapter01" && !progress.flags.clan_intro_seen ? (
           <section className="space-y-4 border border-neutral-900 bg-black/45 p-5 sharp-border-inner">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500">Introducción de clan</p>
-            <p className={`text-sm leading-relaxed ${CLAN_TONE[sheet.clan] ?? "text-neutral-200"}`}>{clanIntro}</p>
+            {!emitParalelaNarration ? (
+              <p className={`text-sm leading-relaxed ${CLAN_TONE[sheet.clan] ?? "text-neutral-200"}`}>{clanIntro}</p>
+            ) : null}
             <button
               type="button"
               onClick={() => {
@@ -579,42 +608,12 @@ function SoloCampaignScreen({ profileId, sheet, onExit, onSheetSynced }: Props) 
               }}
               className="border border-[var(--terminal)]/40 bg-neutral-950/80 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-[var(--terminal)]"
             >
-              Entrar en escena
+              Continuar
             </button>
           </section>
         ) : null}
 
-        {isChroniclePreludeDismissed(progress) &&
-        clanIntroGateDone &&
-        chapterContextBlock &&
-        !chapterContextGateDone ? (
-          <section className="space-y-4 border border-[var(--terminal)]/20 bg-black/50 p-5 sharp-border-inner">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--terminal)]">Contexto de capítulo</p>
-            <p className="text-xs uppercase tracking-[0.16em] text-neutral-500">{chapterContextBlock.label}</p>
-            <p className="whitespace-pre-line text-sm leading-relaxed text-neutral-300">{chapterContextBlock.body}</p>
-            <button
-              type="button"
-              onClick={() => {
-                const nextBlock = chapterContextBlock;
-                const next: SoloProgress = {
-                  ...progress,
-                  chapterContextSeen: {
-                    ...(progress.chapterContextSeen ?? {}),
-                    [progress.chapterId]: nextBlock.contentVersion,
-                  },
-                  updatedAt: progress.updatedAt + 1,
-                };
-                saveSoloProgress(next);
-                setProgress(next);
-              }}
-              className="border border-[var(--terminal)]/40 bg-neutral-950/80 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-[var(--terminal)]"
-            >
-              Comenzar la narración
-            </button>
-          </section>
-        ) : null}
-
-        {isChroniclePreludeDismissed(progress) && clanIntroGateDone && chapterContextGateDone ? (
+        {isChroniclePreludeDismissed(progress) && clanIntroGateDone ? (
           <>
             <section className="space-y-4 border border-neutral-900 bg-black/40 p-5 sharp-border-inner" aria-labelledby={sceneHeadingId}>
               <p id={sceneHeadingId} className="text-[10px] uppercase tracking-[0.22em] text-neutral-500">
@@ -633,7 +632,7 @@ function SoloCampaignScreen({ profileId, sheet, onExit, onSheetSynced }: Props) 
                 <div className="flex items-start gap-2">
                   <NexusLibrary.Destino className="mt-0.5 h-5 w-5 shrink-0 text-[color:var(--terminal)] opacity-85" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">Tirada reciente</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">Eco</p>
                     <p className="mt-1 text-xs text-neutral-300">{lastRollLine}</p>
                   </div>
                 </div>
@@ -641,12 +640,6 @@ function SoloCampaignScreen({ profileId, sheet, onExit, onSheetSynced }: Props) 
             ) : null}
 
             <section className="space-y-3">
-              {gatedOptionsWereHidden ? (
-                <p className="rounded border border-neutral-800 bg-black/30 px-3 py-2 text-xs leading-relaxed text-neutral-500">
-                  Algunos caminos con tirada no se muestran porque tu Codex no alcanza aún ese requisito (disciplina, clan…).
-                  Sigues teniendo todas las rutas narrativas de diálogo; las mecánicas aparecen sólo cuando la ficha califica.
-                </p>
-              ) : null}
               {displayedOptions.map((option) => {
                 const state = checkOptionAvailability(option, sheet);
                 const fail = listFailReasons(option, sheet);
@@ -699,10 +692,6 @@ function SoloCampaignScreen({ profileId, sheet, onExit, onSheetSynced }: Props) 
 
             {pendingNextChapter ? (
               <section className="space-y-3 border border-[var(--terminal)]/20 bg-black/50 p-4 sharp-border-inner">
-                <p className="text-[10px] uppercase tracking-[0.24em] text-[var(--terminal)]">Capítulo registrado</p>
-                <p className="text-sm text-neutral-400">
-                  Tu decisión cerró este tramo. Puedes avanzar al próximo capítulo o volver al Nexo.
-                </p>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -740,17 +729,8 @@ function SoloCampaignScreen({ profileId, sheet, onExit, onSheetSynced }: Props) 
                     Volver al Nexo
                   </button>
                 </div>
-                <p className="text-xs text-neutral-500">
-                  Verás primero el <span className="text-neutral-400">contexto</span> del próximo capítulo y luego arranca la narración.
-                </p>
               </section>
             ) : null}
-
-            <footer className="flex flex-wrap gap-3 border-t border-neutral-900 pt-4">
-              <p className="text-xs text-neutral-600">
-                Escena {progress.sceneId} · vistas {progress.visitedSceneIds.length}
-              </p>
-            </footer>
           </>
         ) : null}
         </main>

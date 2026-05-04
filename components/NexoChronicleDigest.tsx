@@ -48,7 +48,7 @@ export function NexoChronicleDigest({
           <dt className="uppercase tracking-[0.22em] text-neutral-600">Presión ciudadana contra lo oculto (σ)</dt>
           <dd className="mt-1 text-lg font-light tabular-nums text-neutral-200">{inquisitionThreat}</dd>
           <dd className="mt-1 text-[10px] leading-snug text-neutral-600">
-            Antena práctica sobre cuántos ojos institucionales pueden estar enfocándose vosotros; sube cuando el barrio registra fugas imprudentes.
+            Antena práctica sobre cuántos ojos institucionales pueden estar enfocándose en quienes caminan sin máscara; sube cuando el barrio registra fugas imprudentes.
           </dd>
         </div>
         <div>
@@ -57,15 +57,15 @@ export function NexoChronicleDigest({
             {activeStrand === "principal"
               ? "El mapa común donde varias criaturas de noche cargan rumor compartido."
               : activeStrand === "paralela"
-                ? "Versión cerrada sólo tras tu vista — otros no heredan estos detalles salvo cuando los citás."
+                ? "Versión cerrada sólo tras tu vista — otros no heredan estos detalles salvo cuando los citas."
                 : STRAND_LABEL[activeStrand]}
           </dd>
           <dd className="mt-1 text-[10px] leading-snug text-neutral-600">
             {activeStrand === "vivo"
-              ? "Reserva para lo que cargás vivido cara a cara; aquí apenas se registra hueco táctico."
+              ? "Reserva para lo que cargas vivido cara a cara; aquí apenas se registra hueco táctico."
               : activeStrand === "principal"
                 ? "Cada golpe público tiene testigos cruzados; lo que hagas deja marca accesible antes del alba siguiente."
-                : "Podés llevar consecuencias personales antes de exponerlos al rumor general."}
+                : "Puedes llevar consecuencias personales antes de exponerlas al rumor general."}
           </dd>
         </div>
       </dl>

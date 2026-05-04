@@ -65,6 +65,11 @@ type Props = {
   onStrandChange: (s: NarrativeStrand) => void;
   /** σ + hambre para glifos paramétricos (riel SchreckNet). */
   glyphContext?: NexoGlyphContext;
+  /**
+   * `witness`: canal en lectura (sin compositor ni selector de hilo) — p. ej. campaña paralela incrustada en el Nexo.
+   * `interactive`: comportamiento habitual.
+   */
+  channelMode?: "interactive" | "witness";
 };
 
 export function NarrativeFlow({
@@ -80,8 +85,10 @@ export function NarrativeFlow({
   activeStrand,
   onStrandChange,
   glyphContext,
+  channelMode = "interactive",
 }: Props) {
   const reduceMotion = useReducedMotion();
+  const witness = channelMode === "witness";
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -130,34 +137,36 @@ export function NarrativeFlow({
             </div>
           )
         ) : null}
-        <div className="flex flex-wrap gap-1.5 normal-case tracking-normal">
-          {NARRATIVE_STRANDS.map((s) => {
-            const on = s === activeStrand;
-            return (
-              <button
-                key={s}
-                type="button"
-                title={undefined}
-                aria-label={STRAND_LABEL[s]}
-                onClick={() => onStrandChange(s)}
-                className={`rounded border px-2 py-1 text-[8px] font-mono transition-colors ${
-                  on ? "text-neutral-100" : "border-[#2a2a2a] text-neutral-500 hover:border-neutral-600 hover:text-neutral-300"
-                }`}
-                style={
-                  on
-                    ? {
-                        borderColor: STRAND_ACCENT[s],
-                        backgroundColor: `${STRAND_ACCENT[s]}18`,
-                        color: STRAND_ACCENT[s],
-                      }
-                    : undefined
-                }
-              >
-                <span className="opacity-80">{STRAND_TAG[s]}</span> {STRAND_LABEL[s]}
-              </button>
-            );
-          })}
-        </div>
+        {!witness ? (
+          <div className="flex flex-wrap gap-1.5 normal-case tracking-normal">
+            {NARRATIVE_STRANDS.map((s) => {
+              const on = s === activeStrand;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  title={undefined}
+                  aria-label={STRAND_LABEL[s]}
+                  onClick={() => onStrandChange(s)}
+                  className={`rounded border px-2 py-1 text-[8px] font-mono transition-colors ${
+                    on ? "text-neutral-100" : "border-[#2a2a2a] text-neutral-500 hover:border-neutral-600 hover:text-neutral-300"
+                  }`}
+                  style={
+                    on
+                      ? {
+                          borderColor: STRAND_ACCENT[s],
+                          backgroundColor: `${STRAND_ACCENT[s]}18`,
+                          color: STRAND_ACCENT[s],
+                        }
+                      : undefined
+                  }
+                >
+                  <span className="opacity-80">{STRAND_TAG[s]}</span> {STRAND_LABEL[s]}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
       </header>
       {processing ? (
         showTechnicalAnchors ? (
@@ -294,7 +303,7 @@ export function NarrativeFlow({
                           ? "La escena pide tirada"
                           : entry.rollPrompt.nivel === "recomendada"
                             ? "Sería mejor con tirada"
-                            : "Podés apoyarte con tirada"}
+                            : "Puedes apoyarte con tirada"}
                       </p>
                       <p className="mt-1 text-[12px] leading-snug text-neutral-400">{entry.rollPrompt.enfoque}</p>
                       <button
@@ -321,61 +330,63 @@ export function NarrativeFlow({
           })}
         </AnimatePresence>
       </div>
-      <div className="shrink-0 border-t border-[#1c1c22] bg-black/35 p-3 sm:p-4">
-        {!showTechnicalAnchors && !processing ? (
-          <details className="mb-2 rounded-md border border-[#2a2a30]/80 bg-black/30">
-            <summary className="cursor-pointer px-2.5 py-1.5 font-sans text-[10px] tracking-wide text-neutral-600">
-              Atajos (+)
-            </summary>
-            <div className="flex flex-wrap gap-1.5 border-t border-[#252525]/80 px-2 py-2">
-              {QUICK_SCENE_OPENERS.map((q) => (
-                <button
-                  key={q.label}
-                  type="button"
-                  title={q.text}
-                  onClick={() => onComposer(mergeComposerLine(composer, q.text))}
-                  className="rounded border border-[#34343c] bg-black/50 px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider text-neutral-400 transition hover:border-neutral-600 hover:text-neutral-200"
-                >
-                  {q.label}
-                </button>
-              ))}
-            </div>
-          </details>
-        ) : null}
-        <textarea
-          value={composer}
-          onChange={(e) => onComposer(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              if (canSend) onSend();
+      {!witness ? (
+        <div className="shrink-0 border-t border-[#1c1c22] bg-black/35 p-3 sm:p-4">
+          {!showTechnicalAnchors && !processing ? (
+            <details className="mb-2 rounded-md border border-[#2a2a30]/80 bg-black/30">
+              <summary className="cursor-pointer px-2.5 py-1.5 font-sans text-[10px] tracking-wide text-neutral-600">
+                Atajos (+)
+              </summary>
+              <div className="flex flex-wrap gap-1.5 border-t border-[#252525]/80 px-2 py-2">
+                {QUICK_SCENE_OPENERS.map((q) => (
+                  <button
+                    key={q.label}
+                    type="button"
+                    title={q.text}
+                    onClick={() => onComposer(mergeComposerLine(composer, q.text))}
+                    className="rounded border border-[#34343c] bg-black/50 px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider text-neutral-400 transition hover:border-neutral-600 hover:text-neutral-200"
+                  >
+                    {q.label}
+                  </button>
+                ))}
+              </div>
+            </details>
+          ) : null}
+          <textarea
+            value={composer}
+            onChange={(e) => onComposer(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (canSend) onSend();
+              }
+            }}
+            placeholder={
+              showTechnicalAnchors
+                ? `Escena · ${STRAND_TAG[activeStrand]} (Enter envía · Shift+Enter nueva línea)`
+                : "Describe qué haces, qué dices o hacia dónde te mueves."
             }
-          }}
-          placeholder={
-            showTechnicalAnchors
-              ? `Escena · ${STRAND_TAG[activeStrand]} (Enter envía · Shift+Enter nueva línea)`
-              : "Describe qué haces, qué dices o hacia dónde te mueves."
-          }
-          rows={showTechnicalAnchors ? 3 : 4}
-          className={`w-full resize-y border border-[#26262e] bg-black/55 px-3 py-2.5 placeholder:text-neutral-600 focus:border-[var(--terminal)]/40 focus:outline-none focus:ring-1 focus:ring-[var(--terminal)]/12 ${showTechnicalAnchors ? "font-mono text-[11px] leading-relaxed text-neutral-300" : "font-sans text-[13px] leading-relaxed tracking-[0.02em] text-neutral-200"}`}
-        />
-        <div className="mt-2.5 flex flex-wrap items-end justify-between gap-3 border-t border-[#252525]/60 pt-2.5">
-          <p className="font-mono text-[8px] uppercase tracking-[0.2em] text-neutral-600">
-            {showTechnicalAnchors ? "ENTER envía · shift+enter nueva línea" : "ENTER envía"}
-          </p>
-          <motion.button
-            type="button"
-            whileHover={canSend ? { scale: 1.02 } : undefined}
-            whileTap={canSend ? { scale: 0.98 } : undefined}
-            onClick={onSend}
-            disabled={!canSend}
-            className="shrink-0 border px-6 py-2 font-mono text-[9px] uppercase tracking-[0.28em] transition-opacity disabled:cursor-not-allowed disabled:opacity-35"
-            style={{ borderColor: `${accent}55`, color: accent }}
-          >
-            ENVIAR
-          </motion.button>
+            rows={showTechnicalAnchors ? 3 : 4}
+            className={`w-full resize-y border border-[#26262e] bg-black/55 px-3 py-2.5 placeholder:text-neutral-600 focus:border-[var(--terminal)]/40 focus:outline-none focus:ring-1 focus:ring-[var(--terminal)]/12 ${showTechnicalAnchors ? "font-mono text-[11px] leading-relaxed text-neutral-300" : "font-sans text-[13px] leading-relaxed tracking-[0.02em] text-neutral-200"}`}
+          />
+          <div className="mt-2.5 flex flex-wrap items-end justify-between gap-3 border-t border-[#252525]/60 pt-2.5">
+            <p className="font-mono text-[8px] uppercase tracking-[0.2em] text-neutral-600">
+              {showTechnicalAnchors ? "ENTER envía · shift+enter nueva línea" : "ENTER envía"}
+            </p>
+            <motion.button
+              type="button"
+              whileHover={canSend ? { scale: 1.02 } : undefined}
+              whileTap={canSend ? { scale: 0.98 } : undefined}
+              onClick={onSend}
+              disabled={!canSend}
+              className="shrink-0 border px-6 py-2 font-mono text-[9px] uppercase tracking-[0.28em] transition-opacity disabled:cursor-not-allowed disabled:opacity-35"
+              style={{ borderColor: `${accent}55`, color: accent }}
+            >
+              ENVIAR
+            </motion.button>
+          </div>
         </div>
-      </div>
+      ) : null}
     </section>
   );
 }
