@@ -17,4 +17,6 @@ export const CHRONICLE_PRELUDE_MASK_STINGER: Partial<Record<ClanId, string>> = {
     "Tu máscara es soberanía amortiguada — la calma cara que permite negociar aunque dentro quede el sótano todavía húmedo.",
   toreador:
     "Tu máscara interpreta tanto el esplendor cuanto la catástrofe; el público de primera fila eres tú, aplaudiendo hasta romperse.",
+  malkavian:
+    "Tu máscara es el ruido ordenado: nadie oye el patrón igual, y eso te vuelve sospecha indispensable o error de sistema.",
 };

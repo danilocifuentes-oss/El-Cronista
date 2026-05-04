@@ -3,7 +3,8 @@ import type { SoloChapter } from "@/lib/soloCampaign/types";
 export const chapter01: SoloChapter = {
   id: "chapter01",
   title: "Cenizas en la lluvia · Capítulo 1",
-  description: "El primer latido (Brujah): apertura narrativa y decisiones iniciales de supervivencia.",
+  description:
+    "El primer latido: despertar en Santiago — rutas Brujah, Ventrue, Toreador y Malkavian; primera noche de supervivencia y tono conspirativo.",
   startSceneId: "ch1_1",
   scenes: [
     {
@@ -1181,6 +1182,370 @@ Eres Toreador. Y esta ciudad, con toda su miseria y su fulgor, acaba de converti
           requirement: { type: "none" },
           nextSceneId: "ch1t_14",
           effects: [{ type: "setFlag", flag: "chapter01_toreador_neutral_end" }, { type: "setFlag", flag: "chapter02_pending" }],
+        },
+      ],
+    },
+    /* ─── MALKAVIAN · Cenizas en la lluvia (Cap. 1) ─── */
+    {
+      id: "ch1m_1",
+      chapterId: "chapter01",
+      title: "1.1 · El despertar (Malkavian)",
+      text: `Abres los ojos y el mundo ya no tiene sentido.
+
+O sí lo tiene, pero de una forma que nadie más puede entender.
+
+Estás en un sótano húmedo de Ñuñoa. La lluvia suena como risas de niños ahogados. Las grietas en las paredes forman mapas de ciudades que aún no existen. Tu corazón no late, pero escuchas miles de ellos latiendo al mismo tiempo dentro de tu cabeza.
+
+Lo último que recuerdas es una mujer con ojos de espejo que te susurró: "Bienvenido al lado correcto de la locura."
+
+La Bestia no gruñe. Se ríe. Y su risa suena exactamente como la tuya.`,
+      clanFlavor: {
+        malkavian: "No confundas patrón con paranoia: esta noche todo es mapa hasta que tú digas qué cuenta como norte.",
+      },
+      options: [
+        {
+          id: "ch1m_1_a",
+          type: "dialogue",
+          text: "Reírte también, porque todo esto es absurdamente gracioso",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_2",
+          effects: [{ type: "hungerDelta", delta: 1 }, { type: "setFlag", flag: "mal_1_1_laugh" }],
+        },
+        {
+          id: "ch1m_1_b",
+          type: "dialogue",
+          text: "Intentar enfocarte y entender qué está pasando",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_3",
+          effects: [{ type: "hungerDelta", delta: -1 }, { type: "setFlag", flag: "mal_1_1_focus" }],
+        },
+        {
+          id: "ch1m_1_c",
+          type: "dialogue",
+          text: "Hablar con las grietas de la pared como si fueran viejas amigas",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_4",
+          effects: [{ type: "hungerDelta", delta: 2 }, { type: "setFlag", flag: "ch1m_1_cracks" }],
+        },
+        {
+          id: "ch1m_1_d",
+          type: "discipline",
+          discipline: "auspex",
+          disciplineTitle: "Ojo que tropieza con la forma",
+          text: "Usar Auspex para ver lo que realmente hay aquí",
+          requirement: { type: "discipline", discipline: "auspex", minLevel: 1 },
+          nextSceneId: "ch1m_5",
+          effects: [{ type: "setFlag", flag: "mal_1_1_auspex" }],
+        },
+      ],
+    },
+    {
+      id: "ch1m_2",
+      chapterId: "chapter01",
+      title: "1.2 · La risa",
+      text: `Te ríes. Primero bajito, luego cada vez más fuerte. La risa rebota en las paredes y vuelve convertida en susurros que te cuentan secretos sobre personas que aún no has conocido.`,
+      options: [
+        {
+          id: "ch1m_2_a",
+          type: "dialogue",
+          text: "Dejarte llevar por la risa hasta que duela",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_6",
+          effects: [
+            { type: "hungerDelta", delta: 2 },
+            { type: "humanityDelta", delta: -1 },
+            { type: "setFlag", flag: "mal_1_2_laugh_hard" },
+          ],
+        },
+        {
+          id: "ch1m_2_b",
+          type: "dialogue",
+          text: "Intentar parar de reír y buscar una salida",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_3",
+          effects: [{ type: "hungerDelta", delta: -1 }, { type: "setFlag", flag: "mal_1_2_stop" }],
+        },
+      ],
+    },
+    {
+      id: "ch1m_3",
+      chapterId: "chapter01",
+      title: "1.3 · Intento de cordura",
+      text: `Intentas pensar con claridad. Las ideas llegan todas al mismo tiempo: colores que saben a números, números que huelen a traición, y una certeza absoluta de que alguien te está observando desde el otro lado de las grietas.`,
+      options: [
+        {
+          id: "ch1m_3_a",
+          type: "dialogue",
+          text: "Seguir el hilo de pensamientos más coherente",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_6",
+          effects: [{ type: "setFlag", flag: "mal_1_3_linear" }],
+        },
+        {
+          id: "ch1m_3_b",
+          type: "dialogue",
+          text: "Dejar que los pensamientos te lleven donde quieran",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_4",
+          effects: [{ type: "hungerDelta", delta: 1 }, { type: "setFlag", flag: "mal_1_3_drift" }],
+        },
+      ],
+    },
+    {
+      id: "ch1m_4",
+      chapterId: "chapter01",
+      title: "1.4 · Conversación con las grietas",
+      text: `Las grietas de la pared te responden. Te cuentan que estás muerto, que nunca estuviste vivo, y que la ciudad tiene hambre de gente como tú.`,
+      options: [
+        {
+          id: "ch1m_4_a",
+          type: "dialogue",
+          text: "Agradecerles por la información y despedirte",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_6",
+          effects: [{ type: "setFlag", flag: "mal_1_4_polite_cracks" }],
+        },
+        {
+          id: "ch1m_4_b",
+          type: "dialogue",
+          text: "Preguntarles por tu sire",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_7",
+          effects: [{ type: "setFlag", flag: "mal_1_4_sire" }],
+        },
+      ],
+    },
+    {
+      id: "ch1m_5",
+      chapterId: "chapter01",
+      title: "1.5 · Auspex desatado",
+      text: `El mundo explota en información. Ves el aura de las ratas, escuchas los sueños de las personas durmiendo tres casas más allá, y sientes que alguien muy importante te está esperando arriba.`,
+      options: [
+        {
+          id: "ch1m_5_a",
+          type: "dialogue",
+          text: "Subir las escaleras siguiendo las voces que solo tú escuchas",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_6",
+          effects: [{ type: "setFlag", flag: "mal_1_5_ascend" }],
+        },
+      ],
+    },
+    {
+      id: "ch1m_6",
+      chapterId: "chapter01",
+      title: "1.6 · La puerta y las voces",
+      text: `Llegas a una puerta cerrada. Del otro lado escuchas tres voces: una mujer que habla en círculos, un hombre que repite la misma frase sin parar, y alguien que llora en silencio.`,
+      options: [
+        {
+          id: "ch1m_6_a",
+          type: "dialogue",
+          text: "Abrir la puerta con dramatismo teatral",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_8",
+          effects: [{ type: "setFlag", flag: "mal_1_6_dramatic" }],
+        },
+        {
+          id: "ch1m_6_b",
+          type: "discipline",
+          discipline: "auspex",
+          disciplineTitle: "Ver la costura del umbral",
+          text: "Usar Auspex para ver a través de la puerta",
+          requirement: { type: "discipline", discipline: "auspex", minLevel: 2 },
+          nextSceneId: "ch1m_9",
+          effects: [{ type: "setFlag", flag: "mal_1_6_auspex_door" }],
+        },
+        {
+          id: "ch1m_6_c",
+          type: "dialogue",
+          text: "Hablar con las voces antes de abrir",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_10",
+          effects: [{ type: "hungerDelta", delta: 1 }, { type: "setFlag", flag: "mal_1_6_voices" }],
+        },
+      ],
+    },
+    {
+      id: "ch1m_7",
+      chapterId: "chapter01",
+      title: "1.7 · El sire en código",
+      text: `Las grietas no dan nombres: dan ecuaciones. Decodificas que tu sire existe en tres versiones contradictorias, y que todas son ciertas o ninguna según cómo tilde esta noche.
+
+Subes hasta un umbral que vibra como micrófono mal clavado: del otro lado, tres voces — una mujer que habla en círculos, un hombre que repite la misma frase sin parar, y alguien que llora en silencio.`,
+      options: [
+        {
+          id: "ch1m_7_a",
+          type: "dialogue",
+          text: "Abrir la puerta con dramatismo teatral",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_8",
+          effects: [{ type: "setFlag", flag: "mal_1_7_dramatic" }],
+        },
+        {
+          id: "ch1m_7_b",
+          type: "discipline",
+          discipline: "auspex",
+          disciplineTitle: "Ver la costura del umbral",
+          text: "Usar Auspex para ver a través de la puerta",
+          requirement: { type: "discipline", discipline: "auspex", minLevel: 2 },
+          nextSceneId: "ch1m_9",
+          effects: [{ type: "setFlag", flag: "mal_1_7_auspex_door" }],
+        },
+        {
+          id: "ch1m_7_c",
+          type: "dialogue",
+          text: "Hablar con las voces antes de abrir",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_10",
+          effects: [{ type: "hungerDelta", delta: 1 }, { type: "setFlag", flag: "mal_1_7_voices" }],
+        },
+      ],
+    },
+    {
+      id: "ch1m_8",
+      chapterId: "chapter01",
+      title: "1.8 · Telón y testigos",
+      text: `Empujas la puerta y el aire huele a tabaco frío y mentira educada. Dos figuras te miran; una tercera finge no existir y eso la hace más visible que las otras.
+
+"Malkavian", dice la mujer sin terminar la frase, como si el apellido no importara. "Sobreviviste al chiste. Bienvenido al costado que el mapa no imprime."`,
+      options: [
+        {
+          id: "ch1m_8_a",
+          type: "dialogue",
+          text: "Asentir y dejar que crean que entiendes el protocolo",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_11",
+          effects: [{ type: "setFlag", flag: "mal_1_8_protocol" }],
+        },
+        {
+          id: "ch1m_8_b",
+          type: "dialogue",
+          text: "Reír en el momento más inadecuado y ver qué se rompe",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_12",
+          effects: [
+            { type: "hungerDelta", delta: 1 },
+            { type: "humanityDelta", delta: -1 },
+            { type: "setFlag", flag: "mal_1_8_laugh_bad" },
+          ],
+        },
+      ],
+    },
+    {
+      id: "ch1m_9",
+      chapterId: "chapter01",
+      title: "1.9 · Capas tras la cerradura",
+      text: `Auspex atraviesa la madera y lo que ves no es sala: es superposición. La mujer es dos edades simultáneas, el guardia proyecta tres miedos y quien llora deja vibraciones en tus dientes como si fueran sirenas lejanas.`,
+      options: [
+        {
+          id: "ch1m_9_a",
+          type: "dialogue",
+          text: "Asimilar todo y atravesar igual: ya sabes qué cara van a mostrar",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_13",
+          effects: [{ type: "hungerDelta", delta: 1 }, { type: "setFlag", flag: "mal_1_9_insight_in" }],
+        },
+        {
+          id: "ch1m_9_b",
+          type: "dialogue",
+          text: "Cerrar de golpe la percepción y entrar antes de marearte",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_11",
+          effects: [{ type: "humanityDelta", delta: -1 }, { type: "setFlag", flag: "mal_1_9_cut_off" }],
+        },
+      ],
+    },
+    {
+      id: "ch1m_10",
+      chapterId: "chapter01",
+      title: "1.10 · Coro privado",
+      text: `Hablas al silencio entre las voces. La que habla en círculos te regala un acertijo de barrio. El hombre repetitivo se queda sin batería en media frase. El que llora te deja un nombre que no coincide con ningún DNI y, aun así, suena a verdad administrativa.`,
+      options: [
+        {
+          id: "ch1m_10_a",
+          type: "dialogue",
+          text: "Cerrar el trato vocal: te llevas el acertijo y abres la puerta con calma",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_11",
+          effects: [{ type: "setFlag", flag: "mal_1_10_deal" }],
+        },
+        {
+          id: "ch1m_10_b",
+          type: "dialogue",
+          text: "Dejar que todas las líneas hablen al mismo tiempo y seguir todas",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_12",
+          effects: [
+            { type: "hungerDelta", delta: 2 },
+            { type: "humanityDelta", delta: -2 },
+            { type: "setFlag", flag: "mal_1_10_chorus" },
+          ],
+        },
+      ],
+    },
+    {
+      id: "ch1m_11",
+      chapterId: "chapter01",
+      title: "1.11 · Primera función en Santiago",
+      text: `La lluvia te recibe como un estático amable sobre la ciudad. Los semáforos discuten entre ellos más de lo que la gente nota.
+
+Eres Kindred. Tu mapa tiene bordes móviles. Y lo que otros llaman síntoma tú lo usas como brújula hasta que algo más afilado venga a cambiar tus coordenadas.
+
+Fin del Capítulo 1.`,
+      options: [
+        {
+          id: "ch1m_11_end",
+          type: "dialogue",
+          text: "Continuar al Capítulo 2",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_11",
+          effects: [
+            { type: "setFlag", flag: "chapter01_malkavian_balanced_end" },
+            { type: "setFlag", flag: "chapter02_pending" },
+          ],
+        },
+      ],
+    },
+    {
+      id: "ch1m_12",
+      chapterId: "chapter01",
+      title: "1.12 · Risa de cierre",
+      text: `La sala queda marcada por tu improvisación fea y honesta. Alguien jura que tú eres el peligro; otro sospecha que sólo eres una advertencia con forma de persona.
+
+Igual subes con sangre nueva y esa certeza basta para que esta noche apruebe el crédito.`,
+      options: [
+        {
+          id: "ch1m_12_end",
+          type: "dialogue",
+          text: "Continuar al Capítulo 2",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_12",
+          effects: [
+            { type: "hungerDelta", delta: 1 },
+            { type: "setFlag", flag: "chapter01_malkavian_dark_end" },
+            { type: "setFlag", flag: "chapter02_pending" },
+          ],
+        },
+      ],
+    },
+    {
+      id: "ch1m_13",
+      chapterId: "chapter01",
+      title: "1.13 · Mapa en vivo",
+      text: `Sales con demasiadas capas prendidas sobre la retina. Ves patrón en filas del Transantiago, conspiración cotidiana en las colas del baño público.
+
+Eres vampiro y tú eliges qué cuenta como locura antes de que la ciudad firme primero.`,
+      options: [
+        {
+          id: "ch1m_13_end",
+          type: "dialogue",
+          text: "Continuar al Capítulo 2",
+          requirement: { type: "none" },
+          nextSceneId: "ch1m_13",
+          effects: [
+            { type: "setFlag", flag: "chapter01_malkavian_insight_end" },
+            { type: "setFlag", flag: "chapter02_pending" },
+          ],
         },
       ],
     },

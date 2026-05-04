@@ -60,7 +60,7 @@ type Props = {
   onExit: () => void;
 };
 
-const SOLO_SUPPORTED_CLANS: ClanId[] = ["brujah", "ventrue", "toreador"];
+const SOLO_SUPPORTED_CLANS: ClanId[] = ["brujah", "ventrue", "toreador", "malkavian"];
 
 function isSoloSupportedClan(clan: ClanId): boolean {
   return SOLO_SUPPORTED_CLANS.includes(clan);
@@ -68,7 +68,9 @@ function isSoloSupportedClan(clan: ClanId): boolean {
 
 function startSceneForClan(clan: ClanId): string {
   if (clan === "toreador") return "ch1t_1";
-  return clan === "ventrue" ? "ch1v_1" : "ch1_1";
+  if (clan === "ventrue") return "ch1v_1";
+  if (clan === "malkavian") return "ch1m_1";
+  return "ch1_1";
 }
 
 function clamp(n: number, min: number, max: number): number {
@@ -172,8 +174,8 @@ export function SoloCampaignApp({ profileId, sheet, onExit }: Props) {
           <h2 className="font-sans text-xl text-neutral-100">Clan aún no disponible</h2>
           <p className="text-sm leading-relaxed text-neutral-400">
             Tu personaje es <span className="text-neutral-200">{clanLabel}</span>. La crónica solitaria actual solo está
-            implementada para <span className="text-neutral-200">Brujah</span>, <span className="text-neutral-200">Ventrue</span> y{" "}
-            <span className="text-neutral-200">Toreador</span>.
+            implementada para <span className="text-neutral-200">Brujah</span>, <span className="text-neutral-200">Ventrue</span>,{" "}
+            <span className="text-neutral-200">Toreador</span> y <span className="text-neutral-200">Malkavian</span>.
           </p>
           <p className="text-xs text-neutral-500">
             Puedes conservar esta hoja y volver aquí cuando publiquemos su capítulo de clan.
