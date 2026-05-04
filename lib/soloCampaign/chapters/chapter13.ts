@@ -11,9 +11,9 @@ export const chapter13: SoloChapter = {
       id: "n13_1",
       chapterId: "chapter13",
       title: "13.1 · Sanhattan",
-      text: `Sanhattan no es una ciudad; es un espejismo de cristal y acero.
+      text: `Sanhattan jamás fue ciudad entera: bloque de vidrio y promesas que se doblan como espejismo.
 
-El vacío en mi pecho, donde antes ardía el Vínculo, era ahora un abismo silencioso.`,
+El hueco en el pecho —donde antes ardía vínculo obediente— resonaba ahora como pozo sin eco útil.`,
       options: [
         {
           id: "n13_1_go_tower",
@@ -65,11 +65,11 @@ Te convertimos en un filtro.`,
       id: "n13_end",
       chapterId: "chapter13",
       title: "13.E · Caída",
-      text: `Me dejé caer. No hacia la muerte —esa ya me había reclamado—, sino hacia las sombras.
+      text: `Se dejó caer: no hacia muerte —esa ya había timbrado entrada— sino hacia sombra operativa.
 
-Yo ya no era un filtro, ni un embajador, ni un activo.
+Ya no era filtro, embajador ni activo contable.
 
-Era un fantasma en la maquinaria de Santiago.`,
+Persistía como rumor en engranaje santiaguino que nadie quiere auditar.`,
       options: [
         {
           id: "n13_end_continue",

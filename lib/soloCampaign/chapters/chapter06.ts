@@ -11,7 +11,7 @@ export const chapter06: SoloChapter = {
       id: "n6_1",
       chapterId: "chapter06",
       title: "6.1 · La invitación",
-      text: `El cobro llegó como una invitación de papel grueso, color crema. “Vístete para una cena. El Príncipe requiere tu presencia en la Viña del Silencio”.`,
+      text: `El cobro llegó como invitación sobre papel grueso, color crema, con letra impresa que no pedía permiso: “Vístete para una cena. El Príncipe requiere presencia en la Viña del Silencio”.`,
       options: [
         {
           id: "n6_1_go",
@@ -91,7 +91,7 @@ export const chapter06: SoloChapter = {
       id: "n6_end",
       chapterId: "chapter06",
       title: "6.E · Marca en las venas",
-      text: `Salí de la Viña del Silencio con el alma más pesada de lo que nunca creí posible. Santiago me esperaba, y esta vez, llevaba la marca de dos dueños en mis venas.`,
+      text: `Abandonó la Viña del Silencio con esa gravedad nueva en el torso —alma o estómago, mismo contrapeso. Santiago seguía alumbrada arriba y abajo, sólo que ahora él llevaba marca doble bajo piel: sello de amo y sombra de segundo dueño.`,
       options: [
         {
           id: "n6_end_continue",

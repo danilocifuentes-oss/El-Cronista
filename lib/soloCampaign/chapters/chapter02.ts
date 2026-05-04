@@ -11,9 +11,9 @@ export const chapter02: SoloChapter = {
       id: "n2_1",
       chapterId: "chapter02",
       title: "2.1 · Parque Forestal · Sándalo y ozono",
-      text: `La sangre del muchacho en el Mapocho había sido un parche, no una cura. El hambre se retira, pero la conciencia despierta, y con ella, la paranoia. Santiago, desde el nivel del río, se siente como una tumba abierta; desde arriba, es una red de luces diseñada para atrapar insectos.
+      text: `La sangre del humano del Mapocho había sido un parche, no una cura. El hambre se retira, pero la conciencia despierta con la paranoia. Santiago, visto desde el nivel del río, sugiere tumba abierta; desde las barandas parece una red de luces diseñada para atrapar insectos.
 
-Me sacudí el barro de las botas mientras subía de nuevo hacia el Parque Forestal. La figura que me observaba desde el puente ya no estaba, pero el aire había quedado cargado con el rastro de su atención: un aroma a sándalo y a ozono, el perfume de los que tienen el poder de ser invisibles.`,
+Sacudió el barro de las botas al retornar al Parque Forestal. La figura que lo vigilara desde el puente ya no estaba allí arriba, pero el rastro de esa atención seguía en el aire: un aroma de sándalo y ozono, el perfume de quien tiene el poder de volverse invisible.`,
       options: [
         {
           id: "n2_1_scan",
@@ -29,9 +29,16 @@ Me sacudí el barro de las botas mientras subía de nuevo hacia el Parque Forest
           discipline: "auspex",
           disciplineTitle: "Rastro invisible",
           text: "Abrir los sentidos y buscar el hilo del perfume, la firma de la atención.",
-          requirement: { type: "discipline", discipline: "auspex", minLevel: 1 },
+          requirement: {
+            type: "discipline",
+            discipline: "auspex",
+            minLevel: 1,
+          },
           nextSceneId: "n2_2",
-          effects: [{ type: "hungerDelta", delta: 1 }, { type: "setFlag", flag: "novel_ch2_forestal_auspex_trace" }],
+          effects: [
+            { type: "hungerDelta", delta: 1 },
+            { type: "setFlag", flag: "novel_ch2_forestal_auspex_trace" },
+          ],
         },
       ],
     },
@@ -41,14 +48,18 @@ Me sacudí el barro de las botas mientras subía de nuevo hacia el Parque Forest
       title: "2.2 · Doña Inés",
       text: `—No te quedes ahí parado contemplando tu falta de juicio.
 
-Me giré, tenso. Sentada en un banco de madera, bajo la sombra de un plátano oriental, había una mujer. Vestía un traje de sastre de una elegancia gélida. Su piel era tan pálida que bajo la luz de sodio parecía hecha de mármol pulido.
+Se giró tenso. En un banco de madera, bajo la sombra de un plátano oriental, había una mujer vestida en traje de sastre de elegancia casi médica; su piel tan pálida que bajo la luz de sodio parecía mármol pulido.
 
-—Un recordatorio de que ya no eres dueño de tus pasos —respondió, ajustándose un guante de seda negra—. Me llaman Doña Inés. Soy la voz de aquel que gobierna esta ciudad desde las sombras. Y tú, pequeño accidente del destino, tienes una audiencia que no puedes rechazar.`,
+—Un recordatorio de que ya no eres dueño de tus pasos —respondió, ajustándose el guante de seda—. Me llaman Doña Inés. Soy la voz de quien gobierna esta ciudad desde las sombras. Y tú, pequeño accidente del destino, tienes una audiencia que no puedes rechazar.`,
       clanFlavor: {
-        ventrue: "La autoridad reconoce autoridad. Lo odies o no, el protocolo te encuentra primero.",
-        brujah: "Te arde la idea de una audiencia obligatoria. La rabia no firma citaciones.",
-        toreador: "La elegancia gélida te provoca: es una estética del poder, y por eso es peligrosa.",
-        malkavian: "La voz de ella no solo suena: cae como ficha en un dominó que ya estaba armado.",
+        ventrue:
+          "Para él, el protocolo duele menos cuando reconoce trono incluso oculto; la autoridad sabe igual de fría llamarse Inés.",
+        brujah:
+          "La idea de audiencia obligatoria le raspa nervios como lima: la rabia no firma citaciones.",
+        toreador:
+          "Aquella elegancia gélida lo fascina tanto como horroriza: es estética de poder —y por tanto lo hiere.",
+        malkavian:
+          "La frase cae ordenada pero le suena incompleta, como fichas cayendo antes de verse el dominó.",
       },
       options: [
         {
@@ -65,7 +76,11 @@ Me giré, tenso. Sentada en un banco de madera, bajo la sombra de un plátano or
           discipline: "presence",
           disciplineTitle: "No mostrar debilidad",
           text: "Sostener la mirada con calma: si van a usarme, que sepan que me doy cuenta.",
-          requirement: { type: "discipline", discipline: "presence", minLevel: 1 },
+          requirement: {
+            type: "discipline",
+            discipline: "presence",
+            minLevel: 1,
+          },
           nextSceneId: "n2_3",
           effects: [{ type: "setFlag", flag: "novel_ch2_presence_stand" }],
         },
@@ -75,9 +90,16 @@ Me giré, tenso. Sentada en un banco de madera, bajo la sombra de un plátano or
           discipline: "dominate",
           disciplineTitle: "Una pregunta obligatoria",
           text: "Forzar una respuesta mínima: «¿Quién gobierna?»",
-          requirement: { type: "discipline", discipline: "dominate", minLevel: 1 },
+          requirement: {
+            type: "discipline",
+            discipline: "dominate",
+            minLevel: 1,
+          },
           nextSceneId: "n2_3",
-          effects: [{ type: "hungerDelta", delta: 1 }, { type: "setFlag", flag: "novel_ch2_dominate_question" }],
+          effects: [
+            { type: "hungerDelta", delta: 1 },
+            { type: "setFlag", flag: "novel_ch2_dominate_question" },
+          ],
         },
       ],
     },
@@ -85,9 +107,9 @@ Me giré, tenso. Sentada en un banco de madera, bajo la sombra de un plátano or
       id: "n2_3",
       chapterId: "chapter02",
       title: "2.3 · El descenso al centro",
-      text: `Caminamos hacia el centro histórico. Santiago tiene una geografía de capas; mientras los humanos caminan sobre el asfalto de la calle Huérfanos, nosotros nos movemos por las galerías comerciales que mueren al anochecer.
+      text: `Doña Inés lo condujo hacia el centro histórico; Santiago muestra dos geografías paralelas: el asfalto oficial y las galerías que muerden cuando cae la noche.
 
-Entramos por una rejilla metálica en un pasaje olvidado que Inés abrió con una llave de plata. Bajamos por pasillos de servicio y escaleras mecánicas detenidas que parecían las costillas de un animal prehistórico.`,
+Cruzaron una rejilla metálica en un pasaje olvidado; ella extrajo llave plateada como quien muestra relicario oficial. Bajaron por pasillos de servicio y escaleras mecánicas paradas, cadáveres de infraestructura que parecían costillas fósiles.`,
       options: [
         {
           id: "n2_3_down",
@@ -103,7 +125,11 @@ Entramos por una rejilla metálica en un pasaje olvidado que Inés abrió con un
           discipline: "auspex",
           disciplineTitle: "Leer el lugar",
           text: "Percibir la habitación antes de verla: quiero saber cuántos ojos me esperan.",
-          requirement: { type: "discipline", discipline: "auspex", minLevel: 1 },
+          requirement: {
+            type: "discipline",
+            discipline: "auspex",
+            minLevel: 1,
+          },
           nextSceneId: "n2_4",
           effects: [{ type: "setFlag", flag: "novel_ch2_descent_auspex" }],
         },
@@ -113,11 +139,11 @@ Entramos por una rejilla metálica en un pasaje olvidado que Inés abrió con un
       id: "n2_4",
       chapterId: "chapter02",
       title: "2.4 · La Corte de los Espejos Rotos",
-      text: `El lugar era un anacronismo. Una antigua cava de vinos reconvertida en un salón de baile barroco bajo el nivel de la calle. Candelabros de cristal colgaban del techo de ladrillo visto, y las paredes estaban cubiertas de espejos antiguos, manchados por el tiempo.
+      text: `El salón apareció ajeno a todo calendario: antigua cueva barriles reconvertida en salón donde el tiempo se encogía bajo nivel de las calles. Candelabros de cristal colgaban de ladrillo a la vista. Los espejos viejos, manchados, devolvían luz sospechosamente nueva.
 
-Fue allí donde noté el segundo horror de la noche: en esos espejos, los hombres y mujeres que llenaban el salón no proyectaban sombra ni reflejo.
+Aquí cayó sobre él otro vértigo: en esos cristales los reunidos apenas tenían volumen corpóreo —ni sombras que los delataran cuando debían tenerlas.
 
-—Mantén los ojos bajos —susurró Inés—. Aquí, una mirada prolongada es un desafío, y un desafío es una sentencia de muerte.`,
+—Mantén los ojos bajos —musitó Doña Inés—. Aquí prolongar la mirada es desafío, y el desafío es sentencia.`,
       options: [
         {
           id: "n2_4_comply",
@@ -133,9 +159,16 @@ Fue allí donde noté el segundo horror de la noche: en esos espejos, los hombre
           discipline: "dominate",
           disciplineTitle: "Disciplina interna",
           text: "Ordenarme calma: no regalarles el temblor.",
-          requirement: { type: "discipline", discipline: "dominate", minLevel: 1 },
+          requirement: {
+            type: "discipline",
+            discipline: "dominate",
+            minLevel: 1,
+          },
           nextSceneId: "n2_5",
-          effects: [{ type: "hungerDelta", delta: -1 }, { type: "setFlag", flag: "novel_ch2_court_control" }],
+          effects: [
+            { type: "hungerDelta", delta: -1 },
+            { type: "setFlag", flag: "novel_ch2_court_control" },
+          ],
         },
       ],
     },
@@ -143,7 +176,7 @@ Fue allí donde noté el segundo horror de la noche: en esos espejos, los hombre
       id: "n2_5",
       chapterId: "chapter02",
       title: "2.5 · La audiencia",
-      text: `En el fondo del salón, sentado en un sillón de terciopelo que parecía un trono improvisado, estaba el hombre que mandaba. No era un guerrero, sino un tipo de aspecto burocrático, con anteojos de marco fino y una sonrisa que nunca llegaba a sus ojos.
+      text: `En el fondo del salón, sentado en un sillón de terciopelo que parecía trono provisional, esperaba quien decidía política vampírica: no cara de duelista, más bien de escritorio ancestral, anteojos de marcas finísimas, sonrisa que se detiene media curva antes de llegar al brillo esperado del ojo.
 
 —Así que este es el retoño de la calle Bandera —dijo—. Un nacimiento sin permiso. Una mancha de sangre en mi río. Una violación de nuestra ley más antigua: el silencio.
 
@@ -163,7 +196,10 @@ Fue allí donde noté el segundo horror de la noche: en esos espejos, los hombre
           text: "Preguntar una cosa: ¿por qué yo?",
           requirement: { type: "none" },
           nextSceneId: "n2_end",
-          effects: [{ type: "hungerDelta", delta: 1 }, { type: "setFlag", flag: "novel_ch2_mandate_why" }],
+          effects: [
+            { type: "hungerDelta", delta: 1 },
+            { type: "setFlag", flag: "novel_ch2_mandate_why" },
+          ],
         },
       ],
     },
@@ -171,9 +207,9 @@ Fue allí donde noté el segundo horror de la noche: en esos espejos, los hombre
       id: "n2_end",
       chapterId: "chapter02",
       title: "2.E · Política de los condenados",
-      text: `Doña Inés me tomó del brazo y me condujo hacia la salida. Al pasar frente a uno de los grandes espejos manchados, vi mi propia ausencia. Ya no era un ciudadano, ni un hijo, ni un hombre. Era un arma en manos de un burócrata inmortal.
+      text: `Doña Inés le tomó el brazo y lo guió hasta la puerta trasera sin pasacalles ceremoniales extras. Cruzando ante espejos manchados, en el último uno vio sólo hueco donde un hombre debería estar: ya ciudadano perdido ni reconocía bajo ese vacío líquido, arma apenas ensamblada en despacho vampírico de burocracia milenaria.
 
-—Bienvenido a la política de los condenados —susurró Inés—. Intenta no morir dos veces en la misma noche.`,
+—Bienvenido a la política de los condenados —susurró Inés sin volver la cabeza—. Intenta no morir dos veces esta misma noche.`,
       options: [
         {
           id: "n2_end_continue",

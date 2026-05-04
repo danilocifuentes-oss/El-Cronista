@@ -11,7 +11,7 @@ export const chapter12: SoloChapter = {
       id: "n12_1",
       chapterId: "chapter12",
       title: "12.1 · Plaza de Armas · La Catedral",
-      text: `Salir de las alcantarillas a la Plaza de Armas fue como emerger de una tumba.\n\nLa Catedral Metropolitana se alzaba frente a mí, una fortaleza diseñada para proteger al hombre de Dios… o para proteger a Dios de lo que nosotros nos habíamos convertido.`,
+      text: `Salir de alcantarillas a la Plaza de Armas supuso el shock de quien entierra humedad y reaparece bajo campanario iluminado como faro falso.\n\nLa Catedral Metropolitana se alzaba frente al neonato: bastión que prometía resguardo al mortal y, según la leyenda urbana no escrita, también al cielo contra lo que Ciudad y Sangre se hubieran vuelto.`,
       options: [
         {
           id: "n12_1_enter",
@@ -36,7 +36,7 @@ export const chapter12: SoloChapter = {
       id: "n12_2",
       chapterId: "chapter12",
       title: "12.2 · La cripta",
-      text: `Bajé hacia la cripta. La llave de bronce encajó. El suelo se desplazó.\n\nNo había huesos: había un sarcófago de cristal y plomo.\n\nDentro, un relicario: una vasija de plata con sangre que no era humana. Era voluntad.`,
+      text: `El descenso hacia cripta menor fue mecánico: la llave de bronce giró, los goznes del piso cedieron como boca seca.\n\nNo había osario de huesos alineados sino sarcófago híbrido cristal-plomo.\n\nAdentro reposaba relicario de plata donde la sustancia roja no olía a humano sino a mandato.`,
       options: [
         {
           id: "n12_2_break",
@@ -60,7 +60,7 @@ export const chapter12: SoloChapter = {
       id: "n12_end",
       chapterId: "chapter12",
       title: "12.E · Ceniza",
-      text: `El muchacho del Mapocho estaba allí. Mi primera víctima.\n\nPara romper el Vínculo, tuve que terminar lo que empecé.\n\nCuando el dolor cesó, él era ceniza.\n\nY yo… yo estaba solo.`,
+      text: `El muchacho del Mapocho apareció al fondo del ritual: la primera víctima pública de aquel despertar brutal.\n\nRomper el vínculo obligó a cerrar círculo con la misma mano que lo abrió.\n\nCuando terminó el último jadeo sólo quedó polvo donde hubo piel.\n\nQuedó el vampiro en una soledad herrumbrada; sólo la piedra fungía de testigo.`,
       options: [
         {
           id: "n12_end_continue",

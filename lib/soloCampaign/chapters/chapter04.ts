@@ -11,9 +11,9 @@ export const chapter04: SoloChapter = {
       id: "n4_1",
       chapterId: "chapter04",
       title: "4.1 · La Biblioteca Nacional",
-      text: `La Biblioteca Nacional guarda más que libros. El rastro de la hiel no termina en la sangre, sino en el papel.
+      text: `La Biblioteca Nacional guarda más que libros: el rastro de la hiel no termina en sangre fresca sino en tinta vieja.
 
-En la Sala de Investigadores, un hombre de dedos amarillentos por el tabaco me esperaba tras un escritorio de roble.`,
+En la Sala de Investigadores, tras un escritorio de roble, un hombre de dedos amarillentos por el tabaco aguardaba con carpeta cerrada.`,
       options: [
         {
           id: "n4_1_ask",
@@ -69,7 +69,7 @@ Mapas antiguos, marcas rojas y nombres de linajes que aún resuenan en directori
       title: "4.E · Sombras en la sala",
       text: `Un ruido de pasos elegantes rompió el silencio. Doña Inés estaba allí.
 
-—Has leído suficiente —dijo—. Ahora sabes que esta ciudad no es un tablero nuevo. Es una partida que lleva siglos en tablas.`,
+—Has leído suficiente —dijo—. Esta ciudad jamás fue tablero nuevo; es partida abierta desde hace siglos sin tablas firmes.`,
       options: [
         {
           id: "n4_end_continue",

@@ -230,19 +230,20 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
   const clanLabel = CLAN_OPTIONS.find((c) => c.id === sheet.clan)?.label ?? sheet.clan;
   const preludeStinger =
     CHRONICLE_PRELUDE_MASK_STINGER[sheet.clan] ??
-    "Tu máscara es la cara que decides financiar hasta que algún testigo cobre en otra moneda.";
+    "Su máscara es la cara que decide financiar hasta que algún testigo cobre en otra moneda.";
 
   const clanIntro = {
-    brujah: "La ciudad te conoce por la rabia que camina contigo. Hoy esa rabia puede salvarte o condenarte.",
-    ventrue: "El poder no se negocia: se administra. Esta noche tu linaje te abre puertas y te gana enemigos.",
-    malkavian: "Las grietas del mundo te hablan. Lo que para otros es ruido, para ti es mapa.",
-    toreador: "Cada escena tiene un precio estético y moral. Tu mirada elige qué belleza sobrevive.",
-    nosferatu: "Ves la red bajo la red. Nadie domina la noche sin pasar por tus túneles.",
-    tremere: "Cada decisión es un ritual sin círculo. Sangre, control y consecuencias calculadas.",
-    gangrel: "Tu instinto lee la noche antes que los datos. La bestia es brújula si no la sueltas.",
-    thin_blood: "Tu sangre cuestiona el orden no escrito. Aprendes rápido o quedas fuera.",
-    caitiff: "Sin apellido inmortal, cada paso debe ganarse desde cero.",
-    other: "Tu linaje irregular no te protege: te obliga a improvisar mejor que nadie.",
+    brujah: "La ciudad lo conoce por la rabia que camina con él. Esta noche esa rabia puede salvarlo o condenarlo.",
+    ventrue: "El poder no se negocia; se administra. Esta noche su linaje le abre puertas y le gana enemigos.",
+    malkavian:
+      "Las grietas del mundo le hablan. Lo que para otros es ruido, para él es mapa.",
+    toreador: "Cada escena tiene un precio estético y moral. Su mirada elige qué belleza sobrevive.",
+    nosferatu: "Ve la red bajo la red. Nadie domina la noche sin pasar por sus túneles.",
+    tremere: "Cada decisión es un ritual sin círculo: sangre, control y consecuencias calculadas.",
+    gangrel: "Su instinto lee la noche antes que los datos. La bestia es brújula si no la suelta.",
+    thin_blood: "Su sangre cuestiona el orden no escrito. Aprende rápido o queda fuera.",
+    caitiff: "Sin apellido inmortal, cada paso debe ganarlo desde cero.",
+    other: "Su linaje irregular no lo protege: lo obliga a improvisar mejor que nadie.",
   }[sheet.clan];
 
   const applyOption = (option: SoloOption) => {

@@ -59,7 +59,7 @@ export const chapter10: SoloChapter = {
       id: "n10_3",
       chapterId: "chapter10",
       title: "10.3 · Cripta",
-      text: `El suelo se abrió: una cripta de piedra negra. El líder tatuado sostenía una estaca sobre el ataúd.\n\nLa tapa cedió.\n\nNo salió una bestia con colmillos. Salió un suspiro. Un frío que volvió las llamas azules.\n\nSantiago acababa de abrir un ojo. Y lo que vio no le gustó.`,
+      text: `El suelo se abrió: una cripta de piedra negra. El líder tatuado sostenía una estaca sobre el ataúd.\n\nLa tapa cedió.\n\nNo salió una bestia con colmillos. Salió un suspiro. Un frío que volvió las llamas azules.\n\nSantiago, metáfora viva sobre tablado de humo, parecía haber abierto un ojo demasiado viejo; a él ese parpadeo le heló la nuca como advertencia sin traducción.`,
       options: [
         {
           id: "n10_3_run",

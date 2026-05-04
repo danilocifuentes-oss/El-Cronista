@@ -11,7 +11,7 @@ export const chapter07: SoloChapter = {
       id: "n7_1",
       chapterId: "chapter07",
       title: "7.1 · Quinta Normal · Entrada al olvido",
-      text: `La sangre negra de la Viña del Silencio seguía vibrando en mi interior. Gato me esperaba con una instrucción: dejar de mirar los rascacielos y bajar a la oscuridad que no tiene cables de electricidad.`,
+      text: `La sangre negra bebida en la Viña seguía pulsando en él como metrónomo invertido. Gato aguardaba sin prisa con consigna clara: abandonar el consuelo vertical de los edificios fundidos con luz LED y bajar al tramo que ni siquiera registra mapas de consumo eléctrico.`,
       options: [
         {
           id: "n7_1_down",
@@ -64,9 +64,9 @@ Se presentó como “El Archivista”.`,
       id: "n7_end",
       chapterId: "chapter07",
       title: "7.E · Advertencia",
-      text: `Las señales están aquí. El tiempo de Nod ha regresado.
+      text: `Las señales estaban allí. El tiempo viejo de Nod volvía a contar en el aire viciado.
 
-Salí con el equilibrio roto. Por primera vez, el hambre en mi interior no era por sangre, sino por una verdad que me permitiera sobrevivir a la noche que se venía encima.`,
+Salió con los ejes internos descalibrados: por primera vez esa hambre no pedía sangre de cuello sino certeza suficiente como escudo frente a tormenta nocturna anunciada.`,
       options: [
         {
           id: "n7_end_continue",

@@ -11,9 +11,9 @@ export const chapter03: SoloChapter = {
       id: "n3_1",
       chapterId: "chapter03",
       title: "3.1 · Estación Mapocho · Entrada de servicio",
-      text: `La Estación Mapocho se alzaba ante mí como un mausoleo de hierro y cristal. Antaño, el corazón ferroviario de un país que soñaba con el progreso; hoy, un centro cultural que, bajo la luna, recuperaba su aire de terminal para pasajeros que nunca llegan.
+      text: `La Estación Mapocho se alzaba ante él como un mausoleo de hierro y cristal. Antaño había sido el corazón ferroviario de un país que soñaba con el progreso; hoy, centro cultural que bajo la luna recuperaba aire de terminal para pasajeros que nunca llegan.
 
-El sobre que me entregó Doña Inés contenía una sola instrucción: “Sigue el rastro de la hiel”.`,
+El sobre que Doña Inés le había entregado contenía una sola instrucción: “Sigue el rastro de la hiel”.`,
       options: [
         {
           id: "n3_1_enter",
@@ -45,8 +45,9 @@ La voz surgió de la oscuridad absoluta. El olor era inconfundible: alcantarilla
 
 —Me llaman "El Choro" —dijo—. Y si das un paso más, vas a pisar algo que no querrás limpiar de tus botas.`,
       clanFlavor: {
-        malkavian: "Hay patrones en el hedor: la ciudad escribe con mugre cuando no puede escribir con tinta.",
-        ventrue: "La insolencia es información. El que se atreve a burlarse aquí tiene poder real, aunque sea sucio.",
+        malkavian: "Para él, el hedor traza patrones: la ciudad firma en mugre cuando se le niega tinta.",
+        ventrue:
+          "El provocador bajo tierra lleva información en la burla: quien manda también aquí apesta a verdadero poder.",
       },
       options: [
         {
@@ -73,11 +74,11 @@ La voz surgió de la oscuridad absoluta. El olor era inconfundible: alcantarilla
       id: "n3_3",
       chapterId: "chapter03",
       title: "3.3 · El encuentro",
-      text: `El boquete en la pared parecía abierto a dentelladas. Al otro lado, una cámara de mantenimiento subterránea.
+      text: `El boquete en la pared parecía abierto a dentelladas; al otro lado, una cámara de mantenimiento sepultada.
 
-Había restos humanos. No drenados con limpieza clínica: despedazados.
+Había restos humanos sin el pulido de mesa quirúrgica: carne desarticulada, líquido disperso sobre hormigón.
 
-En el centro, agachada sobre un bulto irreconocible, estaba la criatura. Se giró hacia mí y rugió.`,
+En el centro, agachada sobre un bulto irreconocible, la criatura endureció cada músculo; giró sobre sí y rugió contra el intruso.`,
       options: [
         {
           id: "n3_3_fight",
@@ -103,9 +104,9 @@ En el centro, agachada sobre un bulto irreconocible, estaba la criatura. Se gir�
       id: "n3_end",
       chapterId: "chapter03",
       title: "3.E · Regusto amargo",
-      text: `Había cumplido la misión, pero el triunfo sabía a ceniza volcánica. Había cazado a uno de los míos para proteger un orden que me consideraba un desecho.
+      text: `Había cumplido la misión, pero el triunfo sabía a ceniza volcánica: había cazado uno de los suyos para salvar orden que apenas lo tratara como recurso despachable.
 
-—Bien hecho, pequeño activo —susurró El Choro desde la oscuridad—. Ahora ya sabes a qué sabe la traición.`,
+—Bien hecho, pequeño activo —susurró El Choro desde la oscuridad—. Ya sabés a qué sabe traicionar.`,
       options: [
         {
           id: "n3_end_continue",

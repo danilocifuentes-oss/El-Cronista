@@ -11,9 +11,9 @@ export const chapter08: SoloChapter = {
       id: "n8_1",
       chapterId: "chapter08",
       title: "8.1 · Teatinos · Umbral cruzado",
-      text: `Regresé a mi refugio en la imprenta buscando el único consuelo que nos queda: el silencio del suelo. Pero el aire, incluso antes de cruzar el umbral, se sentía distinto.
+      text: `Regresó al refugio de la imprenta buscando ese consuelo mínimo que aún queda: el suelo que no pregunta nombre. El aire cambió media cuadra antes —demasiado metal dulce, demasiada humedad reciente.
 
-Sangre fresca. Y no era la mía.`,
+Sangre ajena; no la suya.`,
       options: [
         {
           id: "n8_1_enter",
@@ -67,9 +67,9 @@ La silueta cayó con gracia de gato. Piel pálida. Tatuajes vivos. Sonrisa de si
       id: "n8_end",
       chapterId: "chapter08",
       title: "8.E · Cenizas",
-      text: `Salí de la imprenta justo antes de que el fuego consumiera lo último que me quedaba de mi vida anterior.
+      text: `Salió de la imprenta momentos antes del colapso completo: llamas devorando papel, tinta, cualquier rastro de rutina humana que aún colgara ahí.
 
-—Han marcado tu refugio —dijo Gato—. Ya no puedes esconderte en los libros.`,
+—Marcaron tu refugio —dijo Gato—. Ya no puedes esconderte en los libros.`,
       options: [
         {
           id: "n8_end_continue",

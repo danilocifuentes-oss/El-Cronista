@@ -11,9 +11,9 @@ export const chapter05: SoloChapter = {
       id: "n5_1",
       chapterId: "chapter05",
       title: "5.1 · Plaza Italia",
-      text: `Me encontraba en la intersección de la Alameda con Vicuña Mackenna. La Plaza Italia era un hervidero de furia humana.
+      text: `Ese tramo entre la Alameda y Vicuña Mackenna rezumaba adrenalina corrida como corriente. La Plaza Italia hervía de furia humana.
 
-Caminar entre miles de humanos excitados es como caminar por una bodega de pólvora con una cerilla encendida.`,
+Meterse entre miles de cuerpos excitados equivalía a orillar un depósito de pólvora con fuego cercano.`,
       options: [
         {
           id: "n5_1_keep_mask",
@@ -37,11 +37,11 @@ Caminar entre miles de humanos excitados es como caminar por una bodega de pólv
       id: "n5_2",
       chapterId: "chapter05",
       title: "5.2 · Gato",
-      text: `—No lo hagas, cachorro. Esa sangre sabe a rabia y lacrimógena.
+      text: `—No lo hagas, cachorro. Esa sangre sabe a rabia y lacrimógeno.
 
-Apoyado contra una pared cubierta de grafitis, vi a un hombre con capucha negra y una máscara de gas colgando del cuello. Sus ojos brillaban con una vitalidad que no era humana.
+Contra grafitis en capas, otro volumen observaba desde la sombra —capucha negra, máscara de gas pendiente como joya colgante; los ojos llevaban un brío que nadie mortal factura después de medianoche adulta.
 
-—Me llaman Gato —dijo—.`,
+—Me llaman Gato —dejó escapar.`,
       options: [
         {
           id: "n5_2_listen",
@@ -67,9 +67,9 @@ Apoyado contra una pared cubierta de grafitis, vi a un hombre con capucha negra 
       id: "n5_3",
       chapterId: "chapter05",
       title: "5.3 · La decisión en el humo",
-      text: `Entre el humo vi a una joven caída. Uno de esos seres pálidos se cernía sobre ella. No iba a beber con delicadeza: iba a despedazarla.
+      text: `Entre jirones de humo, una joven yacía en tierra empapada en gas; uno de los pálidos se alzaba encima ya sin intenciones delicadas —planeaba hacer un espectáculo sangriento entre tantos smartphones apuntando al cielo.
 
-Podía dejar que la ciudad ardiera. O podía actuar.`,
+Las balas quedaban muy lejos: la escena esperaba sólo decisión.`,
       options: [
         {
           id: "n5_3_intervene",
@@ -93,9 +93,9 @@ Podía dejar que la ciudad ardiera. O podía actuar.`,
       id: "n5_end",
       chapterId: "chapter05",
       title: "5.E · Neón y ceniza",
-      text: `Esa noche, bajo las luces de neón y el fuego de la Alameda, comprendí que ser lo que soy aquí no era una maldición literaria.
+      text: `Bajo luces neón rasgadas y fuego contenido contra el pavimento comprendió: ser lo que la noche obligaba no equivalía proverbio gótico.
 
-Era una guerra de guerrillas eterna por defender la poca decencia que aún me cabía en el pecho frío.`,
+Era guerrilla interminable en defensa residual de esa decencia diminuta que sobrevive en torso ya helado.`,
       options: [
         {
           id: "n5_end_continue",

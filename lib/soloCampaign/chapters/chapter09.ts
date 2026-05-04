@@ -37,7 +37,7 @@ export const chapter09: SoloChapter = {
       id: "n9_2",
       chapterId: "chapter09",
       title: "9.2 · Alimentarse sin perderse",
-      text: `Gato señaló a un hombre dormido. “Es un voluntario”, dijo. “No lo mates”.\n\nNecesitaba alimentarme. Pero aquí, en el barro, la decencia era la última frontera.`,
+      text: `Gato señaló a un hombre dormido. «Es voluntario —dijo—. No lo mates».\n\nEl cuerpo exigía alimento; en aquel barro la decencia se medía en sorbos casi quirúrgicos.`,
       options: [
         {
           id: "n9_2_feed_gentle",
@@ -61,7 +61,7 @@ export const chapter09: SoloChapter = {
       id: "n9_end",
       chapterId: "chapter09",
       title: "9.E · La decisión",
-      text: `El Vínculo seguía ahí: una presión constante en la base del cráneo, ordenando obediencia.\n\n—Mañana iremos a la Estación Mapocho de nuevo —dije—. Pero no iré como embajador del Príncipe.`,
+      text: `El Vínculo seguía allí —presión basal en hueso temporal ordenando antes de cualquier deliberación racional.\n\nEntendió, y Gato lo leyó en postura sin palabras, que al día siguiente cruzaría de nuevo Mapocho; no como mensajero del Príncipe.`,
       options: [
         {
           id: "n9_end_continue",
