@@ -8,7 +8,7 @@ import { getSoloChapter, getSoloScene } from "@/lib/soloCampaign/chapters";
 import { checkOptionAvailability, listFailReasons, resolveDisciplineTierText } from "@/lib/soloCampaign/requirementEngine";
 import { saveSheet } from "@/lib/character";
 import { loadSoloProgress, saveSoloProgress } from "@/lib/soloCampaign/progressStore";
-import type { SoloOption, SoloProgress } from "@/lib/soloCampaign/types";
+import type { SoloOption, SoloProgress, SoloSceneEffect } from "@/lib/soloCampaign/types";
 import { soloDisciplineGlyph } from "@/lib/soloCampaign/disciplineGlyphs";
 import { CHRONICLE_PRELUDE_COMMON, CHRONICLE_PRELUDE_MASK_STINGER } from "@/lib/soloCampaign/preludeCopy";
 import { syncActiveBundleFromGlobals } from "@/lib/profileStore";
@@ -17,11 +17,20 @@ import { SoloCampaignProvider, useSoloCampaign } from "@/context/SoloCampaignCon
 import { rollPoolV5, summarizeRollPlayerLog } from "@/lib/dice";
 
 const OPTION_TYPE_LABEL: Record<string, string> = {
-  dialogue: "DIALOGO",
+  dialogue: "DIÁLOGO",
   discipline: "DISCIPLINA",
   skill: "HABILIDAD",
   clan: "CLAN",
 };
+
+function soloOptionUsesDice(option: SoloOption): boolean {
+  return option.requirement.type !== "none";
+}
+
+function sumReputationDeltas(list: SoloOption["effects"]): number {
+  if (!list?.length) return 0;
+  return list.reduce((acc, e) => (e.type === "reputationDelta" ? acc + e.delta : acc), 0);
+}
 
 const DISCIPLINE_COLOR: Record<string, string> = {
   dominate: "text-violet-300 border-violet-700/60 bg-violet-950/25",
@@ -151,7 +160,9 @@ function ensureProgress(profileId: string, sheet: CharacterSheet): SoloProgress 
 
 export function SoloCampaignApp({ profileId, sheet, onExit }: Props) {
   const isSupported = isSoloSupportedClan(sheet.clan);
-  const initial = useMemo(() => ensureProgress(profileId, sheet), [profileId, sheet]);
+  /** Estado inicial sólo en montaje (el componente lleva key de perfil; no reprocesar al mutar hambre en vivo). */
+  const [initialProgress] = useState(() => ensureProgress(profileId, sheet));
+
   if (!isSupported) {
     const clanLabel = CLAN_OPTIONS.find((c) => c.id === sheet.clan)?.label ?? sheet.clan;
     return (
@@ -180,7 +191,7 @@ export function SoloCampaignApp({ profileId, sheet, onExit }: Props) {
   }
 
   return (
-    <SoloCampaignProvider initialProgress={initial}>
+    <SoloCampaignProvider key={profileId} initialProgress={initialProgress}>
       <SoloCampaignScreen profileId={profileId} sheet={sheet} onExit={onExit} />
     </SoloCampaignProvider>
   );
@@ -213,52 +224,65 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
     const availability = checkOptionAvailability(option, sheet);
     if (!availability.available) return;
 
-    const rollPlan = resolveSoloRollPlan(option, sheet);
-    const roll = rollPoolV5(rollPlan.pool, sheet.hunger, rollPlan.difficulty);
-    const rollLine = `${rollPlan.label} · ${summarizeRollPlayerLog(roll)}`;
-    setLastRollLine(rollLine);
-
     let nextSheet = sheet;
     const nextFlags = { ...progress.flags };
-    const isCritical = roll.criticalNormal || roll.messyCritical;
-    const branchEffects = roll.passed
-      ? isCritical
-        ? [...(option.effects ?? []), ...(option.effectsOnCritical ?? [])]
-        : option.effects ?? []
-      : [...(option.effects ?? []), ...(option.effectsOnFail ?? [])];
-    for (const effect of branchEffects) {
-      nextSheet = applySceneEffectDraft(nextSheet, nextFlags, effect);
-    }
-    if (!roll.passed) {
-      nextSheet = { ...nextSheet, hunger: Math.max(0, Math.min(5, nextSheet.hunger + 1)) };
-      nextFlags[`roll_fail_${option.id}`] = true;
-      if (roll.fracasoBestial) {
-        nextSheet = { ...nextSheet, humanity: Math.max(0, Math.min(10, nextSheet.humanity - 1)) };
+    let rollLine: string;
+    let rollPassed = true;
+    let targetSceneId = option.nextSceneId;
+    let branchEffects: SoloSceneEffect[];
+
+
+    if (soloOptionUsesDice(option)) {
+      const rollPlan = resolveSoloRollPlan(option, sheet);
+      const roll = rollPoolV5(rollPlan.pool, sheet.hunger, rollPlan.difficulty);
+      rollLine = `${rollPlan.label} · ${summarizeRollPlayerLog(roll)}`;
+      rollPassed = roll.passed;
+      const isCritical = roll.criticalNormal || roll.messyCritical;
+      branchEffects = roll.passed
+        ? isCritical
+          ? [...(option.effects ?? []), ...(option.effectsOnCritical ?? [])]
+          : option.effects ?? []
+        : [...(option.effects ?? []), ...(option.effectsOnFail ?? [])];
+      for (const effect of branchEffects) {
+        nextSheet = applySceneEffectDraft(nextSheet, nextFlags, effect);
       }
-    } else if (isCritical) {
-      nextFlags[`roll_crit_${option.id}`] = true;
+      if (!roll.passed) {
+        nextSheet = { ...nextSheet, hunger: Math.max(0, Math.min(5, nextSheet.hunger + 1)) };
+        nextFlags[`roll_fail_${option.id}`] = true;
+        if (roll.fracasoBestial) {
+          nextSheet = { ...nextSheet, humanity: Math.max(0, Math.min(10, nextSheet.humanity - 1)) };
+        }
+      } else if (isCritical) {
+        nextFlags[`roll_crit_${option.id}`] = true;
+      }
+      targetSceneId = !roll.passed
+        ? option.nextSceneIdOnFail ?? option.nextSceneId
+        : isCritical
+          ? option.nextSceneIdOnCritical ?? option.nextSceneId
+          : option.nextSceneId;
+    } else {
+      rollLine = "Sin tirada · elección directa";
+      branchEffects = option.effects ?? [];
+      for (const effect of branchEffects) {
+        nextSheet = applySceneEffectDraft(nextSheet, nextFlags, effect);
+      }
     }
+
+    setLastRollLine(rollLine);
 
     if (nextSheet !== sheet) {
       saveSheet(nextSheet);
       syncActiveBundleFromGlobals(profileId);
     }
-
-    const targetSceneId = !roll.passed
-      ? option.nextSceneIdOnFail ?? option.nextSceneId
-      : isCritical
-        ? option.nextSceneIdOnCritical ?? option.nextSceneId
-        : option.nextSceneId;
     const nextScene = getSoloScene(progress.chapterId, targetSceneId);
     const sceneId = nextScene?.id ?? progress.sceneId;
+    const reputationGain = sumReputationDeltas(branchEffects);
     const next: SoloProgress = {
       ...progress,
       playerName: sheet.name?.trim() || progress.playerName,
       clan: sheet.clan,
       humanity: nextSheet.humanity,
-      reputation:
-        progress.reputation +
-        (option.effects ?? []).reduce((acc, effect) => (effect.type === "reputationDelta" ? acc + effect.delta : acc), 0),
+      reputation: progress.reputation + reputationGain,
       sceneId,
       flags: nextFlags,
       visitedSceneIds: Array.from(new Set([...progress.visitedSceneIds, sceneId])),
@@ -269,7 +293,7 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
           optionId: option.id,
           ts: progress.updatedAt + 1,
           rollSummary: rollLine,
-          rollPassed: roll.passed,
+          rollPassed,
         },
       ].slice(-120),
       updatedAt: progress.updatedAt + 1,
@@ -296,10 +320,15 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
     );
   }
 
+  const sceneHeadingId = `solo-scene-title-${scene.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#0f1118_0%,#050505_45%,#030303_100%)] px-4 py-8 font-mono text-neutral-300">
       <div className="mx-auto grid max-w-6xl gap-5 xl:grid-cols-[18rem_1fr]">
-        <aside className="space-y-4 border border-neutral-900 bg-black/35 p-4">
+        <aside
+          className="space-y-4 border border-neutral-900 bg-black/35 p-4"
+          aria-label="Estado del personaje en Campaña Solitaria"
+        >
           <p className="text-[10px] uppercase tracking-[0.3em] text-[var(--terminal)]">Ficha activa</p>
           <p className="font-sans text-lg text-neutral-100">{sheet.name || "Sin nombre"}</p>
           <p className={`text-xs uppercase tracking-[0.16em] ${CLAN_TONE[sheet.clan] ?? "text-neutral-300"}`}>{clanLabel}</p>
@@ -322,7 +351,7 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
           </button>
         </aside>
 
-        <div className="space-y-6">
+        <main className="space-y-6 min-w-0" aria-label="Historia y opciones">
         <header className="space-y-2 border-b border-neutral-900 pb-4">
           <p className="text-[10px] uppercase tracking-[0.3em] text-[var(--terminal)]">Campaña Solitaria</p>
           <h1 className="font-sans text-2xl font-semibold text-neutral-100">{chapter.title}</h1>
@@ -379,8 +408,10 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
 
         {progress.flags.chronicle_curtain_seen && progress.flags.clan_intro_seen ? (
           <>
-            <section className="space-y-4 border border-neutral-900 bg-black/40 p-5 sharp-border-inner">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500">{scene.title}</p>
+            <section className="space-y-4 border border-neutral-900 bg-black/40 p-5 sharp-border-inner" aria-labelledby={sceneHeadingId}>
+              <p id={sceneHeadingId} className="text-[10px] uppercase tracking-[0.22em] text-neutral-500">
+                {scene.title}
+              </p>
               <p className="leading-relaxed text-neutral-200">{scene.text}</p>
               {scene.clanFlavor?.[sheet.clan] ? (
                 <p className={`border-l-2 border-current pl-3 text-sm italic ${CLAN_TONE[sheet.clan] ?? "text-neutral-300"}`}>
@@ -409,11 +440,20 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
                 const optionText = resolveDisciplineTierText(option, sheet);
                 const disciplineChip = option.discipline ? DISCIPLINE_COLOR[option.discipline] ?? "text-violet-200 border-violet-900" : "";
 
+                const typeLine = OPTION_TYPE_LABEL[option.type] ?? option.type.toUpperCase();
+                const choiceLabel =
+                  option.discipline !== undefined
+                    ? `${typeLine}: ${disciplineLabel(option.discipline)} — ${optionText}`
+                    : option.skill !== undefined
+                      ? `${typeLine}: ${option.skill} — ${optionText}`
+                      : `${typeLine}: ${optionText}`;
+
                 return (
                   <button
                     key={option.id}
                     type="button"
                     disabled={!state.available}
+                    aria-label={state.available ? choiceLabel : `${choiceLabel} (no disponible)`}
                     onClick={() => applyOption(option)}
                     className={`w-full border px-4 py-3 text-left transition ${
                       state.available
@@ -443,7 +483,7 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
             </footer>
           </>
         ) : null}
-        </div>
+        </main>
       </div>
     </div>
   );

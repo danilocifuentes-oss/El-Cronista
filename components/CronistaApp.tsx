@@ -992,7 +992,7 @@ function CronistaAppInner() {
       navigateToPhase("profileHub", { replace: true });
       return null;
     }
-    return <SoloCampaignApp profileId={activeId} sheet={sheet} onExit={goToProfileHub} />;
+    return <SoloCampaignApp key={activeId} profileId={activeId} sheet={sheet} onExit={goToProfileHub} />;
   }
 
   if (phase === "chargen") {
