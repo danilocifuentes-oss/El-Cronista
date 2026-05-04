@@ -4,7 +4,7 @@ import type { NarrativeEntityBrief, NarrativeEntityKind } from "@/data/knowledge
 export const entities: Record<NarrativeEntityKind, NarrativeEntityBrief> = {
   kindred_established: {
     role: "Kindred anclado redes antiguas · deuda y etiqueta cargan igual que colmillo.",
-    defaultHooks: ["prueba de hierarquía", " rumor que llega antes que vos", "favor tasado antes del abrazo visible"],
+    defaultHooks: ["prueba de jerarquía", " rumor que te llega antes", "favor tasado antes del abrazo visible"],
   },
   kindred_young: {
     role: "Kindred nuevo en mapa político · improvisa vínculos; el barrio olfatea hambre y error.",

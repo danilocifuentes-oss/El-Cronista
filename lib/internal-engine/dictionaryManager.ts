@@ -111,20 +111,20 @@ const ACTION_CORE: Record<NexoIntent, readonly string[]> = {
     "Formalidad mínima; el barrio responde con silencio que ya incluye juicio.",
   ],
   survival_probe: [
-    "Priorizás agua, techo o rumor barato — los tres compiten en la misma tabla de enrutamiento.",
+    "Priorizas agua, techo o rumor barato — los tres compiten en la misma tabla de enrutamiento.",
     "El cuerpo pide víveres; la Sangre pide otra cosa y ambas firman en la misma línea de tiempo.",
   ],
   localization: [
-    "Trazás vector desde hito real o inventás uno: sin ancla, la ciudad te asigna testigos default.",
+    "Trazas vector desde hito real o inventas uno: sin ancla, la ciudad te asigna testigos default.",
     "Metro, pasillo de servicio o vereda lateral — cada topología cambia el tipo de fuga plausible.",
   ],
   examine: [
-    "Afirmás lectura fina: lo que no cuadra aparece como latencia, no como objeto.",
+    "Afirmas lectura fina: lo que no cuadra aparece como latencia, no como objeto.",
     "El detalle incorrecto es puerta trasera; lo demás es UI bonita.",
   ],
   move: [
     "Caminar por Santiago es negociar ángulos de cámara y olores industriales que mienten con convicción.",
-    "Cada esquina es branch: elegís sombra larga o exposición corta.",
+    "Cada esquina es branch: eliges sombra larga o exposición corta.",
   ],
   social: [
     "Palabras como paquetes firmados: quien firma primero arrastra el handshake.",
@@ -135,15 +135,15 @@ const ACTION_CORE: Record<NexoIntent, readonly string[]> = {
     "Codo y distancia: la escena hace merge sin commit limpio.",
   ],
   flee: [
-    "Priorizás salida sobre estética: olor a orina vieja a veces es túnel cifrado.",
-    "Dos pasos de más y el rumor te alcanza; dos de menos y quedás expuesto en el diff.",
+    "Priorizas salida sobre estética: olor a orina vieja a veces es túnel cifrado.",
+    "Dos pasos de más y el rumor te alcanza; dos de menos y quedas expuesto en el diff.",
   ],
   magic: [
     "El poder estira buffers perceptivos hasta leak de secreto ajeno.",
-    "Disciplina como exploit: dejás rastro en logs que no son tuyos.",
+    "Disciplina como exploit: dejas rastro en logs que no son tuyos.",
   ],
   ambient: [
-    "Nada explícito: la ciudad hace polling de amenazas y vos quedás en la cola.",
+    "Nada explícito: la ciudad hace polling de amenazas y tú quedas en la cola.",
     "Goteras, neumáticos húmedos, radios que repiten el mismo bucle como aviso estúpido y cierto.",
   ],
 };
@@ -151,7 +151,7 @@ const ACTION_CORE: Record<NexoIntent, readonly string[]> = {
 const CLAN_FILTER: Record<ClanId, readonly string[]> = {
   ventrue: [
     "Lente Ventrue: acuerdos, espacios de poder y deuda simbólica en cada gesto cortés.",
-    "El aire correcto cuesta; vos ya sabés quién paga el servidor.",
+    "El aire correcto cuesta; tú ya sabes quién paga el servidor.",
   ],
   nosferatu: [
     "Lente Nosferatu: conductos, humedad, rutas que el mapa limpio niega con vergüenza.",
@@ -159,7 +159,7 @@ const CLAN_FILTER: Record<ClanId, readonly string[]> = {
   ],
   brujah: [
     "Lente Brujah: chispa en el cable — la injusticia se siente como latencia acumulada.",
-    "El pavimento pide excusa y vos sabés que mentiría.",
+    "El pavimento pide excusa y tú sabes que mentiría.",
   ],
   toreador: [
     "Lente Toreador: detalle cruel en lo bello; el neón sangra estética hasta lastimar.",
@@ -176,7 +176,7 @@ const CLAN_FILTER: Record<ClanId, readonly string[]> = {
   ],
   thin_blood: [
     "Lente thin-blood: glitch en la herencia — la ciudad te lee humano hasta que deja de convenir.",
-    "Mitad señales, mitad ruido: sobrevivís en el margen entre protocolos.",
+    "Mitad señales, mitad ruido: sobrevives en el margen entre protocolos.",
   ],
   caitiff: [
     "Lente Caitiff: sin marca noble, cada esquina es prompt injection contra tu identidad.",
@@ -189,7 +189,7 @@ const CLAN_FILTER: Record<ClanId, readonly string[]> = {
 };
 
 const CONSEQUENCE: readonly string[] = [
-  "σ baja: el rumor corre lento; aún podés editar la escena antes del commit final.",
+  "σ baja: el rumor corre lento; aún puedes editar la escena antes del commit final.",
   "σ media: patrullas fantasma y apps de vecinos compiten por quién filma primero.",
   "σ alta: drones baratos y doctrina portátil — la paranoia es feature, no bug.",
   "σ extrema: cada sombra parece suscripción activa a un ojo que no pediste.",

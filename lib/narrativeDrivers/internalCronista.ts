@@ -32,7 +32,7 @@ export function generateInternalCronista(opts: {
     outcomeLine =
       `Te alcanza la marca suficiente (${tirada.successes} éxitos frente a dificultad ${tirada.difficulty}); la consecuencia queda sellada sin fisuras evidentes.`;
   } else {
-    outcomeLine = `La tirada no alcanza: te quedás en el hueco entre el gesto y lo permitido (margen ${tirada.margin}).`;
+    outcomeLine = `La tirada no alcanza: te quedas en el hueco entre el gesto y lo permitido (margen ${tirada.margin}).`;
   }
 
   const hungerLine =
@@ -40,7 +40,7 @@ export function generateInternalCronista(opts: {
       ? "La sed está al ras: cada superficie huele a cobre y el instinto pide autopista libre."
       : hambre >= 3
         ? "La Sangre aprieta el pulso del gesto; sí, control — pero tiene precio audible."
-        : "La Sangre murmura en segundo plano; todavía firmas vos el gesto.";
+        : "La Sangre murmura en segundo plano; tú sigues firmando el gesto.";
 
   const intentEcho =
     input.trim().slice(0, 400) ||

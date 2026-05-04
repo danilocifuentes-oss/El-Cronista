@@ -106,7 +106,7 @@ En el centro, agachada sobre un bulto irreconocible, la criatura endureció cada
       title: "3.E · Regusto amargo",
       text: `Había cumplido la misión, pero el triunfo sabía a ceniza volcánica: había cazado uno de los suyos para salvar orden que apenas lo tratara como recurso despachable.
 
-—Bien hecho, pequeño activo —susurró El Choro desde la oscuridad—. Ya sabés a qué sabe traicionar.`,
+—Bien hecho, pequeño activo —susurró El Choro desde la oscuridad—. Ya sabes a qué sabe traicionar.`,
       options: [
         {
           id: "n3_end_continue",

@@ -773,7 +773,7 @@ function CronistaAppInner() {
         if (metaNow.impulseUnits <= 0) {
           pushLog({
             role: "sistema",
-            text: "Todavía no sentís el impulso que exige manifestar voluntad frente a esta ciudad — esperá el ciclo o movete más en el canal antes de volver a tirar.",
+            text: "Todavía no sientes el impulso que exige manifestar voluntad frente a esta ciudad — espera el ciclo o muévete más en el canal antes de volver a tirar.",
           });
           return;
         }
@@ -831,7 +831,7 @@ function CronistaAppInner() {
         );
         const finalText =
           sanitizePlayerFacingNarration(acc.trim()) ||
-          "El silencio pesa igual que evidencia vieja pegada en la suela hasta que decidís pisar más fuerte de nuevo.";
+          "El silencio pesa igual que evidencia vieja pegada en la suela hasta que decides pisar más fuerte de nuevo.";
         setLogs((prev) => {
           const next = prev.map((e) => (e.id === streamId ? { ...e, text: finalText } : e));
           saveNarrativeLog(next);

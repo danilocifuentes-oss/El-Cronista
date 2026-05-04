@@ -16,6 +16,6 @@ export const traits = {
   scholar: {
     cues: [/libro/, /archivo/, /estudio/, /ritual/, /manuscrito/, /toga/i],
     narrativeNudge:
-      "compará costo de conocimiento con coste de sangre — el manual no paga hambre por vos.",
+      "compara costo de conocimiento con coste de sangre — el manual no paga hambre por ti.",
   },
 } as const;

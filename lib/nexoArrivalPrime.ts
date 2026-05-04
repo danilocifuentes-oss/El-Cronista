@@ -72,7 +72,7 @@ export function resonanceFromPeerCodexes(activeProfileId: string | null): string
   }
 
   if (sealed === 0) {
-    return `Arriba el rumor de otros nombres registrados, pero aún sin cerrar el trato con la noche; vos podés ser el primero en afirmar cómo suena la ciudad.`;
+    return `Arriba el rumor de otros nombres registrados, pero aún sin cerrar el trato con la noche; puedes ser el primero en afirmar cómo suena la ciudad.`;
   }
 
   const topClans = [...clans.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2);
@@ -83,15 +83,15 @@ export function resonanceFromPeerCodexes(activeProfileId: string | null): string
 
   const conceptHint =
     concepts.length >= 2
-      ? `Historias que se cruzan antes de verse: ${concepts.slice(0, 2).join(" · ")} — la calle podría estar calculando el mismo choque que vos.`
+      ? `Historias que se cruzan antes de verse: ${concepts.slice(0, 2).join(" · ")} — la calle podría estar calculando el mismo choque que tú.`
       : concepts.length === 1
         ? `Algún otro nombre arrastra un deseo parecido al tuyo: «${clip(concepts[0]!, 180)}».`
         : "";
 
   const countLine =
     sealed === 1
-      ? "Hay otro vampiro activo además tuyo — el mapa ya no es solamente tuyo cuando cruzás la esquina."
-      : `Hay ${sealed} otros como vos con identidad sellada; la ciudad reparte testigos entre vosotros antes de que nadie hable.`;
+      ? "Hay otro vampiro activo además del tuyo — el mapa ya no es solamente tuyo cuando cruzas la esquina."
+      : `Hay ${sealed} otros como tú con identidad sellada; la ciudad reparte testigos entre ustedes antes de que nadie hable.`;
 
   return [countLine, clanLine, conceptHint].filter(Boolean).join("\n\n");
 }
@@ -112,19 +112,19 @@ export function buildSyntheticArrivalAction(
 
   const lines = [
     "No es tu primera noche; el tiempo en Sangre ya te dejó cicatrices operativas antes de este instante.",
-    `Reenfocás el ahora ${concept ? `donde «${concept}» marca tu sombra` : "con la ciudad pegada a los hombros"}.`,
+    `Reenfocas el ahora ${concept ? `donde «${concept}» marca tu sombra` : "con la ciudad pegada a los hombros"}.`,
     resonanceToneLine(reso),
     anchors ? `Lo acordado sobre el mundo (${anchors})` : "",
     beat ? `Lo que ya se movió antes de que abrieras los ojos (${beat})` : "",
     tableResonance ? `Ecos de otros en el registro: ${tableResonance}` : "",
-    "Mantené la Inquisición como peso en el aire, rumor en la piel; Santiago húmedo, neón viejo, hierro y comercio que no duerme.",
-    "Abrí escena inmediata: calles y cuerpos cercanos, segunda persona; nada de prólogos didácticos ni etiquetas de modo.",
+    "Mantén la Inquisición como peso en el aire, rumor en la piel; Santiago húmedo, neón viejo, hierro y comercio que no duerme.",
+    "Abre escena inmediata: calles y cuerpos cercanos, segunda persona; nada de prólogos didácticos ni etiquetas de modo.",
   ];
   return lines.filter(Boolean).join("\n");
 }
 
 function resonanceToneLine(reso: string): string {
-  if (!reso) return "La marca de lo que bebés ordena qué esquinas sentís primero antes que el resto.";
+  if (!reso) return "La marca de lo que bebes ordena qué esquinas sientes primero antes que el resto.";
   return `Lo que declaraste como resonancia (${reso}) tira el relato hacia ciertos olores y luces antes que hacia el neutro.`;
 }
 

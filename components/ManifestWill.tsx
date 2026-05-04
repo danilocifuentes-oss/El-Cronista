@@ -117,7 +117,7 @@ export function ManifestWill({
           onChange={(e) => setIntent(e.target.value)}
           disabled={isProcessing}
           rows={2}
-          placeholder="Tono, apuesta, qué buscás con la tirada…"
+          placeholder="Tono, apuesta, qué buscas con la tirada…"
           className="mt-1.5 w-full resize-none rounded-md border border-white/[0.08] bg-black/60 px-3 py-2.5 font-sans text-[11px] text-neutral-200 placeholder:text-neutral-600 focus:border-[color:var(--terminal)]/40 focus:outline-none focus:ring-1 focus:ring-[color:var(--terminal)]/12 disabled:opacity-45"
         />
       </label>
@@ -161,7 +161,7 @@ export function ManifestWill({
 
       {impulseBlocked ? (
         <p className="relative mt-3 rounded-md border border-[#7f1d1d]/45 bg-black/55 px-3 py-2 text-[10px] text-[color:var(--blood)]/95">
-          Sin impulso de interfaz — esperá el ciclo o escribí en el canal antes de volver a manifestar.
+          Sin impulso de interfaz — espera el ciclo o escribe en el canal antes de volver a manifestar.
         </p>
       ) : isNarrator ? (
         <p className="relative mt-3 rounded-md border border-white/[0.06] bg-black/50 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.12em] text-[color:var(--terminal)]/90">

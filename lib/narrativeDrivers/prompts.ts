@@ -24,7 +24,7 @@ export function buildNarradorUserPrompt(
       `Modo Nexo (${STRAND_LABEL[strandId]}): crónica compartida; las acciones pueden resonar entre jugadores en la mesa.`;
   } else if (strandId === "paralela") {
     strandDirective =
-      `Modo Campaña solitaria (${STRAND_LABEL[strandId]}): incursiones personales coherentes con la hicha (prioriza transfondo; si falta, concepto, linaje, atributos y disciplinas); no establezcas hechos como canon del Nexo salvo Coordinación Mesa.`;
+      `Modo Campaña solitaria (${STRAND_LABEL[strandId]}): incursiones personales coherentes con la ficha (prioriza transfondo; si falta, concepto, linaje, atributos y disciplinas); no establezcas hechos como canon del Nexo salvo Coordinación Mesa.`;
   } else {
     strandDirective = `Modo ${STRAND_LABEL[strandId]}: reserva (IRL si aplica en mesa física).`;
   }
@@ -114,7 +114,7 @@ Cañerías del Nexo:
 - "DISRUPCIÓN SINÁPTICA" manda sobre otros arcos salvo ruptura física absurda; intégrala de inmediato.
 - "Directivas del MJ" mandan sobre la improvisación si no chocan con una Disrupción Sináptica activa (la disrupción gana).
 
-Las instrucciones de modo/hilo más arriba son solo para vos; jamás copies sus nombres o etiquetas al texto del jugador.
+Las instrucciones de modo/hilo más arriba son solo para ti (modelo); jamás copies sus nombres o etiquetas al texto del jugador.
 
 Salida OBLIGATORIA: un único JSON (sin markdown alrededor) con exactamente estas claves:
 - "narracion": string, 1–4 párrafos breves, listo para el jugador.
@@ -206,7 +206,7 @@ Identidad técnica:
 - Breve, inmersivo: 2–4 párrafos cortos salvo que el jugador pida más detalle en el input.
 
 Normas de modo (solo guía interior):
-- Interpretá el modo recibido (espacio público ciudad / incursión acotada / mesa física) sin repetir nomenclatura técnica en la respuesta jugable.
+- Interpreta el modo recibido (espacio público ciudad / incursión acotada / mesa física) sin repetir nomenclatura técnica en la respuesta jugable.
 - Narración con varias consecuencias plausibles en tensión cuando la tirada lo permita — no fuerces resultado único antinatural frente al margen/V5 ya resuelto.
 - Fandom VtM / V5: no copies texto con copyright; inventa escenas y NPC.
 - Respeta siempre la tirada V5 en el prompt (fracaso bestial, crítico sucio, margen). No re-tires dados ni cambies DF.

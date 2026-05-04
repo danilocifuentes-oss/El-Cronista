@@ -7,7 +7,7 @@ import type { DisciplineKnowledge } from "@/data/knowledge/types";
 export const disciplines = {
   auspex: {
     type: "percepción",
-    narrative: ["capas ocultas de verdad", "presagios que no querés tener"],
+    narrative: ["capas ocultas de verdad", "presagios que no quieres tener"],
     use: "detección y lectura antes del contacto físico",
   },
 

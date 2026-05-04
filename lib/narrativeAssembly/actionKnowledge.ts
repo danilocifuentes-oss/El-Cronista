@@ -22,7 +22,7 @@ export function weaveKnowledgeIntoActionSuggestions(
   let injected = "";
   if (ctx.disciplineHooks.length) {
     const d = ctx.disciplineHooks[stableSalt % ctx.disciplineHooks.length]!;
-    injected = `Dejá filtrar tu don (${d.key}): ${d.useHint}.`;
+    injected = `Deja filtrar tu don (${d.key}): ${d.useHint}.`;
   }
   if (ctx.clanProfile?.hooks?.length) {
     const hook = ctx.clanProfile.hooks[stableSalt % ctx.clanProfile.hooks.length]!;

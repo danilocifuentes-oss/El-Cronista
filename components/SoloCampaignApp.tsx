@@ -34,6 +34,7 @@ import {
   CHRONICLE_XP_ROLL_SUCCESS_DEFAULT,
   SOLO_FLAG_OPENING_VITALS,
 } from "@/lib/soloCampaign/chronicleMechanics";
+import { applyPreRollResourceCost, soloOptionUsesDice } from "@/lib/soloCampaign/rollResourceCost";
 
 const OPTION_TYPE_LABEL: Record<string, string> = {
   discipline: "DISCIPLINA",
@@ -42,10 +43,6 @@ const OPTION_TYPE_LABEL: Record<string, string> = {
 };
 
 const SOLO_BACK_STACK_LIMIT = 120;
-
-function soloOptionUsesDice(option: SoloOption): boolean {
-  return option.requirement.type !== "none";
-}
 
 function sumReputationDeltas(list: SoloOption["effects"]): number {
   if (!list?.length) return 0;
@@ -271,20 +268,19 @@ function SoloCampaignScreen({ profileId, sheet, onExit, onSheetSynced }: Props) 
   const clanLabel = CLAN_OPTIONS.find((c) => c.id === sheet.clan)?.label ?? sheet.clan;
   const preludeStinger =
     CHRONICLE_PRELUDE_MASK_STINGER[sheet.clan] ??
-    "Su máscara es la cara que decide financiar hasta que algún testigo cobre en otra moneda.";
+    "Tu máscara es la cara que decide financiar hasta que algún testigo cobre en otra moneda.";
 
   const clanIntro = {
-    brujah: "La ciudad lo conoce por la rabia que camina con él. Esta noche esa rabia puede salvarlo o condenarlo.",
-    ventrue: "El poder no se negocia; se administra. Esta noche su linaje le abre puertas y le gana enemigos.",
-    malkavian:
-      "Las grietas del mundo le hablan. Lo que para otros es ruido, para él es mapa.",
-    toreador: "Cada escena tiene un precio estético y moral. Su mirada elige qué belleza sobrevive.",
-    nosferatu: "Ve la red bajo la red. Nadie domina la noche sin pasar por sus túneles.",
+    brujah: "La ciudad te conoce por la rabia que camina contigo. Esta noche esa rabia puede salvarte o condenarte.",
+    ventrue: "El poder no se negocia; se administra. Esta noche tu linaje te abre puertas y te gana enemigos.",
+    malkavian: "Las grietas del mundo te hablan. Lo que para otros es ruido, para ti es mapa.",
+    toreador: "Cada escena tiene un precio estético y moral. Tu mirada elige qué belleza sobrevive.",
+    nosferatu: "Ves la red bajo la red. Nadie domina la noche sin pasar por sus túneles.",
     tremere: "Cada decisión es un ritual sin círculo: sangre, control y consecuencias calculadas.",
-    gangrel: "Su instinto lee la noche antes que los datos. La bestia es brújula si no la suelta.",
-    thin_blood: "Su sangre cuestiona el orden no escrito. Aprende rápido o queda fuera.",
-    caitiff: "Sin apellido inmortal, cada paso debe ganarlo desde cero.",
-    other: "Su linaje irregular no lo protege: lo obliga a improvisar mejor que nadie.",
+    gangrel: "Tu instinto lee la noche antes que los datos. La bestia es brújula si no la sueltas.",
+    thin_blood: "Tu sangre cuestiona el orden no escrito. Aprendes rápido o quedas fuera.",
+    caitiff: "Sin apellido inmortal, cada paso debes ganarlo desde cero.",
+    other: "Tu linaje irregular no te protege: te obliga a improvisar mejor que nadie.",
   }[sheet.clan];
 
   const preludeGateDoneUi = isChroniclePreludeDismissed(progress);
@@ -339,8 +335,16 @@ function SoloCampaignScreen({ profileId, sheet, onExit, onSheetSynced }: Props) 
     let xpFromNarrative = 0;
 
     if (soloOptionUsesDice(option)) {
-      const rollPlan = resolveSoloRollPlan(option, sheet);
-      const roll = rollPoolV5(rollPlan.pool, sheet.hunger, rollPlan.difficulty);
+      const wpBefore = nextSheet.willpowerCur;
+      const hungerBefore = nextSheet.hunger;
+      nextSheet = applyPreRollResourceCost(nextSheet, option);
+      if (nextSheet.willpowerCur < wpBefore) {
+        appendXpLog("Crónica: activación de disciplina (−1 voluntad).");
+      } else if (nextSheet.hunger > hungerBefore) {
+        appendXpLog("Crónica: activación de disciplina (+1 presión de hambre / Vitae).");
+      }
+      const rollPlan = resolveSoloRollPlan(option, nextSheet);
+      const roll = rollPoolV5(rollPlan.pool, nextSheet.hunger, rollPlan.difficulty);
       rollLine = `${rollPlan.label} · ${summarizeRollPlayerLog(roll)}`;
       rollPassed = roll.passed;
       const isCritical = roll.criticalNormal || roll.messyCritical;
@@ -494,7 +498,8 @@ function SoloCampaignScreen({ profileId, sheet, onExit, onSheetSynced }: Props) 
             <p>PX Crónica · {progress.chronicleExperience ?? 0}</p>
             <p className="text-[10px] leading-snug text-neutral-600">
               Los efectos narrativos (incluida la tirada si triunfas) modifican CODEX/Nexo · +{CHRONICLE_XP_ROLL_SUCCESS_DEFAULT} PX por éxito
-              (+{CHRONICLE_XP_CRITICAL_EXTRA} en crítico).
+              (+{CHRONICLE_XP_CRITICAL_EXTRA} en crítico). Las disciplinas restan voluntad antes del dado; si no hay margen, sube la presión de
+              hambre. El fracaso en tirada puede subir hambre u otras marcas sin que muevas la ficha a mano.
             </p>
             <p>Capítulo · {chapter.title}</p>
             <p>Decisiones · {progress.decisionHistory.length}</p>

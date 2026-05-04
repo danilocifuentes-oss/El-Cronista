@@ -58,7 +58,7 @@ export function compressBeastProse(text: string, hambre: number, seed: number): 
   }
   const stingers = [
     "La Bestia ordena silencio útil.",
-    "Cada sílaba cuesta: apretá antes de que el hambre elija por vos.",
+    "Cada sílaba cuesta: aprieta antes de que la Bestia elija por ti.",
     "No hay margen para poesía barata — solo filo y calle.",
   ];
   if (hambre >= 5 && Math.abs(seed) % 2 === 0) {
