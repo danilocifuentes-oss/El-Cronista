@@ -45,6 +45,12 @@ export function loadSoloProgress(profileId: string, clan: string): SoloProgress 
           : {},
       flags: { ...SOLO_FLAGS_DEFAULTS, ...(parsed.flags ?? {}) },
       visitedSceneIds: Array.isArray(parsed.visitedSceneIds) ? parsed.visitedSceneIds : [],
+      soloSceneBackStack: Array.isArray(parsed.soloSceneBackStack)
+        ? parsed.soloSceneBackStack.filter(
+            (x): x is { chapterId: string; sceneId: string } =>
+              Boolean(x) && typeof x.chapterId === "string" && typeof x.sceneId === "string",
+          )
+        : [],
       decisionHistory: Array.isArray(parsed.decisionHistory) ? parsed.decisionHistory : [],
       reputation: typeof parsed.reputation === "number" ? parsed.reputation : 0,
       updatedAt: typeof parsed.updatedAt === "number" ? parsed.updatedAt : Date.now(),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CharacterSheet, ClanId } from "@/lib/character";
 import { CLAN_OPTIONS } from "@/lib/character";
 import { disciplineLabel } from "@/lib/sereno";
@@ -26,11 +26,12 @@ import { SoloCampaignProvider, useSoloCampaign } from "@/context/SoloCampaignCon
 import { rollPoolV5, summarizeRollPlayerLog } from "@/lib/dice";
 
 const OPTION_TYPE_LABEL: Record<string, string> = {
-  dialogue: "DIÁLOGO",
   discipline: "DISCIPLINA",
   skill: "HABILIDAD",
   clan: "CLAN",
 };
+
+const SOLO_BACK_STACK_LIMIT = 120;
 
 function soloOptionUsesDice(option: SoloOption): boolean {
   return option.requirement.type !== "none";
@@ -165,6 +166,7 @@ function ensureProgress(profileId: string, sheet: CharacterSheet): SoloProgress 
     chapterContextSeen: {},
     flags: { clan_intro_seen: false },
     visitedSceneIds: [startSceneId],
+    soloSceneBackStack: [],
     decisionHistory: [],
     updatedAt: Date.now(),
   };
@@ -213,7 +215,12 @@ export function SoloCampaignApp({ profileId, sheet, onExit }: Props) {
 
 function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
   const { progress, setProgress } = useSoloCampaign();
+  const transitionLockRef = useRef(false);
   const [lastRollLine, setLastRollLine] = useState<string>("");
+
+  useEffect(() => {
+    transitionLockRef.current = false;
+  }, [progress.sceneId, progress.chapterId]);
   const chapter = useMemo(() => getSoloChapter(progress.chapterId), [progress.chapterId]);
   const scene = useMemo(() => getSoloScene(progress.chapterId, progress.sceneId), [progress.chapterId, progress.sceneId]);
   const chapterContextBlock = getSoloChapterContextBlock(progress.chapterId);
@@ -239,8 +246,10 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
   }[sheet.clan];
 
   const applyOption = (option: SoloOption) => {
+    if (transitionLockRef.current) return;
     const availability = checkOptionAvailability(option, sheet);
     if (!availability.available) return;
+    transitionLockRef.current = true;
 
     let nextSheet = sheet;
     const nextFlags = { ...progress.flags };
@@ -295,6 +304,9 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
     const nextScene = getSoloScene(progress.chapterId, targetSceneId);
     const sceneId = nextScene?.id ?? progress.sceneId;
     const reputationGain = sumReputationDeltas(branchEffects);
+    const tick = progress.updatedAt + 1;
+    const backSnap = { chapterId: progress.chapterId, sceneId: progress.sceneId };
+    const prevStack = progress.soloSceneBackStack ?? [];
     const next: SoloProgress = {
       ...progress,
       playerName: sheet.name?.trim() || progress.playerName,
@@ -304,20 +316,45 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
       sceneId,
       flags: nextFlags,
       visitedSceneIds: Array.from(new Set([...progress.visitedSceneIds, sceneId])),
+      soloSceneBackStack: [...prevStack, backSnap].slice(-SOLO_BACK_STACK_LIMIT),
       decisionHistory: [
         ...progress.decisionHistory,
         {
           sceneId: progress.sceneId,
           optionId: option.id,
-          ts: progress.updatedAt + 1,
+          ts: tick,
           rollSummary: rollLine,
           rollPassed,
         },
       ].slice(-120),
+      updatedAt: tick,
+    };
+    saveSoloProgress(next);
+    setProgress(next);
+  };
+
+  const revertToPrevScene = () => {
+    if (transitionLockRef.current) return;
+    const stack = [...(progress.soloSceneBackStack ?? [])];
+    if (!stack.length) return;
+    const prev = stack.pop()!;
+    transitionLockRef.current = true;
+
+    const nextDecisionHistory = [...progress.decisionHistory];
+    const last = nextDecisionHistory[nextDecisionHistory.length - 1];
+    if (last?.sceneId === prev.sceneId) nextDecisionHistory.pop();
+
+    const next: SoloProgress = {
+      ...progress,
+      chapterId: prev.chapterId,
+      sceneId: prev.sceneId,
+      soloSceneBackStack: stack,
+      decisionHistory: nextDecisionHistory,
       updatedAt: progress.updatedAt + 1,
     };
     saveSoloProgress(next);
     setProgress(next);
+    setLastRollLine("");
   };
 
   if (!chapter || !scene) {
@@ -360,6 +397,21 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
             <p>Capítulo · {chapter.title}</p>
             <p>Decisiones · {progress.decisionHistory.length}</p>
           </div>
+          {(progress.soloSceneBackStack?.length ?? 0) > 0 ? (
+            <div className="mt-2 space-y-2 border-t border-neutral-900 pt-3">
+              <button
+                type="button"
+                onClick={() => revertToPrevScene()}
+                className="w-full border border-dashed border-amber-800/70 bg-amber-950/20 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-amber-200"
+              >
+                ← Escena anterior (beta QA)
+              </button>
+              <p className="text-[10px] leading-snug text-neutral-600">
+                El retroceso no restaura tiradas, sangre ni marcas en ficha: solo la escena (y quita la última decisión si
+                corresponde).
+              </p>
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={onExit}
@@ -484,18 +536,21 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
             <section className="space-y-3">
               {scene.options.map((option) => {
                 const state = checkOptionAvailability(option, sheet);
-                const label = OPTION_TYPE_LABEL[option.type] ?? option.type.toUpperCase();
                 const fail = listFailReasons(option, sheet);
                 const optionText = resolveDisciplineTierText(option, sheet);
                 const disciplineChip = option.discipline ? DISCIPLINE_COLOR[option.discipline] ?? "text-violet-200 border-violet-900" : "";
 
-                const typeLine = OPTION_TYPE_LABEL[option.type] ?? option.type.toUpperCase();
+                const typeLine = OPTION_TYPE_LABEL[option.type];
                 const choiceLabel =
-                  option.discipline !== undefined
-                    ? `${typeLine}: ${disciplineLabel(option.discipline)} — ${optionText}`
-                    : option.skill !== undefined
-                      ? `${typeLine}: ${option.skill} — ${optionText}`
-                      : `${typeLine}: ${optionText}`;
+                  option.type === "dialogue"
+                    ? optionText
+                    : option.discipline !== undefined
+                      ? `${typeLine ?? ""}: ${disciplineLabel(option.discipline)} — ${optionText}`.replace(/^:\s*/, "")
+                      : option.skill !== undefined
+                        ? `${typeLine ?? ""}: ${option.skill} — ${optionText}`.replace(/^:\s*/, "")
+                        : typeLine
+                          ? `${typeLine}: ${optionText}`
+                          : optionText;
 
                 return (
                   <button
@@ -510,14 +565,18 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
                         : "cursor-not-allowed border-neutral-800 bg-black/25 opacity-60"
                     }`}
                   >
-                    <div className="mb-2 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.2em]">
-                      <span className="border border-neutral-700 px-2 py-0.5 text-neutral-400">[{label}]</span>
-                      {option.discipline ? (
-                        <span className={`border px-2 py-0.5 ${disciplineChip}`}>
-                          [{soloDisciplineGlyph(option.discipline)} {option.disciplineTitle ?? disciplineLabel(option.discipline)}]
-                        </span>
-                      ) : null}
-                    </div>
+                    {(option.type !== "dialogue" && typeLine) || option.discipline ? (
+                      <div className="mb-2 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.2em]">
+                        {option.type !== "dialogue" && typeLine ? (
+                          <span className="border border-neutral-700 px-2 py-0.5 text-neutral-400">[{typeLine}]</span>
+                        ) : null}
+                        {option.discipline ? (
+                          <span className={`border px-2 py-0.5 ${disciplineChip}`}>
+                            [{soloDisciplineGlyph(option.discipline)} {option.disciplineTitle ?? disciplineLabel(option.discipline)}]
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                     <p className="text-sm leading-relaxed text-neutral-200">{optionText}</p>
                     {!state.available && fail.length ? <p className="mt-2 text-xs text-amber-300">Requisito: {fail[0]}</p> : null}
                   </button>
@@ -535,14 +594,22 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
                   <button
                     type="button"
                     onClick={() => {
+                      if (transitionLockRef.current) return;
+                      transitionLockRef.current = true;
                       const target = pendingNextChapter;
                       const targetStart = getSoloChapter(target)?.startSceneId;
-                      if (!targetStart) return;
+                      if (!targetStart) {
+                        transitionLockRef.current = false;
+                        return;
+                      }
+                      const backSnap = { chapterId: progress.chapterId, sceneId: progress.sceneId };
+                      const prevStack = progress.soloSceneBackStack ?? [];
                       const next: SoloProgress = {
                         ...progress,
                         chapterId: target,
                         sceneId: targetStart,
                         visitedSceneIds: Array.from(new Set([...(progress.visitedSceneIds ?? []), targetStart])),
+                        soloSceneBackStack: [...prevStack, backSnap].slice(-SOLO_BACK_STACK_LIMIT),
                         updatedAt: progress.updatedAt + 1,
                       };
                       saveSoloProgress(next);

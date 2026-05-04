@@ -74,6 +74,10 @@ export type SoloProgress = {
   chapterContextSeen?: Record<string, number>;
   flags: Record<string, boolean>;
   visitedSceneIds: string[];
+  /**
+   * Pila temporal (QA): posición antes de cada avance manual de escena, para poder retroceder.
+   */
+  soloSceneBackStack?: { chapterId: string; sceneId: string }[];
   decisionHistory: {
     sceneId: string;
     optionId: string;
