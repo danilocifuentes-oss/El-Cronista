@@ -63,6 +63,15 @@ export type SoloProgress = {
   reputation: number;
   chapterId: string;
   sceneId: string;
+  /**
+   * Última versión del preludio cronista que el jugador descartó con "Comenzar con esta voz".
+   * Inferior a `CHRONICLE_PRELUDE_CONTENT_VERSION` ⇒ mostrar cortina de nuevo.
+   */
+  chroniclePreludeSeenVersion?: number;
+  /**
+   * Por capítulo que define contexto (`SOLO_CHAPTER_CONTEXT_REGISTRY`): última versión de texto ya vista.
+   */
+  chapterContextSeen?: Record<string, number>;
   flags: Record<string, boolean>;
   visitedSceneIds: string[];
   decisionHistory: {

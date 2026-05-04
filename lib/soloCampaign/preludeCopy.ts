@@ -1,6 +1,9 @@
 import type { ClanId } from "@/lib/character";
 
-/** Preludio diegético común antes de la intro de clan; se muestra una sola vez por personaje/clan guardado. */
+/** Incrementar cuando cambie el texto del preludio: quien tenga valor menor volverá a ver la cortina antes de clan. */
+export const CHRONICLE_PRELUDE_CONTENT_VERSION = 2;
+
+/** Preludio diegético común antes de la intro de clan; versión efectiva vs `chroniclePreludeSeenVersion` en el save. */
 export const CHRONICLE_PRELUDE_COMMON = `La lluvia cae sobre Santiago como si el cielo estuviera vomitando sus pecados.
 Tú ya no respiras.
 Y sin embargo, nunca habías sentido el aire con tanta claridad.

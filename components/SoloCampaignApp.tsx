@@ -10,7 +10,16 @@ import { saveSheet } from "@/lib/character";
 import { loadSoloProgress, saveSoloProgress } from "@/lib/soloCampaign/progressStore";
 import type { SoloOption, SoloProgress, SoloSceneEffect } from "@/lib/soloCampaign/types";
 import { soloDisciplineGlyph } from "@/lib/soloCampaign/disciplineGlyphs";
-import { CHRONICLE_PRELUDE_COMMON, CHRONICLE_PRELUDE_MASK_STINGER } from "@/lib/soloCampaign/preludeCopy";
+import {
+  CHRONICLE_PRELUDE_COMMON,
+  CHRONICLE_PRELUDE_CONTENT_VERSION,
+  CHRONICLE_PRELUDE_MASK_STINGER,
+} from "@/lib/soloCampaign/preludeCopy";
+import {
+  getSoloChapterContextBlock,
+  isSoloChapterContextDismissed,
+} from "@/lib/soloCampaign/chapterContextCopy";
+import { getPendingNextChapter } from "@/lib/soloCampaign/soloProgressSelectors";
 import { syncActiveBundleFromGlobals } from "@/lib/profileStore";
 import { NexusLibrary } from "@/components/icons/NexusLibrary";
 import { SoloCampaignProvider, useSoloCampaign } from "@/context/SoloCampaignContext";
@@ -66,15 +75,16 @@ function isSoloSupportedClan(clan: ClanId): boolean {
   return SOLO_SUPPORTED_CLANS.includes(clan);
 }
 
-function startSceneForClan(clan: ClanId): string {
-  if (clan === "toreador") return "ch1t_1";
-  if (clan === "ventrue") return "ch1v_1";
-  if (clan === "malkavian") return "ch1m_1";
-  return "ch1_1";
+function startSceneForClan(): string {
+  return "n1_1";
 }
 
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
+}
+
+function isChroniclePreludeDismissed(progress: SoloProgress): boolean {
+  return (progress.chroniclePreludeSeenVersion ?? 0) >= CHRONICLE_PRELUDE_CONTENT_VERSION;
 }
 
 function applySceneEffectDraft(base: CharacterSheet, flags: Record<string, boolean>, effect: NonNullable<SoloOption["effects"]>[number]) {
@@ -139,7 +149,7 @@ function resolveSoloRollPlan(option: SoloOption, sheet: CharacterSheet): { pool:
 }
 
 function ensureProgress(profileId: string, sheet: CharacterSheet): SoloProgress {
-  const startSceneId = startSceneForClan(sheet.clan);
+  const startSceneId = startSceneForClan();
   const existing = loadSoloProgress(profileId, sheet.clan);
   if (existing) return existing;
   const base: SoloProgress = {
@@ -151,7 +161,9 @@ function ensureProgress(profileId: string, sheet: CharacterSheet): SoloProgress 
     reputation: 0,
     chapterId: "chapter01",
     sceneId: startSceneId,
-    flags: { clan_intro_seen: false, chronicle_curtain_seen: false },
+    chroniclePreludeSeenVersion: 0,
+    chapterContextSeen: {},
+    flags: { clan_intro_seen: false },
     visitedSceneIds: [startSceneId],
     decisionHistory: [],
     updatedAt: Date.now(),
@@ -185,7 +197,7 @@ export function SoloCampaignApp({ profileId, sheet, onExit }: Props) {
             onClick={onExit}
             className="border border-neutral-700 px-3 py-2 text-[10px] uppercase tracking-[0.2em]"
           >
-            Volver al Hub
+            Volver al Nexo
           </button>
         </div>
       </div>
@@ -204,6 +216,10 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
   const [lastRollLine, setLastRollLine] = useState<string>("");
   const chapter = useMemo(() => getSoloChapter(progress.chapterId), [progress.chapterId]);
   const scene = useMemo(() => getSoloScene(progress.chapterId, progress.sceneId), [progress.chapterId, progress.sceneId]);
+  const chapterContextBlock = getSoloChapterContextBlock(progress.chapterId);
+  const clanIntroGateDone = progress.chapterId !== "chapter01" || progress.flags.clan_intro_seen === true;
+  const chapterContextGateDone = isSoloChapterContextDismissed(progress, progress.chapterId);
+  const pendingNextChapter = getPendingNextChapter(progress);
   const clanLabel = CLAN_OPTIONS.find((c) => c.id === sheet.clan)?.label ?? sheet.clan;
   const preludeStinger =
     CHRONICLE_PRELUDE_MASK_STINGER[sheet.clan] ??
@@ -309,13 +325,13 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
       <div className="min-h-screen bg-[#050505] px-4 py-10 font-mono text-neutral-300">
         <div className="mx-auto max-w-2xl space-y-4 border border-red-900/40 bg-black/50 p-6">
           <p className="text-[10px] uppercase tracking-[0.28em] text-red-300">Campaña Solitaria</p>
-          <p>No se pudo cargar la escena actual. Vuelve al Hub y reinicia la campaña para este personaje.</p>
+          <p>No se pudo cargar la escena actual. Vuelve al Nexo o al registro de fichas y revisa el personaje.</p>
           <button
             type="button"
             onClick={onExit}
             className="border border-neutral-700 px-3 py-2 text-[10px] uppercase tracking-[0.2em]"
           >
-            Volver al Hub
+            Volver al Nexo
           </button>
         </div>
       </div>
@@ -349,7 +365,7 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
             onClick={onExit}
             className="mt-2 w-full border border-neutral-700 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-neutral-300"
           >
-            Volver al Hub
+            Volver al Nexo
           </button>
         </aside>
 
@@ -363,7 +379,7 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
           </p>
         </header>
 
-        {!progress.flags.chronicle_curtain_seen ? (
+        {!isChroniclePreludeDismissed(progress) ? (
           <section className="space-y-4 border border-[var(--terminal)]/25 bg-black/55 p-5 sharp-border-inner">
             <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--terminal)]">Preludio de crónica</p>
             <p className="whitespace-pre-line text-sm leading-relaxed text-neutral-300">{CHRONICLE_PRELUDE_COMMON}</p>
@@ -373,6 +389,7 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
               onClick={() => {
                 const next = {
                   ...progress,
+                  chroniclePreludeSeenVersion: CHRONICLE_PRELUDE_CONTENT_VERSION,
                   flags: { ...progress.flags, chronicle_curtain_seen: true },
                   updatedAt: progress.updatedAt + 1,
                 };
@@ -386,7 +403,7 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
           </section>
         ) : null}
 
-        {progress.flags.chronicle_curtain_seen && !progress.flags.clan_intro_seen ? (
+        {isChroniclePreludeDismissed(progress) && progress.chapterId === "chapter01" && !progress.flags.clan_intro_seen ? (
           <section className="space-y-4 border border-neutral-900 bg-black/45 p-5 sharp-border-inner">
             <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500">Introducción de clan</p>
             <p className={`text-sm leading-relaxed ${CLAN_TONE[sheet.clan] ?? "text-neutral-200"}`}>{clanIntro}</p>
@@ -408,7 +425,37 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
           </section>
         ) : null}
 
-        {progress.flags.chronicle_curtain_seen && progress.flags.clan_intro_seen ? (
+        {isChroniclePreludeDismissed(progress) &&
+        clanIntroGateDone &&
+        chapterContextBlock &&
+        !chapterContextGateDone ? (
+          <section className="space-y-4 border border-[var(--terminal)]/20 bg-black/50 p-5 sharp-border-inner">
+            <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--terminal)]">Contexto de capítulo</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-neutral-500">{chapterContextBlock.label}</p>
+            <p className="whitespace-pre-line text-sm leading-relaxed text-neutral-300">{chapterContextBlock.body}</p>
+            <button
+              type="button"
+              onClick={() => {
+                const nextBlock = chapterContextBlock;
+                const next: SoloProgress = {
+                  ...progress,
+                  chapterContextSeen: {
+                    ...(progress.chapterContextSeen ?? {}),
+                    [progress.chapterId]: nextBlock.contentVersion,
+                  },
+                  updatedAt: progress.updatedAt + 1,
+                };
+                saveSoloProgress(next);
+                setProgress(next);
+              }}
+              className="border border-[var(--terminal)]/40 bg-neutral-950/80 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-[var(--terminal)]"
+            >
+              Comenzar la narración
+            </button>
+          </section>
+        ) : null}
+
+        {isChroniclePreludeDismissed(progress) && clanIntroGateDone && chapterContextGateDone ? (
           <>
             <section className="space-y-4 border border-neutral-900 bg-black/40 p-5 sharp-border-inner" aria-labelledby={sceneHeadingId}>
               <p id={sceneHeadingId} className="text-[10px] uppercase tracking-[0.22em] text-neutral-500">
@@ -477,6 +524,47 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
                 );
               })}
             </section>
+
+            {pendingNextChapter ? (
+              <section className="space-y-3 border border-[var(--terminal)]/20 bg-black/50 p-4 sharp-border-inner">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-[var(--terminal)]">Capítulo registrado</p>
+                <p className="text-sm text-neutral-400">
+                  Tu decisión cerró este tramo. Puedes avanzar al próximo capítulo o volver al Nexo.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = pendingNextChapter;
+                      const targetStart = getSoloChapter(target)?.startSceneId;
+                      if (!targetStart) return;
+                      const next: SoloProgress = {
+                        ...progress,
+                        chapterId: target,
+                        sceneId: targetStart,
+                        visitedSceneIds: Array.from(new Set([...(progress.visitedSceneIds ?? []), targetStart])),
+                        updatedAt: progress.updatedAt + 1,
+                      };
+                      saveSoloProgress(next);
+                      setProgress(next);
+                    }}
+                    className="border border-neutral-700 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-neutral-400"
+                  >
+                    Continuar en {pendingNextChapter}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onExit()}
+                    className="border border-[var(--terminal)]/35 bg-neutral-950/80 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-[var(--terminal)]"
+                  >
+                    Volver al Nexo
+                  </button>
+                </div>
+                <p className="text-xs text-neutral-500">
+                  Verás primero el <span className="text-neutral-400">contexto</span> del próximo capítulo y luego arranca la narración.
+                </p>
+              </section>
+            ) : null}
 
             <footer className="flex flex-wrap gap-3 border-t border-neutral-900 pt-4">
               <p className="text-xs text-neutral-600">

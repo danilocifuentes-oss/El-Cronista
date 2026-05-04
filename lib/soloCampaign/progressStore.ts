@@ -5,8 +5,15 @@ const SOLO_PROGRESS_PREFIX = "cronista-solo-progress-v1::";
 /** Flags booleanos con valores por defecto al leer save antiguo (o parcial). */
 const SOLO_FLAGS_DEFAULTS = {
   clan_intro_seen: false,
+  /** Legacy: coexistía con cortina; migra a `chroniclePreludeSeenVersion`. */
   chronicle_curtain_seen: false,
 } satisfies Record<string, boolean>;
+
+function normalizeChroniclePreludeSeenVersion(progress: SoloProgress): number {
+  const stored = progress.chroniclePreludeSeenVersion;
+  if (typeof stored === "number" && Number.isFinite(stored) && stored >= 0) return stored;
+  return progress.flags?.chronicle_curtain_seen === true ? 1 : 0;
+}
 
 function keyForProfileClan(profileId: string, clan: string): string {
   return `${SOLO_PROGRESS_PREFIX}${profileId}::${clan}`;
@@ -28,14 +35,26 @@ export function loadSoloProgress(profileId: string, clan: string): SoloProgress 
     if (!parsed.profileId || parsed.profileId !== profileId) return null;
     if (!parsed.clan || parsed.clan !== clan) return null;
     if (!parsed.chapterId || !parsed.sceneId) return null;
-    return {
+    const merged: SoloProgress = {
       ...parsed,
+      chapterContextSeen:
+        parsed.chapterContextSeen &&
+        typeof parsed.chapterContextSeen === "object" &&
+        parsed.chapterContextSeen !== null
+          ? parsed.chapterContextSeen
+          : {},
       flags: { ...SOLO_FLAGS_DEFAULTS, ...(parsed.flags ?? {}) },
       visitedSceneIds: Array.isArray(parsed.visitedSceneIds) ? parsed.visitedSceneIds : [],
       decisionHistory: Array.isArray(parsed.decisionHistory) ? parsed.decisionHistory : [],
       reputation: typeof parsed.reputation === "number" ? parsed.reputation : 0,
       updatedAt: typeof parsed.updatedAt === "number" ? parsed.updatedAt : Date.now(),
     };
+    merged.chroniclePreludeSeenVersion = normalizeChroniclePreludeSeenVersion(merged);
+    /** Reescribe save si venía sólo del boolean legacy (`chronicle_curtain_seen`) sin número. */
+    if (parsed.chroniclePreludeSeenVersion === undefined) {
+      queueMicrotask(() => saveSoloProgress(merged));
+    }
+    return merged;
   } catch {
     return null;
   }

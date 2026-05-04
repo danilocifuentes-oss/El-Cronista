@@ -587,10 +587,10 @@ function CronistaAppInner() {
       firstSeal ? `[CODEX_COMMIT]: ${finalized.name || "NULL"}` : `[CODEX_RELAY]: MJ · ${finalized.name || "NULL"}`,
     );
     setSheetLocked(true);
-    navigateToPhase("soloCampaign");
+    navigateToPhase("nexus");
     pushLog({
       role: "sistema",
-      text: "Tu CODEX quedó cerrado para Campaña Solitaria.",
+      text: "Tu CODEX quedó sellado. Entra al Nexo y elige Campaña Solitaria cuando quieras.",
     });
     const aid = getActiveProfileId();
     if (aid) syncActiveBundleFromGlobals(aid);
@@ -921,13 +921,6 @@ function CronistaAppInner() {
     appendXpLog(`Sesión cargada · ${loadSheet()?.name?.trim() || id}`);
   };
 
-  const enterSoloProfile = (id: string) => {
-    if (!selectProfile(id)) return;
-    applyGlobalsToUi(setSheet, setSheetLocked, setLogs, commitStrand);
-    navigateToPhase("soloCampaign");
-    appendXpLog(`Campaña solitaria · ${loadSheet()?.name?.trim() || id}`);
-  };
-
   const startBlankSheet = () => {
     createBlankProfile();
     applyGlobalsToUi(setSheet, setSheetLocked, setLogs, commitStrand);
@@ -952,7 +945,7 @@ function CronistaAppInner() {
           navigateToPhase("profileHub");
         }}
         onGoHub={() => navigateToPhase("profileHub")}
-      onGoNexus={() => {
+        onGoNexus={() => {
           const id = getActiveProfileId();
           if (!id) {
             window.alert("No hay perfil activo. Abre REGISTRO_CV y selecciona un CV.");
@@ -960,7 +953,7 @@ function CronistaAppInner() {
           }
           if (!selectProfile(id)) return;
           applyGlobalsToUi(setSheet, setSheetLocked, setLogs, commitStrand);
-          navigateToPhase("soloCampaign");
+          navigateToPhase("nexus");
         }}
         onRefreshGlobals={() =>
           applyGlobalsToUi(setSheet, setSheetLocked, setLogs, commitStrand)
@@ -974,7 +967,6 @@ function CronistaAppInner() {
       <ProfileHub
         profiles={hubProfiles}
         onPlayProfile={(id) => enterProfile(id)}
-        onPlaySoloProfile={(id) => enterSoloProfile(id)}
         onNewSheetBlank={startBlankSheet}
         onLogout={goToLogin}
         onClearLocalProfiles={() => {
@@ -992,7 +984,7 @@ function CronistaAppInner() {
       navigateToPhase("profileHub", { replace: true });
       return null;
     }
-    return <SoloCampaignApp key={activeId} profileId={activeId} sheet={sheet} onExit={goToProfileHub} />;
+    return <SoloCampaignApp key={activeId} profileId={activeId} sheet={sheet} onExit={() => navigateToPhase("nexus")} />;
   }
 
   if (phase === "chargen") {
@@ -1012,7 +1004,7 @@ function CronistaAppInner() {
       saveSheet(next);
       setSheet(next);
       persistActiveProfile();
-      navigateToPhase("soloCampaign");
+      navigateToPhase("nexus");
       appendXpLog(`Identidad marcada · ${next.name?.trim() || "—"}`);
     }
 
@@ -1022,10 +1014,10 @@ function CronistaAppInner() {
           <span className="tracking-[0.28em] text-neutral-400">Codex V</span>
           <button
             type="button"
-            onClick={() => navigateToPhase("soloCampaign", { replace: true })}
+            onClick={() => navigateToPhase("nexus", { replace: true })}
             className="rounded border border-white/10 px-3 py-2 text-[9px] uppercase tracking-[0.16em] text-neutral-400 transition hover:border-neutral-600 hover:text-neutral-200"
           >
-            Volver a Campaña
+            Volver al Nexo
           </button>
         </header>
         <CharacterCreation

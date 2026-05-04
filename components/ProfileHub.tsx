@@ -6,8 +6,8 @@ import type { ProfileSummary } from "@/lib/profileStore";
 
 type Props = {
   profiles: ProfileSummary[];
+  /** Carga el CV y entra al Nexo (desde ahí se abre la Campaña Solitaria). */
   onPlayProfile: (id: string) => void;
-  onPlaySoloProfile: (id: string) => void;
   onNewSheetBlank: () => void;
   onLogout: () => void;
   /** Vacía el registro de personajes en este navegador (no remoto; conserva Génesis y conversación Nexo). */
@@ -22,7 +22,6 @@ function playerProfiles(list: ProfileSummary[]) {
 export function ProfileHub({
   profiles,
   onPlayProfile,
-  onPlaySoloProfile,
   onNewSheetBlank,
   onLogout,
   onClearLocalProfiles,
@@ -33,9 +32,10 @@ export function ProfileHub({
       <div className="mx-auto w-full max-w-lg space-y-8">
         <header className="space-y-4 border-b border-[#161616] pb-6">
           <p className="text-[10px] uppercase tracking-[0.35em] text-[var(--terminal)]/90">SCHRECK_NET</p>
-          <h1 className="font-sans text-lg font-semibold tracking-tight text-neutral-100">Campaña Solitaria</h1>
+          <h1 className="font-sans text-lg font-semibold tracking-tight text-neutral-100">Registro SCHRECK_CV</h1>
           <p className="text-[11px] leading-relaxed text-neutral-500">
-            Elige un personaje para jugar en solitario. El Nexo cooperativo queda en pausa y volverá próximamente.
+            Elige un personaje para entrar al <span className="text-neutral-400">Nexo</span>. La Campaña Solitaria se abre
+            desde esa pantalla. El Nexo cooperativo amplio está en mantenimiento y volverá próximamente.
           </p>
           <div className="relative overflow-hidden border border-[#1c1c1c] bg-gradient-to-r from-black/80 via-[#0a0a0a] to-black/80 px-3 py-2.5 sharp-border-inner">
             <div
@@ -120,24 +120,14 @@ export function ProfileHub({
                           {clanLabel}
                         </span>
                       </span>
-                      <div className="flex shrink-0 gap-2">
-                        <motion.button
-                          type="button"
-                          whileHover={{ x: 2 }}
-                          onClick={() => onPlaySoloProfile(p.id)}
-                          className="border border-[var(--terminal)]/40 px-2 py-1 text-[8px] uppercase tracking-widest text-[var(--terminal)] hover:bg-[var(--terminal)]/10"
-                        >
-                          Solitario
-                        </motion.button>
-                        <motion.button
-                          type="button"
-                          whileHover={{ x: 2 }}
-                          onClick={() => onPlayProfile(p.id)}
-                          className="border border-neutral-700 px-2 py-1 text-[8px] uppercase tracking-widest text-neutral-400 hover:border-neutral-500"
-                        >
-                          Nexo
-                        </motion.button>
-                      </div>
+                      <motion.button
+                        type="button"
+                        whileHover={{ x: 2 }}
+                        onClick={() => onPlayProfile(p.id)}
+                        className="shrink-0 border border-[var(--terminal)]/40 px-3 py-1.5 text-[8px] uppercase tracking-widest text-[var(--terminal)] hover:bg-[var(--terminal)]/10"
+                      >
+                        Entrar al Nexo
+                      </motion.button>
                     </div>
                   </li>
                 );
