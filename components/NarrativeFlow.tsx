@@ -70,6 +70,8 @@ type Props = {
    * `interactive`: comportamiento habitual.
    */
   channelMode?: "interactive" | "witness";
+  /** Acceso a la campaña por capítulos (barra del canal; no usar en `witness`). */
+  onOpenSoloChronicle?: () => void;
 };
 
 export function NarrativeFlow({
@@ -86,6 +88,7 @@ export function NarrativeFlow({
   onStrandChange,
   glyphContext,
   channelMode = "interactive",
+  onOpenSoloChronicle,
 }: Props) {
   const reduceMotion = useReducedMotion();
   const witness = channelMode === "witness";
@@ -139,6 +142,16 @@ export function NarrativeFlow({
         ) : null}
         {!witness ? (
           <div className="flex flex-wrap gap-1.5 normal-case tracking-normal">
+            {onOpenSoloChronicle ? (
+              <button
+                type="button"
+                aria-label="Abrir crónica solitaria"
+                onClick={onOpenSoloChronicle}
+                className="rounded border px-2 py-1 text-[8px] font-mono transition-colors border-[color:var(--terminal)]/50 bg-[color:var(--terminal)]/10 text-[color:var(--terminal)] hover:border-[color:var(--terminal)]/80 hover:bg-[color:var(--terminal)]/15"
+              >
+                <span className="opacity-90">SOL</span> Crónica solitaria
+              </button>
+            ) : null}
             {NARRATIVE_STRANDS.map((s) => {
               const on = s === activeStrand;
               return (

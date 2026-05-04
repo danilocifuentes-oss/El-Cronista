@@ -57,7 +57,6 @@ import { sanitizePlayerFacingNarration, sanitizeSuggestionLine } from "@/lib/pla
 import { buildSheetSummaryLite } from "@/lib/sheetSummary";
 import type { NarrativeLogEntry, NarradorRecentLine } from "@/lib/narrativeTypes";
 import { CharacterCreation } from "./CharacterCreation";
-import { CharacterStatusPanel } from "./CharacterStatusPanel";
 import type { ConclaveMate } from "./ConclavePanel";
 import { ConclavePanel } from "./ConclavePanel";
 import { CampaignSyncBar } from "./CampaignSyncBar";
@@ -106,8 +105,20 @@ import {
   stripBootPlaceholder,
   synthesizeInternalArrivalScene,
 } from "@/lib/nexoArrivalPrime";
+import { buildSoloNexoDigest } from "@/lib/soloCampaign/soloDigestNexo";
 
 const HEALTH_MAX_UI = 7;
+
+/** Oculta ruido procedural / mensajes sistema que rompen la lectura del canal. */
+function keepNexoChannelEntry(e: NarrativeLogEntry): boolean {
+  if (e.role === "sistema") {
+    if (/Tu CODEX quedó sellado|Campaña Solitaria cuando quieras/i.test(e.text)) return false;
+  }
+  if (e.role === "narrador") {
+    if (/Σ_GLIFOS|ECO DEL CANAL\s*Σ|survival_probe/i.test(e.text)) return false;
+  }
+  return true;
+}
 
 function orchestrationNpcKeyFromPlayerTag(tag: string): string | undefined {
   const slug = normalizePlayerTag(tag)
@@ -254,14 +265,18 @@ function CronistaAppInner() {
 
   const displayLogs = useMemo(() => {
     const scoped = filterLogsByStrand(logs, activeStrand);
-    if (isNarrator) return scoped;
-    return scoped.filter((e) => !(e.role === "sistema" && /^\[\s*MJ_PIPE\s*\]:/i.test(e.text.trim())));
+    const base = isNarrator
+      ? scoped
+      : scoped.filter((e) => !(e.role === "sistema" && /^\[\s*MJ_PIPE\s*\]:/i.test(e.text.trim())));
+    return base.filter(keepNexoChannelEntry);
   }, [logs, activeStrand, isNarrator]);
 
   const soloParalelaLogs = useMemo(() => {
     const scoped = filterLogsByStrand(logs, "paralela");
-    if (isNarrator) return scoped;
-    return scoped.filter((e) => !(e.role === "sistema" && /^\[\s*MJ_PIPE\s*\]:/i.test(e.text.trim())));
+    const base = isNarrator
+      ? scoped
+      : scoped.filter((e) => !(e.role === "sistema" && /^\[\s*MJ_PIPE\s*\]:/i.test(e.text.trim())));
+    return base.filter(keepNexoChannelEntry);
   }, [logs, isNarrator]);
 
   const healthHudFilled = HEALTH_MAX_UI - Math.min(sheet.healthDamage, HEALTH_MAX_UI);
@@ -600,10 +615,6 @@ function CronistaAppInner() {
     );
     setSheetLocked(true);
     navigateToPhase("nexus");
-    pushLog({
-      role: "sistema",
-      text: "Tu CODEX quedó sellado. Entra al Nexo y elige Campaña Solitaria cuando quieras.",
-    });
     const aid = getActiveProfileId();
     if (aid) syncActiveBundleFromGlobals(aid);
   };
@@ -665,12 +676,18 @@ function CronistaAppInner() {
   const rollingSnap = useMemo(() => loadRollingSummary(), [logs, activeStrand, impulseRev]);
   const pendingSynapticPreview = peekPendingSynapticDisruption()?.trim() ?? "";
 
+  const soloNexoDigest = useMemo(() => {
+    const aid = getActiveProfileId();
+    if (!aid) return null;
+    return buildSoloNexoDigest(aid, sheet);
+  }, [sheet, profileIndexTick, phase]);
+
   const chronicleAsideProps = {
     chronicle: genesisSnap,
-    activeStrand,
     inquisitionThreat,
     rollingSummary: rollingSnap,
     pendingSynaptic: pendingSynapticPreview,
+    soloDigest: soloNexoDigest,
   } as const;
 
   useEffect(() => {
@@ -978,6 +995,7 @@ function CronistaAppInner() {
     return (
       <ProfileHub
         profiles={hubProfiles}
+        activeProfileId={getActiveProfileId()}
         onPlayProfile={(id) => enterProfile(id)}
         onNewSheetBlank={startBlankSheet}
         onLogout={goToLogin}
@@ -1071,7 +1089,7 @@ function CronistaAppInner() {
               Continuidad
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto">
-              <NexoChronicleDigest {...chronicleAsideProps} activeStrand="paralela" />
+              <NexoChronicleDigest {...chronicleAsideProps} />
             </div>
           </aside>
         </div>
@@ -1151,10 +1169,9 @@ function CronistaAppInner() {
             <span className="text-neutral-600"> · </span>
             <span className="text-neutral-400">{clanLabelDisplay}</span>
           </p>
-          {!isNarrator ? (
+          {isNarrator ? (
             <p className="text-[9px] tracking-wide text-neutral-600">
-              Impulso {impulseMeta.impulseUnits}/2
-              {manifestPenalty > 0 ? " · Letargo (−1 en reservas de manifestar)" : ""}
+              σ {inquisitionThreat} · Reloj {famineIntervalMinutes}m
             </p>
           ) : null}
         </div>
@@ -1162,16 +1179,17 @@ function CronistaAppInner() {
           className="hidden min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-neutral-600 xl:flex"
           aria-label="Estado de sesión"
         >
-          <span className="tracking-[0.2em] text-neutral-500">Codex V</span>
+          <span className="font-serif text-sm font-semibold tracking-[0.38em] text-neutral-100">CODEX V</span>
           <span className="text-neutral-700">·</span>
           <span style={{ color: accent }} className="font-medium text-neutral-300">
             {STRAND_LABEL[activeStrand]}
           </span>
           {cronistaProcessing ? <span className="animate-pulse text-[color:var(--neon)]">La voz del canal…</span> : null}
-          <span className="text-neutral-600">
-            σ {inquisitionThreat}
-            {!isNarrator ? ` · impulso ${impulseMeta.impulseUnits}/2` : ` · Reloj ${famineIntervalMinutes}m`}
-          </span>
+          {isNarrator ? (
+            <span className="text-neutral-600">
+              σ {inquisitionThreat} · Reloj {famineIntervalMinutes}m
+            </span>
+          ) : null}
         </div>
         <div className="flex w-full flex-wrap items-center justify-between gap-3 border-t border-white/[0.04] pt-3 sm:gap-4 lg:w-auto lg:border-t-0 lg:pt-0">
           <TechnicalHud
@@ -1185,27 +1203,20 @@ function CronistaAppInner() {
           <div className="flex flex-wrap gap-2 sm:ml-auto lg:ml-0">
             <button
               type="button"
-              onClick={() => navigateToPhase("soloCampaign")}
-              className="border border-[var(--terminal)]/35 bg-black/40 px-3 py-2 text-[9px] uppercase tracking-[0.14em] text-[var(--terminal)] hover:border-[var(--terminal)]/55 xl:hidden"
-            >
-              Crónica solitaria
-            </button>
-            <button
-              type="button"
               onClick={() => {
                 persistActiveProfile();
                 navigateToPhase("chargen");
               }}
               className="border border-white/10 bg-black/40 px-3 py-2 text-[9px] uppercase tracking-[0.14em] text-neutral-300 hover:border-[color:var(--accent-clan)]/40 xl:hidden"
             >
-              Hoja CODEX
+              CODEX
             </button>
             <button
               type="button"
               onClick={goToProfileHub}
               className="border border-white/[0.06] px-3 py-2 text-[9px] uppercase tracking-[0.12em] text-neutral-500 hover:border-neutral-700 hover:text-neutral-300 xl:hidden"
             >
-              Cripta del Elíseo
+              CRIPTA
             </button>
             <button
               type="button"
@@ -1242,11 +1253,8 @@ function CronistaAppInner() {
             persistActiveProfile();
             navigateToPhase("chargen");
           }}
-          onSoloChronicle={() => navigateToPhase("soloCampaign")}
           onLogout={goToLogin}
         />
-
-        <CharacterStatusPanel sheet={sheet} isNarrator={isNarrator} />
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden px-4 py-4 lg:gap-5 lg:px-6 lg:py-5">
           <NarrativeFlow
@@ -1267,6 +1275,7 @@ function CronistaAppInner() {
             activeStrand={activeStrand}
             onStrandChange={commitStrand}
             glyphContext={{ inquisitionThreat, hunger: sheet.hunger }}
+            onOpenSoloChronicle={() => navigateToPhase("soloCampaign")}
           />
           <ManifestWill
             key={`${sheet.hunger}-${sheet.name}-${impulseRev}`}
@@ -1297,7 +1306,12 @@ function CronistaAppInner() {
             <NexoChronicleDigest {...chronicleAsideProps} />
           </div>
           <div className="flex min-h-[9rem] shrink-0 flex-col border-t border-white/[0.05] lg:min-h-0 lg:max-h-[38%] lg:overflow-hidden">
-            <ConclavePanel mates={MOCK_CONCLAVE} accent={accent} embedded />
+            <ConclavePanel
+              mates={MOCK_CONCLAVE}
+              accent={accent}
+              embedded
+              soloEchoLines={soloNexoDigest ? soloNexoDigest.echoLines : undefined}
+            />
           </div>
         </aside>
       </div>

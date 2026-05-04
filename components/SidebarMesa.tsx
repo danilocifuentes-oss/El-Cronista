@@ -25,8 +25,6 @@ type Props = {
   hunger: number;
   onEidolonVault: () => void;
   onCodex: () => void;
-  /** Campaña narrativa por capítulos (misma URL que `/?v=solitario`). */
-  onSoloChronicle: () => void;
   onLogout: () => void;
 };
 
@@ -76,7 +74,6 @@ export function SidebarMesa({
   hunger,
   onEidolonVault,
   onCodex,
-  onSoloChronicle,
   onLogout,
 }: Props) {
   const reduceMotion = useReducedMotion();
@@ -223,7 +220,7 @@ export function SidebarMesa({
               beastFlash?.key === "disciplines" ? "nexo-beast-label-glitch text-[color:var(--blood)]" : ""
             }`}
           >
-            {labelFor("disciplines", "//_Disciplinas_Cargadas")}
+            {labelFor("disciplines", "Disciplina")}
           </p>
           <div className="grid grid-cols-3 gap-2">
             {disciplineKeys.map((dk) => {
@@ -266,23 +263,15 @@ export function SidebarMesa({
             className="rounded-lg border border-zinc-800/90 bg-black/50 px-2.5 py-2.5 text-left font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-neutral-300 transition hover:border-[color:var(--neon)]/35 hover:text-white"
             style={{ borderColor: `${accent}2a` }}
           >
-            Hoja CODEX
-          </button>
-          <button
-            type="button"
-            onClick={onSoloChronicle}
-            className="rounded-lg border border-[color:var(--terminal)]/35 bg-black/45 px-2.5 py-2.5 text-left font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-[color:var(--terminal)]/95 transition hover:border-[color:var(--terminal)]/55 hover:text-white"
-            title="Narrativa guiada por capítulos. Atajo de URL: /?v=solitario"
-          >
-            Crónica solitaria
+            CODEX
           </button>
           <button
             type="button"
             onClick={onEidolonVault}
             className="rounded-lg border border-zinc-800 bg-black/40 px-2.5 py-2.5 text-left font-sans text-[10px] font-medium uppercase tracking-[0.16em] text-neutral-400 transition hover:border-[color:var(--blood)]/25 hover:text-neutral-100"
-            title="Elegir otra lápida entre tus envolturas"
+            title="Registro de personajes"
           >
-            Cripta del Elíseo
+            CRIPTA
           </button>
           <button
             type="button"

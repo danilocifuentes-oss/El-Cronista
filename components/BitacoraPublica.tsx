@@ -10,6 +10,8 @@ type Stored = { eco_visible: string[]; eco_sombras: string[] };
 
 type Props = {
   accent: string;
+  /** Eco de la crónica solitaria; si está definido, sustituye ciudad/sombras. */
+  soloEchoLines?: string[];
 };
 
 /** Una línea = un titular corto; evita párrafos en el riel. */
@@ -56,7 +58,7 @@ function hydrateFromStorage(): Stored {
   return { eco_visible: [], eco_sombras: [] };
 }
 
-export function BitacoraPublica({ accent }: Props) {
+export function BitacoraPublica({ accent, soloEchoLines }: Props) {
   const [bundle, setBundle] = useState<Stored>(() => hydrateFromStorage());
   const [loading, setLoading] = useState(false);
 
@@ -101,6 +103,33 @@ export function BitacoraPublica({ accent }: Props) {
     const id = window.setInterval(tick, 60_000);
     return () => window.clearInterval(id);
   }, [refresh]);
+
+  if (soloEchoLines !== undefined) {
+    return (
+      <div className="border-b border-[#222] bg-black">
+        <header
+          className="border-b border-[#222] px-3 py-2 font-mono text-[8px] uppercase tracking-[0.28em] text-neutral-500"
+          style={{ color: accent }}
+        >
+          Rastro · crónica activa
+        </header>
+        <ul className="max-h-[min(40vh,18rem)] list-none space-y-2 overflow-y-auto p-3">
+          {soloEchoLines.length === 0 ? (
+            <li className="text-[9px] leading-relaxed text-neutral-600">Aún no hay elecciones registradas en esta partida.</li>
+          ) : (
+            soloEchoLines.map((line, i) => (
+              <li
+                key={`solo-echo-${i}-${line.slice(0, 12)}`}
+                className="list-none border-l-[3px] border-[color:var(--terminal)]/40 pl-2.5 font-sans text-[9px] leading-snug text-neutral-400"
+              >
+                {microNewsLine(line, 220)}
+              </li>
+            ))
+          )}
+        </ul>
+      </div>
+    );
+  }
 
   return (
     <div className="border-b border-[#222] bg-black">

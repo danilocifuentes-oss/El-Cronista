@@ -7,6 +7,8 @@ import { phaseToHref } from "@/lib/schreckNavigation";
 
 type Props = {
   profiles: ProfileSummary[];
+  /** Perfil ya cargado en sesión: no se lista para cambiar de lápida sin duplicar. */
+  activeProfileId?: string | null;
   /** Carga el CV y entra al Nexo (desde ahí se abre la Campaña Solitaria). */
   onPlayProfile: (id: string) => void;
   onNewSheetBlank: () => void;
@@ -22,12 +24,15 @@ function playerProfiles(list: ProfileSummary[]) {
 
 export function ProfileHub({
   profiles,
+  activeProfileId = null,
   onPlayProfile,
   onNewSheetBlank,
   onLogout,
   onClearLocalProfiles,
 }: Props) {
-  const visible = playerProfiles(profiles);
+  const allPlayer = playerProfiles(profiles);
+  const visible = allPlayer.filter((p) => (activeProfileId ? p.id !== activeProfileId : true));
+  const onlyActiveHidden = activeProfileId && allPlayer.length > 0 && visible.length === 0;
   return (
     <div className="relative flex min-h-screen flex-col bg-[#050505] px-4 py-10 font-mono text-neutral-300 crt-wrap techno-grid">
       <div className="mx-auto w-full max-w-lg space-y-8">
@@ -36,9 +41,9 @@ export function ProfileHub({
           <h1 className="font-sans text-lg font-semibold tracking-tight text-neutral-100">Registro SCHRECK_CV</h1>
           <p className="text-[11px] leading-relaxed text-neutral-500">
             Elige un personaje para entrar al <span className="text-neutral-400">Nexo</span> (canal, manifestar voluntad,
-            digest de continuidad). Desde ahí abre la{" "}
-            <span className="text-neutral-400">crónica solitaria</span> con el botón homónimo en la barra lateral o en el
-            menú móvil. Si ya tienes sesión y personaje activo, puedes usar el atajo{" "}
+            digest de continuidad).             Desde ahí abre la{" "}
+            <span className="text-neutral-400">crónica solitaria</span> desde el panel del canal (SOL Crónica solitaria).
+            Si ya tienes sesión y personaje activo, puedes usar el atajo{" "}
             <code className="rounded border border-neutral-800 bg-black/60 px-1 py-px text-[10px] text-neutral-400">
               {phaseToHref("soloCampaign")}
             </code>
@@ -100,7 +105,12 @@ export function ProfileHub({
 
         <section className="space-y-3">
           <p className="text-[9px] uppercase tracking-[0.32em] text-neutral-600">Personajes disponibles</p>
-          {visible.length === 0 ? (
+          {onlyActiveHidden ? (
+            <p className="border border-[#161616] bg-black/40 px-4 py-8 text-center text-[11px] leading-relaxed text-neutral-500">
+              Solo tienes esta lápida en el registro y ya está cargada en el Nexo. Crea otro personaje o vuelve atrás si no
+              necesitas cambiar de máscara.
+            </p>
+          ) : visible.length === 0 ? (
             <p className="border border-[#161616] bg-black/40 px-4 py-8 text-center text-[11px] leading-relaxed text-neutral-500">
               Aquí aparecerán tus personajes. Pulsa{" "}
               <span className="text-[var(--terminal)]/90">«Nuevo personaje»</span> para abrir el CODEX y sellar tu primera
