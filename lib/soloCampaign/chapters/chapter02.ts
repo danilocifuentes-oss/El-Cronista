@@ -109,7 +109,7 @@ Te giras tenso. En un banco de madera, bajo la sombra de un plátano oriental, h
       title: "2.3 · El descenso al centro",
       text: `Doña Inés te conduce hacia el centro histórico; Santiago muestra dos geografías paralelas: el asfalto oficial y las galerías que muerden cuando cae la noche.
 
-Cruzáis una rejilla metálica en un pasaje olvidado; ella extrae una llave plateada como quien muestra relicario oficial. Bajáis por pasillos de servicio y escaleras mecánicas paradas, cadáveres de infraestructura que parecen costillas fósiles.`,
+Cruzas una rejilla metálica en un pasaje olvidado; ella extrae una llave plateada como quien muestra relicario oficial. Bajas con ella por pasillos de servicio y escaleras mecánicas paradas, cadáveres de infraestructura que parecen costillas fósiles.`,
       options: [
         {
           id: "n2_3_down",
@@ -207,7 +207,7 @@ Aquí cae sobre ti otro vértigo: en esos cristales los reunidos apenas tienen v
       id: "n2_end",
       chapterId: "chapter02",
       title: "2.E · Política de los condenados",
-      text: `Doña Inés te toma el brazo y te guía hasta la puerta trasera sin pasacalles ceremoniales de más. Cruzáis ante espejos manchados; en el último ves solo un hueco donde un hombre debería estar: ya ni reconoces al ciudadano perdido bajo ese vacío líquido, arma apenas ensamblada en despacho vampírico de burocracia milenaria.
+      text: `Doña Inés te toma el brazo y te guía hasta la puerta trasera sin pasacalles ceremoniales de más. Cruzas ante espejos manchados; en el último ves solo un hueco donde un hombre debería estar: ya ni reconoces al ciudadano perdido bajo ese vacío líquido, arma apenas ensamblada en despacho vampírico de burocracia milenaria.
 
 —Bienvenido a la política de los condenados —susurra Inés sin volver la cabeza—. Intenta no morir dos veces esta misma noche.`,
       options: [

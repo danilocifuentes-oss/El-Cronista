@@ -10,7 +10,6 @@ import { filterSoloOptionsForSheet, sortSoloOptionsForDisplay } from "@/lib/solo
 import { loadSheet, normalizeCharacterSheet, saveSheet } from "@/lib/character";
 import { loadSoloProgress, saveSoloProgress } from "@/lib/soloCampaign/progressStore";
 import type { SoloOption, SoloProgress, SoloSceneEffect } from "@/lib/soloCampaign/types";
-import { soloDisciplineGlyph } from "@/lib/soloCampaign/disciplineGlyphs";
 import { getChronicleClanPresentation } from "@/lib/soloCampaign/clanPresentationCopy";
 import {
   CHRONICLE_PRELUDE_COMMON,
@@ -19,7 +18,7 @@ import {
 } from "@/lib/soloCampaign/preludeCopy";
 import { getPendingNextChapter } from "@/lib/soloCampaign/soloProgressSelectors";
 import { syncActiveBundleFromGlobals } from "@/lib/profileStore";
-import { NexusLibrary } from "@/components/icons/NexusLibrary";
+import { TechnicalHud } from "@/components/TechnicalHud";
 import { SoloCampaignProvider, useSoloCampaign } from "@/context/SoloCampaignContext";
 import { rollPoolV5, summarizeRollPlayerLog } from "@/lib/dice";
 import { appendXpLog } from "@/lib/sessionMeta";
@@ -55,19 +54,6 @@ function partitionExperienceEffects(branchEffects: SoloSceneEffect[]): { sheetFx
   }
   return { sheetFx, xpFromNarrative };
 }
-
-const DISCIPLINE_COLOR: Record<string, string> = {
-  dominate: "text-violet-300 border-violet-700/60 bg-violet-950/25",
-  presence: "text-blue-300 border-blue-700/60 bg-blue-950/25",
-  auspex: "text-fuchsia-300 border-fuchsia-700/60 bg-fuchsia-950/25",
-  celerity: "text-red-300 border-red-700/60 bg-red-950/25",
-  potence: "text-red-300 border-red-700/60 bg-red-950/25",
-  obfuscate: "text-slate-300 border-slate-600/60 bg-slate-900/20",
-  fortitude: "text-emerald-300 border-emerald-700/60 bg-emerald-950/25",
-  protean: "text-amber-300 border-amber-700/60 bg-amber-950/25",
-  blood_sorcery: "text-indigo-300 border-indigo-700/60 bg-indigo-950/25",
-  animalism: "text-lime-300 border-lime-700/60 bg-lime-950/25",
-};
 
 const CLAN_TONE: Partial<Record<ClanId, string>> = {
   malkavian: "text-cyan-200",
@@ -228,8 +214,8 @@ export function SoloCampaignApp({
           <p className="text-[10px] uppercase tracking-[0.28em] text-amber-300">Campaña Solitaria</p>
           <h2 className="font-sans text-xl text-neutral-100">Clan aún no disponible</h2>
           <p className="text-sm leading-relaxed text-neutral-400">
-            Tu personaje es <span className="text-neutral-200">{clanLabel}</span>. La crónica solitaria actual solo está
-            implementada para <span className="text-neutral-200">Brujah</span>, <span className="text-neutral-200">Ventrue</span>,{" "}
+            Tu personaje es <span className="text-neutral-200">{clanLabel}</span>. Por ahora la crónica solitaria abre con{" "}
+            <span className="text-neutral-200">Brujah</span>, <span className="text-neutral-200">Ventrue</span>,{" "}
             <span className="text-neutral-200">Toreador</span> y <span className="text-neutral-200">Malkavian</span>.
           </p>
           <p className="text-xs text-neutral-500">
@@ -395,7 +381,7 @@ function SoloCampaignScreen({
           ? option.nextSceneIdOnCritical ?? option.nextSceneId
           : option.nextSceneId;
     } else {
-      rollLine = "Sin tirada · elección directa";
+      rollLine = "Elección directa";
       branchEffects = option.effects ?? [];
       const partDlg = partitionExperienceEffects(branchEffects);
       xpFromNarrative = partDlg.xpFromNarrative;
@@ -491,198 +477,193 @@ function SoloCampaignScreen({
   }
 
   const sceneHeadingId = `solo-scene-title-${scene.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+  const hudFilled = CHRONICLE_HEALTH_TRACK_UI - Math.min(sheet.healthDamage, CHRONICLE_HEALTH_TRACK_UI);
+  const mainGameplay = isChroniclePreludeDismissed(progress) && clanIntroGateDone;
 
   return (
     <div
       className={
         embedded
-          ? "min-h-0 min-w-0 flex-1 overflow-y-auto bg-black/20 px-3 py-4 font-mono text-neutral-300 sm:px-4"
-          : "min-h-screen bg-[radial-gradient(circle_at_top,#0f1118_0%,#050505_45%,#030303_100%)] px-4 py-8 font-mono text-neutral-300"
+          ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-black/20 font-mono text-neutral-300"
+          : "flex min-h-screen flex-col overflow-hidden bg-[radial-gradient(circle_at_top,#0f1118_0%,#050505_45%,#030303_100%)] font-mono text-neutral-300"
       }
     >
-      <div className={embedded ? "mx-auto max-w-3xl space-y-6" : "mx-auto grid max-w-6xl gap-5 xl:grid-cols-[18rem_1fr]"}>
-        {!embedded ? (
-          <aside
-            className="space-y-4 border border-neutral-900 bg-black/35 p-4"
-            aria-label="Estado del personaje"
-          >
-            <p className="font-sans text-lg text-neutral-100">{sheet.name || "Sin nombre"}</p>
-            <p className={`text-xs uppercase tracking-[0.16em] ${CLAN_TONE[sheet.clan] ?? "text-neutral-300"}`}>{clanLabel}</p>
-            <div className="space-y-2 border-t border-neutral-900 pt-3 text-xs text-neutral-500">
-              <p className="font-mono">Humanidad · {sheet.humanity}</p>
-              <p className="flex items-center gap-2">
-                <NexusLibrary.Sangre className="h-4 w-4 shrink-0" pulse={sheet.hunger > 2} />
-                <span>Hambre · {sheet.hunger}/5</span>
-              </p>
-              <p>
-                Integridad · {CHRONICLE_HEALTH_TRACK_UI - Math.min(sheet.healthDamage, CHRONICLE_HEALTH_TRACK_UI)}/
-                {CHRONICLE_HEALTH_TRACK_UI} · WP {sheet.willpowerCur}/{sheet.willpowerMax}
-              </p>
-              <p>{chapter.title}</p>
+      {!embedded ? (
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] bg-black/85 px-2 py-2 sm:px-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+            <TechnicalHud
+              healthFilled={hudFilled}
+              healthMax={CHRONICLE_HEALTH_TRACK_UI}
+              hunger={sheet.hunger}
+              compactLabels
+              hideMetagameFooter
+              className="border-0 bg-transparent px-0 py-0"
+            />
+            <div className="min-w-0 truncate font-sans text-[10px] text-neutral-500">
+              <span className="text-neutral-200">{sheet.name || "Sin nombre"}</span>
+              <span className="text-neutral-600"> · </span>
+              <span className={CLAN_TONE[sheet.clan] ?? "text-neutral-300"}>{clanLabel}</span>
             </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
             {(progress.soloSceneBackStack?.length ?? 0) > 0 ? (
-              <div className="mt-2 border-t border-neutral-900 pt-3">
-                <button
-                  type="button"
-                  onClick={() => revertToPrevScene()}
-                  className="w-full border border-dashed border-amber-800/70 bg-amber-950/20 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-amber-200"
-                >
-                  ← Escena anterior
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => revertToPrevScene()}
+                className="border border-dashed border-amber-800/60 bg-amber-950/25 px-2.5 py-1.5 text-[9px] uppercase tracking-[0.16em] text-amber-200 hover:bg-amber-950/40"
+              >
+                ↩ Escena
+              </button>
             ) : null}
             <button
               type="button"
               onClick={onExit}
-              className="mt-2 w-full border border-neutral-700 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-neutral-300"
+              className="border border-neutral-700 px-2.5 py-1.5 text-[9px] uppercase tracking-[0.16em] text-neutral-400 hover:border-neutral-500 hover:text-neutral-200"
             >
               Salir
             </button>
-          </aside>
-        ) : null}
+          </div>
+        </header>
+      ) : null}
 
-        <main className="min-w-0 space-y-6" aria-label="Historia y opciones">
-        {!embedded ? (
-          <header className="space-y-2 border-b border-neutral-900 pb-4">
-            <h1 className="font-sans text-2xl font-semibold text-neutral-100">{chapter.title}</h1>
-            <p className="text-xs text-neutral-500">
-              {sheet.name || "Sin nombre"} · <span className={CLAN_TONE[sheet.clan] ?? "text-neutral-300"}>{clanLabel}</span>
-            </p>
-          </header>
-        ) : null}
+      {embedded && (progress.soloSceneBackStack?.length ?? 0) > 0 ? (
+        <div className="flex shrink-0 justify-end border-b border-white/[0.06] bg-black/45 px-2 py-1.5">
+          <button
+            type="button"
+            onClick={() => revertToPrevScene()}
+            className="border border-dashed border-amber-800/55 bg-amber-950/20 px-2.5 py-1 text-[9px] uppercase tracking-[0.14em] text-amber-200 hover:bg-amber-950/35"
+          >
+            ↩ Escena anterior
+          </button>
+        </div>
+      ) : null}
 
-        {!isChroniclePreludeDismissed(progress) ? (
-          <section className="space-y-4 border border-[var(--terminal)]/25 bg-black/55 p-5 sharp-border-inner">
-            {emitParalelaNarration ? (
-              <p className="text-sm text-neutral-500">El arranque quedó en el canal.</p>
-            ) : (
-              <>
-                <p className="whitespace-pre-line text-sm leading-relaxed text-neutral-300">{CHRONICLE_PRELUDE_COMMON}</p>
-                <p className={`text-sm leading-relaxed italic ${CLAN_TONE[sheet.clan] ?? "text-neutral-200"}`}>{preludeStinger}</p>
-              </>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                const next = {
-                  ...progress,
-                  chroniclePreludeSeenVersion: CHRONICLE_PRELUDE_CONTENT_VERSION,
-                  flags: { ...progress.flags, chronicle_curtain_seen: true },
-                  updatedAt: progress.updatedAt + 1,
-                };
-                saveSoloProgress(next);
-                setProgress(next);
-              }}
-              className="border border-[var(--terminal)]/40 bg-neutral-950/80 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-[var(--terminal)]"
-            >
-              Continuar
-            </button>
-          </section>
-        ) : null}
-
-        {isChroniclePreludeDismissed(progress) && progress.chapterId === "chapter01" && !progress.flags.clan_intro_seen ? (
-          <section className="space-y-4 border border-neutral-900 bg-black/45 p-5 sharp-border-inner">
-            {!emitParalelaNarration ? (
-              <p className={`text-sm leading-relaxed ${CLAN_TONE[sheet.clan] ?? "text-neutral-200"}`}>{clanPresentationText}</p>
+      <div className="flex min-h-0 flex-1 flex-col" aria-label="Historia y opciones">
+        <div
+          className={`min-h-0 flex-1 overflow-y-auto ${embedded ? "px-3 py-3 sm:px-4" : "px-4 py-5 sm:px-8"} ${mainGameplay ? "pb-2" : ""}`}
+        >
+          <div className="mx-auto max-w-2xl space-y-6">
+            {!embedded ? (
+              <p className="font-sans text-[10px] uppercase tracking-[0.22em] text-neutral-600">{chapter.title}</p>
             ) : null}
-            <button
-              type="button"
-              onClick={() => {
-                const next = {
-                  ...progress,
-                  flags: { ...progress.flags, clan_intro_seen: true },
-                  updatedAt: progress.updatedAt + 1,
-                };
-                saveSoloProgress(next);
-                setProgress(next);
-              }}
-              className="border border-[var(--terminal)]/40 bg-neutral-950/80 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-[var(--terminal)]"
-            >
-              Continuar
-            </button>
-          </section>
-        ) : null}
 
-        {isChroniclePreludeDismissed(progress) && clanIntroGateDone ? (
-          <>
-            <section className="space-y-4 border border-neutral-900 bg-black/40 p-5 sharp-border-inner" aria-labelledby={sceneHeadingId}>
-              <p id={sceneHeadingId} className="text-[10px] uppercase tracking-[0.22em] text-neutral-500">
-                {scene.title}
-              </p>
-              <p className="leading-relaxed text-neutral-200">{scene.text}</p>
-              {scene.clanFlavor?.[sheet.clan] ? (
-                <p className={`border-l-2 border-current pl-3 text-sm italic ${CLAN_TONE[sheet.clan] ?? "text-neutral-300"}`}>
-                  {scene.clanFlavor[sheet.clan]}
-                </p>
-              ) : null}
-            </section>
-
-            {lastRollLine ? (
-              <section className="border border-neutral-900 bg-black/35 px-4 py-3">
-                <div className="flex items-start gap-2">
-                  <NexusLibrary.Destino className="mt-0.5 h-5 w-5 shrink-0 text-[color:var(--terminal)] opacity-85" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">Eco</p>
-                    <p className="mt-1 text-xs text-neutral-300">{lastRollLine}</p>
-                  </div>
-                </div>
+            {!isChroniclePreludeDismissed(progress) ? (
+              <section className="space-y-4 border border-[var(--terminal)]/25 bg-black/55 p-5 sharp-border-inner">
+                {emitParalelaNarration ? (
+                  <p className="text-sm text-neutral-500">El arranque quedó en el canal.</p>
+                ) : (
+                  <>
+                    <p className="whitespace-pre-line text-sm leading-relaxed text-neutral-300">{CHRONICLE_PRELUDE_COMMON}</p>
+                    <p className={`text-sm leading-relaxed italic ${CLAN_TONE[sheet.clan] ?? "text-neutral-200"}`}>{preludeStinger}</p>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = {
+                      ...progress,
+                      chroniclePreludeSeenVersion: CHRONICLE_PRELUDE_CONTENT_VERSION,
+                      flags: { ...progress.flags, chronicle_curtain_seen: true },
+                      updatedAt: progress.updatedAt + 1,
+                    };
+                    saveSoloProgress(next);
+                    setProgress(next);
+                  }}
+                  className="border border-[var(--terminal)]/40 bg-neutral-950/80 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-[var(--terminal)]"
+                >
+                  Continuar
+                </button>
               </section>
             ) : null}
 
-            <section className="space-y-3">
-              {displayedOptions.map((option) => {
-                const state = checkOptionAvailability(option, sheet);
-                const fail = listFailReasons(option, sheet);
-                const optionText = resolveDisciplineTierText(option, sheet);
-                const disciplineChip = option.discipline ? DISCIPLINE_COLOR[option.discipline] ?? "text-violet-200 border-violet-900" : "";
+            {isChroniclePreludeDismissed(progress) && progress.chapterId === "chapter01" && !progress.flags.clan_intro_seen ? (
+              <section className="space-y-4 border border-neutral-900 bg-black/45 p-5 sharp-border-inner">
+                {!emitParalelaNarration ? (
+                  <p className={`text-sm leading-relaxed ${CLAN_TONE[sheet.clan] ?? "text-neutral-200"}`}>{clanPresentationText}</p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = {
+                      ...progress,
+                      flags: { ...progress.flags, clan_intro_seen: true },
+                      updatedAt: progress.updatedAt + 1,
+                    };
+                    saveSoloProgress(next);
+                    setProgress(next);
+                  }}
+                  className="border border-[var(--terminal)]/40 bg-neutral-950/80 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-[var(--terminal)]"
+                >
+                  Continuar
+                </button>
+              </section>
+            ) : null}
 
-                const typeLine = OPTION_TYPE_LABEL[option.type];
-                const choiceLabel =
-                  option.type === "dialogue"
-                    ? optionText
-                    : option.discipline !== undefined
-                      ? `${typeLine ?? ""}: ${disciplineLabel(option.discipline)} — ${optionText}`.replace(/^:\s*/, "")
-                      : option.skill !== undefined
-                        ? `${typeLine ?? ""}: ${option.skill} — ${optionText}`.replace(/^:\s*/, "")
-                        : typeLine
-                          ? `${typeLine}: ${optionText}`
-                          : optionText;
+            {mainGameplay ? (
+              <section className="space-y-4" aria-labelledby={sceneHeadingId}>
+                <h2 id={sceneHeadingId} className="sr-only">
+                  {scene.title}
+                </h2>
+                <p className="whitespace-pre-line leading-relaxed text-neutral-200">{scene.text}</p>
+                {scene.clanFlavor?.[sheet.clan] ? (
+                  <p className={`text-sm italic leading-relaxed ${CLAN_TONE[sheet.clan] ?? "text-neutral-300"}`}>{scene.clanFlavor[sheet.clan]}</p>
+                ) : null}
+              </section>
+            ) : null}
+          </div>
+        </div>
 
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    disabled={!state.available}
-                    aria-label={state.available ? choiceLabel : `${choiceLabel} (no disponible)`}
-                    onClick={() => applyOption(option)}
-                    className={`w-full border px-4 py-3 text-left transition ${
-                      state.available
-                        ? "border-neutral-700 bg-black/35 hover:border-[var(--terminal)]/70 hover:bg-black/60"
-                        : "cursor-not-allowed border-neutral-800 bg-black/25 opacity-60"
-                    }`}
-                  >
-                    {(option.type !== "dialogue" && typeLine) || option.discipline ? (
-                      <div className="mb-2 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.2em]">
-                        {option.type !== "dialogue" && typeLine ? (
-                          <span className="border border-neutral-700 px-2 py-0.5 text-neutral-400">[{typeLine}]</span>
-                        ) : null}
-                        {option.discipline ? (
-                          <span className={`border px-2 py-0.5 ${disciplineChip}`}>
-                            [{soloDisciplineGlyph(option.discipline)} {option.disciplineTitle ?? disciplineLabel(option.discipline)}]
-                          </span>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    <p className="text-sm leading-relaxed text-neutral-200">{optionText}</p>
-                    {!state.available && fail.length ? <p className="mt-2 text-xs text-amber-300">Requisito: {fail[0]}</p> : null}
-                  </button>
-                );
-              })}
-            </section>
+        {mainGameplay ? (
+          <div className="shrink-0 border-t border-white/[0.06] bg-gradient-to-t from-black via-black/92 to-transparent px-3 pb-6 pt-4 sm:px-6">
+            <div className="mx-auto max-w-2xl space-y-3">
+              {lastRollLine ? (
+                <p className="text-center font-sans text-xs leading-relaxed text-neutral-500">{lastRollLine}</p>
+              ) : null}
 
-            {pendingNextChapter ? (
-              <section className="space-y-3 border border-[var(--terminal)]/20 bg-black/50 p-4 sharp-border-inner">
-                <div className="flex flex-wrap gap-2">
+              <div className="space-y-2.5">
+                {displayedOptions.map((option) => {
+                  const state = checkOptionAvailability(option, sheet);
+                  const fail = listFailReasons(option, sheet);
+                  const optionText = resolveDisciplineTierText(option, sheet);
+                  const typeLine = OPTION_TYPE_LABEL[option.type];
+                  const choiceLabel =
+                    option.type === "dialogue"
+                      ? optionText
+                      : option.discipline !== undefined
+                        ? `${typeLine ?? ""}: ${disciplineLabel(option.discipline)} — ${optionText}`.replace(/^:\s*/, "")
+                        : option.skill !== undefined
+                          ? `${typeLine ?? ""}: ${option.skill} — ${optionText}`.replace(/^:\s*/, "")
+                          : typeLine
+                            ? `${typeLine}: ${optionText}`
+                            : optionText;
+
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      disabled={!state.available}
+                      aria-label={state.available ? choiceLabel : `${choiceLabel}. No disponible.`}
+                      aria-describedby={!state.available && fail.length ? `${option.id}-why` : undefined}
+                      onClick={() => applyOption(option)}
+                      className={`w-full border px-4 py-3 text-left transition ${
+                        state.available
+                          ? "border-neutral-700/90 bg-black/40 hover:border-[var(--terminal)]/55 hover:bg-black/65"
+                          : "cursor-not-allowed border-neutral-800/80 bg-black/20 opacity-55"
+                      }`}
+                    >
+                      <p className="text-sm leading-relaxed text-neutral-200">{optionText}</p>
+                      {!state.available && fail.length ? (
+                        <p id={`${option.id}-why`} className="mt-2 text-[11px] text-neutral-500">
+                          {fail[0]}
+                        </p>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {pendingNextChapter ? (
+                <div className="flex flex-wrap gap-2 border-t border-white/[0.04] pt-4">
                   <button
                     type="button"
                     onClick={() => {
@@ -707,7 +688,7 @@ function SoloCampaignScreen({
                       saveSoloProgress(next);
                       setProgress(next);
                     }}
-                    className="border border-neutral-700 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-neutral-400"
+                    className="border border-neutral-700 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-neutral-400 hover:border-neutral-500"
                   >
                     Continuar en {pendingNextChapter}
                   </button>
@@ -719,11 +700,10 @@ function SoloCampaignScreen({
                     Volver al Nexo
                   </button>
                 </div>
-              </section>
-            ) : null}
-          </>
+              ) : null}
+            </div>
+          </div>
         ) : null}
-        </main>
       </div>
     </div>
   );

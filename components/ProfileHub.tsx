@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { CLAN_ACCENTS, CLAN_OPTIONS } from "@/lib/character";
 import type { ProfileSummary } from "@/lib/profileStore";
+import { phaseToHref } from "@/lib/schreckNavigation";
 
 type Props = {
   profiles: ProfileSummary[];
@@ -34,8 +35,14 @@ export function ProfileHub({
           <p className="text-[10px] uppercase tracking-[0.35em] text-[var(--terminal)]/90">SCHRECK_NET</p>
           <h1 className="font-sans text-lg font-semibold tracking-tight text-neutral-100">Registro SCHRECK_CV</h1>
           <p className="text-[11px] leading-relaxed text-neutral-500">
-            Elige un personaje para entrar al <span className="text-neutral-400">Nexo</span>. La Campaña Solitaria se abre
-            desde esa pantalla. El Nexo cooperativo amplio está en mantenimiento y volverá próximamente.
+            Elige un personaje para entrar al <span className="text-neutral-400">Nexo</span> (canal, manifestar voluntad,
+            digest de continuidad). Desde ahí abre la{" "}
+            <span className="text-neutral-400">crónica solitaria</span> con el botón homónimo en la barra lateral o en el
+            menú móvil. Si ya tienes sesión y personaje activo, puedes usar el atajo{" "}
+            <code className="rounded border border-neutral-800 bg-black/60 px-1 py-px text-[10px] text-neutral-400">
+              {phaseToHref("soloCampaign")}
+            </code>
+            .
           </p>
           <div className="relative overflow-hidden border border-[#1c1c1c] bg-gradient-to-r from-black/80 via-[#0a0a0a] to-black/80 px-3 py-2.5 sharp-border-inner">
             <div

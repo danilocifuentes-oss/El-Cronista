@@ -8,6 +8,8 @@ type Props = {
   hunger: number;
   /** Texto breve junto a cada hilera (orden: integridad · hambre). */
   compactLabels?: boolean;
+  /** Oculta el pie explicativo (menos metajuego en HUD compacto). */
+  hideMetagameFooter?: boolean;
   className?: string;
 };
 
@@ -16,17 +18,18 @@ export function TechnicalHud({
   healthMax,
   hunger,
   compactLabels = false,
+  hideMetagameFooter = false,
   className = "",
 }: Props) {
   const h = Math.max(0, Math.min(5, hunger));
   const hf = Math.max(0, Math.min(healthMax, healthFilled));
 
   const greenHelp =
-    "Integridad física (no es salud “audible”). Cada marca llena amortigua heridas; recuperas marcas cuando el Cronista concede cicatrices o tiempo diegético.";
+    "Integridad física. Cada marca llena amortigua; recuperas marcas cuando la mesa lo marque en la hoja.";
   const redHelp =
-    "Hambre (presión hematófaga). Crece cuando no alimentás la sed o el motor refleja consecuencias. A tope dominá la tentación antes de tirar.";
-  const labelGreen = compactLabels ? "Integridad física · marcas recuperables" : "Integridad (marca verde cada casilla)";
-  const labelRed = compactLabels ? "Hambre / Bestia cercana · marcas hasta llenarse" : "Hambre (marca roja por estrés vampírico)";
+    "Hambre (presión hematófaga). Crece con la sed o con consecuencias del motor. Arriba del todo, calma la Bestia antes de tirar.";
+  const labelGreen = compactLabels ? "Integridad" : "Integridad (marca verde cada casilla)";
+  const labelRed = compactLabels ? "Hambre" : "Hambre (marca roja por estrés vampírico)";
 
   return (
     <div
@@ -78,10 +81,12 @@ export function TechnicalHud({
           ))}
         </motion.div>
       </div>
-      <p className="border-t border-white/[0.04] pt-2 text-[8px] leading-snug tracking-wide text-neutral-600">
-        El gasto reciente de <span className="text-neutral-500">Voluntad</span> en MANIFESTAR o la sangre invertida en
-        disciplinas pueden reflejarse después en estos indicadores cuando la mesa lo marque en la hoja.
-      </p>
+      {!hideMetagameFooter ? (
+        <p className="border-t border-white/[0.04] pt-2 text-[8px] leading-snug tracking-wide text-neutral-600">
+          El gasto reciente de <span className="text-neutral-500">Voluntad</span> en MANIFESTAR o la sangre invertida en
+          disciplinas pueden reflejarse después en estos indicadores cuando la mesa lo marque en la hoja.
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -84,7 +84,6 @@ import {
 } from "@/lib/profileStore";
 import { ProfileHub } from "./ProfileHub";
 import { NarratorCommandCenter } from "./NarratorCommandCenter";
-import { NexoComingSoon } from "./NexoComingSoon";
 import { SoloCampaignApp } from "./SoloCampaignApp";
 import type { Phase } from "@/lib/schreckPhase";
 import {
@@ -1025,6 +1024,7 @@ function CronistaAppInner() {
             healthMax={HEALTH_MAX_UI}
             hunger={sheet.hunger}
             compactLabels
+            hideMetagameFooter
             className="shrink-0"
           />
           <button
@@ -1127,10 +1127,6 @@ function CronistaAppInner() {
     );
   }
 
-  if (phase === "nexus") {
-    return <NexoComingSoon onGoSolo={() => navigateToPhase("soloCampaign")} onGoHub={goToProfileHub} />;
-  }
-
   return (
     <div
       className={`${mainFrameClass} text-neutral-200`}
@@ -1183,9 +1179,17 @@ function CronistaAppInner() {
             healthMax={HEALTH_MAX_UI}
             hunger={sheet.hunger}
             compactLabels
+            hideMetagameFooter
             className="xl:hidden"
           />
           <div className="flex flex-wrap gap-2 sm:ml-auto lg:ml-0">
+            <button
+              type="button"
+              onClick={() => navigateToPhase("soloCampaign")}
+              className="border border-[var(--terminal)]/35 bg-black/40 px-3 py-2 text-[9px] uppercase tracking-[0.14em] text-[var(--terminal)] hover:border-[var(--terminal)]/55 xl:hidden"
+            >
+              Crónica solitaria
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -1238,6 +1242,7 @@ function CronistaAppInner() {
             persistActiveProfile();
             navigateToPhase("chargen");
           }}
+          onSoloChronicle={() => navigateToPhase("soloCampaign")}
           onLogout={goToLogin}
         />
 

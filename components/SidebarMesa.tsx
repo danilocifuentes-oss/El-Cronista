@@ -25,6 +25,8 @@ type Props = {
   hunger: number;
   onEidolonVault: () => void;
   onCodex: () => void;
+  /** Campaña narrativa por capítulos (misma URL que `/?v=solitario`). */
+  onSoloChronicle: () => void;
   onLogout: () => void;
 };
 
@@ -74,6 +76,7 @@ export function SidebarMesa({
   hunger,
   onEidolonVault,
   onCodex,
+  onSoloChronicle,
   onLogout,
 }: Props) {
   const reduceMotion = useReducedMotion();
@@ -264,6 +267,14 @@ export function SidebarMesa({
             style={{ borderColor: `${accent}2a` }}
           >
             Hoja CODEX
+          </button>
+          <button
+            type="button"
+            onClick={onSoloChronicle}
+            className="rounded-lg border border-[color:var(--terminal)]/35 bg-black/45 px-2.5 py-2.5 text-left font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-[color:var(--terminal)]/95 transition hover:border-[color:var(--terminal)]/55 hover:text-white"
+            title="Narrativa guiada por capítulos. Atajo de URL: /?v=solitario"
+          >
+            Crónica solitaria
           </button>
           <button
             type="button"
