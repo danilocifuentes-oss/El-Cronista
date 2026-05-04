@@ -42,14 +42,14 @@ export function ForcedDestinyOverlay({ forced, sheet, hungerLevel, onConsume }: 
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 px-5 backdrop-blur-[1px]">
       <div className="w-full max-w-md border border-[var(--blood)]/80 bg-[#070707] px-6 py-7 font-mono text-center sharp-border-inner">
         <p className="text-[9px] uppercase tracking-[0.45em] text-[var(--blood)]">
-          [&gt;_PULL_{forced.kind === "frenesy" ? "FRENESI" : "ENR"}]
+          [&gt;_TIRADA_FORZADA_{forced.kind === "frenesy" ? "FRENESÍ" : "ENAR"}]
         </p>
         <button
           type="button"
           onClick={accept}
           className="mt-8 w-full border border-[var(--blood)] py-4 text-[10px] font-bold uppercase tracking-[0.42em] text-[var(--blood)] hover:bg-[var(--blood)]/10"
         >
-          CONFIRM_LOCK
+          Confirmar tirada
         </button>
       </div>
     </div>

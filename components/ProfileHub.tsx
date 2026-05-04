@@ -27,7 +27,7 @@ export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout,
           <p className="text-[10px] uppercase tracking-[0.35em] text-[var(--terminal)]/90">SCHRECK_NET</p>
           <h1 className="font-sans text-lg font-semibold tracking-tight text-neutral-100">¿Quién cruza el Nexo?</h1>
           <p className="text-[11px] leading-relaxed text-neutral-500">
-            Elige un vástago para la sesión o crea uno nuevo en el CODEX y vente cuando estés listo para jugar.
+            Elige un personaje para la sesión o crea uno nuevo en el CODEX y entra cuando estés listo para jugar.
           </p>
           <div className="relative overflow-hidden border border-[#1c1c1c] bg-gradient-to-r from-black/80 via-[#0a0a0a] to-black/80 px-3 py-2.5 sharp-border-inner">
             <div

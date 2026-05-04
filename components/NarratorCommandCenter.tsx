@@ -17,6 +17,14 @@ import { parseFetchJson } from "@/lib/parseFetchJson";
 import { MasterSheetEditor } from "./MasterSheetEditor";
 import { ROOT_OPERATOR_CIPHER } from "@/lib/sessionMeta";
 
+const ORCH_ACTION_LABEL_ES: Record<string, string> = {
+  raid: "evento tipo redada",
+  bump_threat: "ajuste de amenaza",
+  advance_night: "avance de noche",
+  purge_events: "purga de eventos",
+  reset: "reinicio de orquestación",
+};
+
 function motorSnapshot(ext: boolean, paused: boolean, seed: string) {
   return JSON.stringify({ ext, paused, seed });
 }
@@ -29,7 +37,7 @@ const NAV: { id: DashboardTab; label: string; hint: string }[] = [
   { id: "cast", label: "Reparto", hint: "Personajes y fichas maestras" },
   { id: "priority", label: "Escena prioritaria", hint: "Se aplica al próximo mensaje del jugador" },
   { id: "engine", label: "Motor narrativo", hint: "IA remota, pausa y contexto global" },
-  { id: "server", label: "Servidor y datos", hint: "Orquestación, JSON y mantenimiento" },
+  { id: "server", label: "Servidor y datos", hint: "Orquestación, datos (JSON) y mantenimiento" },
 ];
 
 function Card({
@@ -149,7 +157,7 @@ export function NarratorCommandCenter({
       });
       const data = await parseFetchJson<{ ok?: boolean; world?: unknown; error?: string }>(probe);
       if (!probe.ok) {
-        setOrchStatusLine(data.error ?? `Error ${probe.status}`);
+        setOrchStatusLine(data.error ?? `Respuesta no válida (código ${probe.status})`);
         return;
       }
       setOrchDisplay(JSON.stringify(data.world ?? {}, null, 2));
@@ -173,11 +181,13 @@ export function NarratorCommandCenter({
       });
       const data = await parseFetchJson<{ ok?: boolean; world?: unknown; error?: string }>(probe);
       if (!probe.ok) {
-        setOrchStatusLine(data.error ?? `Error ${probe.status}`);
+        setOrchStatusLine(data.error ?? `Respuesta no válida (código ${probe.status})`);
         return;
       }
       setOrchDisplay(JSON.stringify(data.world ?? {}, null, 2));
-      setOrchStatusLine(`Acción completada: ${action}`);
+      setOrchStatusLine(
+        `Acción completada · ${ORCH_ACTION_LABEL_ES[action] ?? action}`,
+      );
       window.setTimeout(() => setOrchStatusLine(null), 3200);
     } catch (e) {
       setOrchStatusLine(e instanceof Error ? e.message : String(e));
@@ -204,7 +214,7 @@ export function NarratorCommandCenter({
         error?: string;
       }>(res);
       if (!res.ok) {
-        setMotorStatus(data.error || `Error ${res.status}`);
+        setMotorStatus(data.error || `Respuesta no válida (código ${res.status})`);
         return;
       }
       const ext = data.externalLlmEnabled ?? true;
@@ -249,7 +259,7 @@ export function NarratorCommandCenter({
         error?: string;
       }>(res);
       if (!res.ok) {
-        setMotorStatus(data.error || `Error ${res.status}`);
+        setMotorStatus(data.error || `Respuesta no válida (código ${res.status})`);
         return;
       }
       if (typeof data.clientResetEpoch === "number") setMotorClientEpoch(data.clientResetEpoch);
@@ -286,7 +296,7 @@ export function NarratorCommandCenter({
         error?: string;
       }>(res);
       if (!res.ok) {
-        setMotorStatus(data.error || `Error ${res.status}`);
+        setMotorStatus(data.error || `Respuesta no válida (código ${res.status})`);
         return;
       }
       setMotorClientEpoch(typeof data.clientResetEpoch === "number" ? data.clientResetEpoch : motorClientEpoch + 1);
@@ -316,7 +326,7 @@ export function NarratorCommandCenter({
       });
       const data = await parseFetchJson<{ ok?: boolean; error?: string }>(res);
       if (!res.ok) {
-        setMotorStatus(data.error || `Error ${res.status}`);
+        setMotorStatus(data.error || `Respuesta no válida (código ${res.status})`);
         return;
       }
       setMotorExtLlm(remoto);
@@ -344,7 +354,7 @@ export function NarratorCommandCenter({
   function applyGenesisManuscript() {
     const trimmed = manuscriptRaw.trim();
     if (!trimmed) {
-      setSynStatus("Pegá texto en el importador o usá «Cargar ejemplo».");
+      setSynStatus("Pega texto en el importador o usa «Cargar ejemplo».");
       window.setTimeout(() => setSynStatus(null), 4200);
       return;
     }
@@ -399,7 +409,7 @@ export function NarratorCommandCenter({
             <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Director de campaña</p>
             <h1 className="mt-1 text-lg font-bold tracking-tight text-slate-900">Panel de configuración</h1>
             <p className="mt-2 text-xs leading-relaxed text-slate-500">
-              Mismo motor que el juego: aquí definís el contexto estable y supervisás el servidor.
+              Mismo motor que el juego: aquí defines el contexto estable y supervisas el servidor.
             </p>
           </div>
           <nav className="flex flex-1 flex-col gap-0.5 p-2">
@@ -480,13 +490,13 @@ export function NarratorCommandCenter({
                 <ul className="mt-2 list-inside list-disc space-y-1 text-amber-900/90">
                   {genesisDirty ? (
                     <li>
-                      <strong className="font-medium">Mundo y trama:</strong> pulsá «Guardar en este equipo» en la
-                      sección Mundo y trama (o usá el atajo del resumen).
+                      <strong className="font-medium">Mundo y trama:</strong> pulsa «Guardar en este equipo» en la
+                      sección Mundo y trama (o usa el atajo del resumen).
                     </li>
                   ) : null}
                   {motorDirty ? (
                     <li>
-                      <strong className="font-medium">Motor:</strong> pulsá «Guardar en servidor» en Motor narrativo
+                      <strong className="font-medium">Motor:</strong> pulsa «Guardar en servidor» en Motor narrativo
                       (los interruptores de IA también guardan al aplicarse).
                     </li>
                   ) : null}
@@ -540,25 +550,25 @@ export function NarratorCommandCenter({
                 </div>
 
                 <Card
-                  title="Checklist para una partida jugable"
-                  subtitle="Orden sugerido; podés generar borradores con una IA externa y pegarlos aquí."
+                  title="Lista de verificación para una partida jugable"
+                  subtitle="Orden sugerido; puedes generar borradores con una IA externa y pegarlos aquí."
                 >
                   <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-700">
                     <li>
-                      Completá <button type="button" className="font-medium text-indigo-700 underline" onClick={() => setTab("world")}>Mundo y trama</button>{" "}
+                      Completa <button type="button" className="font-medium text-indigo-700 underline" onClick={() => setTab("world")}>Mundo y trama</button>{" "}
                       (lore, ambiente, tensión política, estado del mundo, cómo se relacionan los canales de juego).
                     </li>
                     <li>
-                      Revisá <button type="button" className="font-medium text-indigo-700 underline" onClick={() => setTab("cast")}>Reparto</button> y las fichas
+                      Revisa <button type="button" className="font-medium text-indigo-700 underline" onClick={() => setTab("cast")}>Reparto</button> y las fichas
                       maestras.
                     </li>
                     <li>
-                      En <button type="button" className="font-medium text-indigo-700 underline" onClick={() => setTab("engine")}>Motor narrativo</button>, cargá
-                      desde servidor, ajustá contexto global y guardá.
+                      En <button type="button" className="font-medium text-indigo-700 underline" onClick={() => setTab("engine")}>Motor narrativo</button>, carga
+                      desde servidor, ajusta el contexto global y guarda.
                     </li>
                     <li>
                       Opcional: <button type="button" className="font-medium text-indigo-700 underline" onClick={() => setTab("priority")}>Escena prioritaria</button>{" "}
-                      si querés forzar un giro en el próximo mensaje del jugador.
+                      si quieres forzar un giro en el próximo mensaje del jugador.
                     </li>
                   </ol>
                 </Card>
@@ -573,8 +583,8 @@ export function NarratorCommandCenter({
                 >
                   <FieldLabel>Antecedentes y reglas del mundo</FieldLabel>
                   <AiHint>
-                    Tip: pedile a un asistente de IA «expandí estas viñetas en 8 viñetas de una ciudad X con tono Y» y
-                    pegá el resultado aquí; luego refiná vos las líneas rojas.
+                    Tip: pide a un asistente de IA que «expanda estas viñetas en 8 viñetas de una ciudad X con tono Y» y
+                    pega el resultado aquí; luego refina las líneas rojas.
                   </AiHint>
                   <textarea
                     value={chronicle.foundations}
@@ -590,7 +600,9 @@ export function NarratorCommandCenter({
                   subtitle="Qué ve, huele y siente el grupo la mayoría de las noches (no la trama, el envoltorio)."
                 >
                   <FieldLabel>Ambiente físico y social</FieldLabel>
-                  <AiHint>Tip: una IA puede convertir «lista de 5 adjetivos» en un párrafo; vos recortá lo que sobre.</AiHint>
+                  <AiHint>
+                    Tip: una IA puede convertir «lista de 5 adjetivos» en un párrafo; recorta lo que sobre.
+                  </AiHint>
                   <textarea
                     value={chronicle.AMBIENTE}
                     onChange={(e) => setChronicle((c) => ({ ...c, AMBIENTE: e.target.value }))}
@@ -628,7 +640,7 @@ export function NarratorCommandCenter({
 
                 <Card
                   title="5 · Canales de juego"
-                  subtitle="Si usás hilo principal, paralelo o mesa en vivo: explicá cómo se conectan para no romper continuidad."
+                  subtitle="Si usas hilo principal, paralelo o mesa en vivo: explica cómo se conectan para no romper continuidad."
                 >
                   <FieldLabel>Relación entre canales</FieldLabel>
                   <textarea
@@ -642,7 +654,7 @@ export function NarratorCommandCenter({
 
                 <Card
                   title="Importación por texto (avanzado)"
-                  subtitle="Pegá bloques con formato CLAVE: valor para rellenar arcos, antagonistas y marcas. Se fusiona con lo que ya escribiste arriba."
+                  subtitle="Pega bloques con formato CLAVE: valor para rellenar arcos, antagonistas y marcas. Se fusiona con lo que ya escribiste arriba."
                 >
                   <details className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
                     <summary className="cursor-pointer text-sm font-medium text-slate-800">Ver lista de claves admitidas</summary>
@@ -716,7 +728,7 @@ export function NarratorCommandCenter({
               <div className="mx-auto max-w-4xl space-y-6">
                 <Card
                   title="Nueva ficha rápida"
-                  subtitle="Creá un personaje vacío para completarlo después en el editor maestro."
+                  subtitle="Crea un personaje vacío para completarlo después en el editor maestro."
                 >
                   <label className="flex items-center gap-2 text-sm text-slate-700">
                     <input type="checkbox" checked={entityNpc} onChange={(e) => setEntityNpc(e.target.checked)} />
@@ -751,7 +763,7 @@ export function NarratorCommandCenter({
                   subtitle="Este texto se añade con prioridad al contexto cuando un jugador escribe en el canal. Úsalo para un giro, un rumor o una presencia que debe aparecer ya."
                 >
                   <AiHint>
-                    Tip: escribí en imperativo qué debe ser cierto en la escena («Hay un dron encendido sobre el techo»)
+                    Tip: escribe en imperativo qué debe ser cierto en la escena («Hay un dron encendido sobre el techo»)
                     en lugar de instrucciones al modelo («no hagas X»).
                   </AiHint>
                   <textarea
@@ -795,7 +807,7 @@ export function NarratorCommandCenter({
                   </p>
                 </Card>
 
-                <Card title="Sincronización" subtitle="Leé el estado del servidor antes de editar; guardá cuando termines.">
+                <Card title="Sincronización" subtitle="Lee el estado del servidor antes de editar; guarda cuando termines.">
                   <div className="flex flex-wrap gap-2">
                     <button type="button" disabled={motorLoading} className={btnSecondary} onClick={() => void pullMotorSettings()}>
                       Cargar desde servidor
@@ -823,8 +835,8 @@ export function NarratorCommandCenter({
                   subtitle="Resumen que el servidor envía al narrador además de la Génesis: fechas internas, plazos, tono, líneas rojas."
                 >
                   <AiHint>
-                    Tip: una IA puede armar un «brief de showrunner» de 15 líneas a partir de tus notas; pegalo y ajustá
-                    nombres propios.
+                    Tip: una IA puede armar un resumen de guion maestro de 15 líneas a partir de tus notas; pégalo y ajusta
+                    los nombres propios.
                   </AiHint>
                   <textarea
                     value={motorSeed}
@@ -859,7 +871,7 @@ export function NarratorCommandCenter({
                 >
                   <div className="flex flex-wrap gap-2">
                     <button type="button" disabled={orchBusy} className={btnSecondary} onClick={() => void refreshOrchestration()}>
-                      Refrescar JSON
+                      Actualizar vista JSON
                     </button>
                     <button
                       type="button"
@@ -911,16 +923,16 @@ export function NarratorCommandCenter({
                       disabled={orchBusy}
                       className={btnDanger}
                       onClick={() => {
-                        if (!window.confirm("¿Resetear orquestación del servidor a valores iniciales?")) return;
+                        if (!window.confirm("¿Restaurar la orquestación del servidor a valores iniciales?")) return;
                         void runOrchestrationAction("reset");
                       }}
                     >
-                      Reset orquestación
+                      Restaurar orquestación
                     </button>
                   </div>
                   {orchStatusLine ? <p className="text-sm text-slate-700">{orchStatusLine}</p> : null}
                   <pre className="max-h-[min(420px,55vh)] overflow-auto rounded-lg border border-slate-800 bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">
-                    {orchDisplay.trim() ? orchDisplay : orchBusy ? "…" : "Pulsa «Refrescar JSON»."}
+                    {orchDisplay.trim() ? orchDisplay : orchBusy ? "…" : "Pulsa «Actualizar vista JSON»."}
                   </pre>
                 </Card>
 
@@ -951,40 +963,43 @@ export function NarratorCommandCenter({
                   </button>
                 </Card>
 
-                <Card title="Limpieza fina del cliente" subtitle="Transcript y resúmenes; último bloque borra también el mundo Nexo local.">
+                <Card
+                  title="Limpieza fina del cliente"
+                  subtitle="Transcripción del canal y resúmenes; el último bloque borra también el mundo Nexo local."
+                >
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
                       className={btnSecondary}
                       onClick={() => {
-                        if (!window.confirm("¿Vaciar transcript del canal en este equipo?")) return;
+                        if (!window.confirm("¿Vaciar la transcripción del canal en este equipo?")) return;
                         wipeLocalNexoTranscript();
                         onRefreshGlobals();
-                        setOrchStatusLine("Transcript vaciado.");
+                        setOrchStatusLine("Transcripción vaciada.");
                         window.setTimeout(() => setOrchStatusLine(null), 4200);
                       }}
                     >
-                      Vaciar transcript
+                      Vaciar transcripción
                     </button>
                     <button
                       type="button"
                       className={btnSecondary}
                       onClick={() => {
-                        if (!window.confirm("¿Borrar transcript y resúmenes por hilo?")) return;
+                        if (!window.confirm("¿Borrar transcripción y resúmenes por hilo?")) return;
                         wipeLocalNexoTranscript();
                         wipeLocalRollingState();
                         onRefreshGlobals();
-                        setOrchStatusLine("Transcript y resúmenes reiniciados.");
+                        setOrchStatusLine("Transcripción y resúmenes reiniciados.");
                         window.setTimeout(() => setOrchStatusLine(null), 4200);
                       }}
                     >
-                      Transcript + resúmenes
+                      Transcripción + resúmenes
                     </button>
                     <button
                       type="button"
                       className={btnDanger}
                       onClick={() => {
-                        if (!window.confirm("¿Borrar transcript, resúmenes y mundo Nexo local (misiones, marcas)?")) return;
+                        if (!window.confirm("¿Borrar transcripción, resúmenes y mundo Nexo local (misiones, marcas)?")) return;
                         if (!window.confirm("Segunda confirmación.")) return;
                         wipeLocalNexoTranscript();
                         wipeLocalRollingState();

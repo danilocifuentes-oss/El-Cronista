@@ -46,7 +46,7 @@ export function AdminConsole({
   const panelForNarrator = (
     <>
       <label className="mt-4 font-mono text-[10px] uppercase text-neutral-500">
-        CLOCK · Σh interval (min)
+        Reloj · intervalo hambre Σ (min)
       </label>
       <input
         type="range"
@@ -57,10 +57,12 @@ export function AdminConsole({
         onChange={(e) => onFamineChange(Number(e.target.value))}
         className="mt-2 w-full accent-[var(--blood)]"
       />
-      <p className="font-mono text-[10px] text-[var(--terminal)]">Δ{famineIntervalMinutes}m → +Σh</p>
+      <p className="font-mono text-[10px] text-[var(--terminal)]">
+        Cada {famineIntervalMinutes} min → +Σh
+      </p>
 
       <label className="mt-6 font-mono text-[10px] uppercase text-neutral-500">
-        OVERRIDE_POOL · DF
+        Tirada forzada · dificultad (DF)
       </label>
       <input
         type="number"
@@ -93,7 +95,7 @@ export function AdminConsole({
         onClick={onStressHunger}
         className="mt-4 w-full border border-neutral-700 px-4 py-2 font-mono text-[10px] uppercase text-neutral-300 sharp-border-inner hover:border-[var(--blood)] hover:text-[var(--blood)]"
       >
-        SIM · +Σh
+        Simular +1 Σh
       </button>
     </>
   );
@@ -105,7 +107,7 @@ export function AdminConsole({
         onClick={onToggle}
         className="fixed bottom-6 left-6 z-40 rounded-none border border-[var(--blood)] bg-black px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--blood)] sharp-border-inner hover:bg-[var(--blood)]/15"
       >
-        [MJ_CONSOLE]
+        [Consola MJ]
       </button>
 
       <AnimatePresence>
@@ -120,7 +122,7 @@ export function AdminConsole({
           >
             <div className="flex items-start justify-between gap-2">
               <h2 id="mj-title" className="font-mono text-xs font-bold uppercase tracking-[0.3em] text-[var(--blood)]">
-                PROTO_MJ
+                Consola narrador
               </h2>
               <button type="button" className="text-neutral-500 hover:text-white" onClick={onToggle}>
                 ✕
@@ -129,11 +131,11 @@ export function AdminConsole({
 
             <label className="mt-6 flex items-center gap-3 font-mono text-[10px] uppercase tracking-wider text-neutral-400">
               <input type="checkbox" checked={isNarrator} onChange={(e) => onToggleNarrator(e.target.checked)} />
-              MJ_FLAG
+              Modo narrador (MJ)
             </label>
 
             <label className="mt-4 font-mono text-[10px] uppercase text-neutral-500">
-              THREAT Σ (0–5)
+              Amenaza Σ (0–5)
             </label>
             <input
               type="range"
@@ -150,12 +152,12 @@ export function AdminConsole({
               panelForNarrator
             ) : (
               <p className="mt-6 font-mono text-[10px] text-neutral-600">
-                MJ_FLAG=OFF · sin acceso a reloj, anulación ni tubería del narrador.
+                Modo narrador desactivado · sin acceso a reloj, tiradas forzadas ni instrucciones al canal.
               </p>
             )}
 
             <label className="mt-8 font-mono text-[10px] uppercase text-neutral-500">
-              PIPE_IN
+              Instrucción al canal
             </label>
             <textarea
               value={command}
@@ -163,7 +165,7 @@ export function AdminConsole({
               rows={4}
               disabled={!isNarrator}
               className="mt-2 w-full resize-none border border-neutral-700 bg-black/80 px-2 py-2 font-mono text-xs text-neutral-200 sharp-border-inner disabled:opacity-40"
-              placeholder="// instrucción para el canal narrativo..."
+              placeholder="// texto que recibe el narrador en el canal…"
             />
 
             <div className="mt-4 flex flex-wrap gap-2">
@@ -175,7 +177,7 @@ export function AdminConsole({
                 disabled={!isNarrator}
                 className="border border-[var(--blood)] px-4 py-2 font-mono text-[10px] font-bold uppercase text-[var(--blood)] sharp-border-inner hover:bg-[var(--blood)]/15 disabled:opacity-35"
               >
-                FLUSH_PIPE
+                Enviar al canal
               </button>
             </div>
 

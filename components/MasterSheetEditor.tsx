@@ -95,7 +95,7 @@ function EditorBody({
   if (!bundle) {
     return (
       <p className="border border-dashed p-4 text-[10px] text-neutral-500" style={{ borderColor: ROOT }}>
-        [BUNDLE_NULL]
+        [Sin ficha cargada]
       </p>
     );
   }
@@ -134,7 +134,7 @@ function EditorBody({
           className="border px-3 py-2 uppercase tracking-widest text-neutral-100"
           style={{ borderColor: ROOT, backgroundColor: `${ROOT}22` }}
         >
-          Persistir en localStorage
+          Guardar en este navegador
         </button>
       </div>
 
@@ -273,7 +273,7 @@ export function MasterSheetEditor({ summaries, onSaved }: Props) {
   if (!effectiveId) {
     return (
       <p className="border border-dashed p-4 text-[10px] text-neutral-500" style={{ borderColor: ROOT }}>
-        [SIN_FICHAS] · Crea una entidad o entra con código operador para sembrar el Shadow Pack.
+        [Sin fichas] · Crea una entidad en Centro de mando o entra con código operador para cargar el paquete de prueba.
       </p>
     );
   }
