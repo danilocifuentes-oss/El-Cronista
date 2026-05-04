@@ -53,6 +53,7 @@ export function loadSoloProgress(profileId: string, clan: string): SoloProgress 
         : [],
       decisionHistory: Array.isArray(parsed.decisionHistory) ? parsed.decisionHistory : [],
       reputation: typeof parsed.reputation === "number" ? parsed.reputation : 0,
+      chronicleExperience: typeof parsed.chronicleExperience === "number" ? parsed.chronicleExperience : 0,
       updatedAt: typeof parsed.updatedAt === "number" ? parsed.updatedAt : Date.now(),
     };
     merged.chroniclePreludeSeenVersion = normalizeChroniclePreludeSeenVersion(merged);

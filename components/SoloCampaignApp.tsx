@@ -7,7 +7,7 @@ import { disciplineLabel } from "@/lib/sereno";
 import { getSoloChapter, getSoloScene } from "@/lib/soloCampaign/chapters";
 import { checkOptionAvailability, listFailReasons, resolveDisciplineTierText } from "@/lib/soloCampaign/requirementEngine";
 import { filterSoloOptionsForSheet, sortSoloOptionsForDisplay } from "@/lib/soloCampaign/optionPresentation";
-import { saveSheet } from "@/lib/character";
+import { loadSheet, normalizeCharacterSheet, saveSheet } from "@/lib/character";
 import { loadSoloProgress, saveSoloProgress } from "@/lib/soloCampaign/progressStore";
 import type { SoloOption, SoloProgress, SoloSceneEffect } from "@/lib/soloCampaign/types";
 import { soloDisciplineGlyph } from "@/lib/soloCampaign/disciplineGlyphs";
@@ -25,6 +25,15 @@ import { syncActiveBundleFromGlobals } from "@/lib/profileStore";
 import { NexusLibrary } from "@/components/icons/NexusLibrary";
 import { SoloCampaignProvider, useSoloCampaign } from "@/context/SoloCampaignContext";
 import { rollPoolV5, summarizeRollPlayerLog } from "@/lib/dice";
+import { appendXpLog } from "@/lib/sessionMeta";
+import {
+  applyOpeningChronicleVitals,
+  CHRONICLE_HEALTH_TRACK_UI,
+  CHRONICLE_OPENING_SCENE_ID,
+  CHRONICLE_XP_CRITICAL_EXTRA,
+  CHRONICLE_XP_ROLL_SUCCESS_DEFAULT,
+  SOLO_FLAG_OPENING_VITALS,
+} from "@/lib/soloCampaign/chronicleMechanics";
 
 const OPTION_TYPE_LABEL: Record<string, string> = {
   discipline: "DISCIPLINA",
@@ -41,6 +50,16 @@ function soloOptionUsesDice(option: SoloOption): boolean {
 function sumReputationDeltas(list: SoloOption["effects"]): number {
   if (!list?.length) return 0;
   return list.reduce((acc, e) => (e.type === "reputationDelta" ? acc + e.delta : acc), 0);
+}
+
+function partitionExperienceEffects(branchEffects: SoloSceneEffect[]): { sheetFx: SoloSceneEffect[]; xpFromNarrative: number } {
+  let xpFromNarrative = 0;
+  const sheetFx: SoloSceneEffect[] = [];
+  for (const e of branchEffects) {
+    if (e.type === "experienceDelta") xpFromNarrative += e.delta;
+    else sheetFx.push(e);
+  }
+  return { sheetFx, xpFromNarrative };
 }
 
 const DISCIPLINE_COLOR: Record<string, string> = {
@@ -69,6 +88,8 @@ type Props = {
   profileId: string;
   sheet: CharacterSheet;
   onExit: () => void;
+  /** Tras persistir CODEX desde la campaña, actualiza Nexo/React (nombre, vitae, etc.). */
+  onSheetSynced?: (next: CharacterSheet) => void;
 };
 
 const SOLO_SUPPORTED_CLANS: ClanId[] = ["brujah", "ventrue", "toreador", "malkavian"];
@@ -97,6 +118,19 @@ function applySceneEffectDraft(base: CharacterSheet, flags: Record<string, boole
   }
   if (effect.type === "humanityDelta") {
     next = { ...next, humanity: Math.max(0, Math.min(10, next.humanity + effect.delta)) };
+  }
+  if (effect.type === "healthDamageDelta") {
+    const cap = CHRONICLE_HEALTH_TRACK_UI;
+    next = {
+      ...next,
+      healthDamage: Math.max(0, Math.min(cap, next.healthDamage + effect.delta)),
+    };
+  }
+  if (effect.type === "willpowerDelta") {
+    next = {
+      ...next,
+      willpowerCur: clamp(next.willpowerCur + effect.delta, 0, next.willpowerMax),
+    };
   }
   return next;
 }
@@ -161,6 +195,7 @@ function ensureProgress(profileId: string, sheet: CharacterSheet): SoloProgress 
     clan: sheet.clan,
     humanity: sheet.humanity,
     reputation: 0,
+    chronicleExperience: 0,
     chapterId: "chapter01",
     sceneId: startSceneId,
     chroniclePreludeSeenVersion: 0,
@@ -175,7 +210,7 @@ function ensureProgress(profileId: string, sheet: CharacterSheet): SoloProgress 
   return base;
 }
 
-export function SoloCampaignApp({ profileId, sheet, onExit }: Props) {
+export function SoloCampaignApp({ profileId, sheet, onExit, onSheetSynced }: Props) {
   const isSupported = isSoloSupportedClan(sheet.clan);
   /** Estado inicial sólo en montaje (el componente lleva key de perfil; no reprocesar al mutar hambre en vivo). */
   const [initialProgress] = useState(() => ensureProgress(profileId, sheet));
@@ -209,12 +244,12 @@ export function SoloCampaignApp({ profileId, sheet, onExit }: Props) {
 
   return (
     <SoloCampaignProvider key={profileId} initialProgress={initialProgress}>
-      <SoloCampaignScreen profileId={profileId} sheet={sheet} onExit={onExit} />
+      <SoloCampaignScreen profileId={profileId} sheet={sheet} onExit={onExit} onSheetSynced={onSheetSynced} />
     </SoloCampaignProvider>
   );
 }
 
-function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
+function SoloCampaignScreen({ profileId, sheet, onExit, onSheetSynced }: Props) {
   const { progress, setProgress } = useSoloCampaign();
   const transitionLockRef = useRef(false);
   const [lastRollLine, setLastRollLine] = useState<string>("");
@@ -252,6 +287,42 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
     other: "Su linaje irregular no lo protege: lo obliga a improvisar mejor que nadie.",
   }[sheet.clan];
 
+  const preludeGateDoneUi = isChroniclePreludeDismissed(progress);
+  const openingVitalsApplied = Boolean(progress.flags[SOLO_FLAG_OPENING_VITALS]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const canNarrative =
+      preludeGateDoneUi && clanIntroGateDone && chapterContextGateDone && scene?.id === CHRONICLE_OPENING_SCENE_ID;
+    if (!canNarrative || openingVitalsApplied) return;
+    const latest = loadSoloProgress(profileId, sheet.clan);
+    if (!latest) return;
+    const stored = loadSheet();
+    if (!stored) return;
+    const nextSheet = applyOpeningChronicleVitals(normalizeCharacterSheet(stored));
+    saveSheet(nextSheet);
+    onSheetSynced?.(nextSheet);
+    appendXpLog("Crónica: estado vital inicial aplicado en Teatinos (eco Codex sincronizado).");
+    syncActiveBundleFromGlobals(profileId);
+    const progFlag: SoloProgress = {
+      ...latest,
+      flags: { ...latest.flags, [SOLO_FLAG_OPENING_VITALS]: true },
+      updatedAt: latest.updatedAt + 1,
+    };
+    saveSoloProgress(progFlag);
+    setProgress(progFlag);
+  }, [
+    preludeGateDoneUi,
+    clanIntroGateDone,
+    chapterContextGateDone,
+    scene?.id,
+    openingVitalsApplied,
+    profileId,
+    sheet.clan,
+    setProgress,
+    onSheetSynced,
+  ]);
+
   const applyOption = (option: SoloOption) => {
     if (transitionLockRef.current) return;
     const availability = checkOptionAvailability(option, sheet);
@@ -264,7 +335,8 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
     let rollPassed = true;
     let targetSceneId = option.nextSceneId;
     let branchEffects: SoloSceneEffect[];
-
+    let rollXpEarned = 0;
+    let xpFromNarrative = 0;
 
     if (soloOptionUsesDice(option)) {
       const rollPlan = resolveSoloRollPlan(option, sheet);
@@ -277,8 +349,14 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
           ? [...(option.effects ?? []), ...(option.effectsOnCritical ?? [])]
           : option.effects ?? []
         : [...(option.effects ?? []), ...(option.effectsOnFail ?? [])];
-      for (const effect of branchEffects) {
+      const partRoll = partitionExperienceEffects(branchEffects);
+      xpFromNarrative = partRoll.xpFromNarrative;
+      for (const effect of partRoll.sheetFx) {
         nextSheet = applySceneEffectDraft(nextSheet, nextFlags, effect);
+      }
+      if (rollPassed) {
+        rollXpEarned = option.experienceOnSuccessfulRoll ?? CHRONICLE_XP_ROLL_SUCCESS_DEFAULT;
+        if (isCritical) rollXpEarned += CHRONICLE_XP_CRITICAL_EXTRA;
       }
       if (!roll.passed) {
         nextSheet = { ...nextSheet, hunger: Math.max(0, Math.min(5, nextSheet.hunger + 1)) };
@@ -297,17 +375,24 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
     } else {
       rollLine = "Sin tirada · elección directa";
       branchEffects = option.effects ?? [];
-      for (const effect of branchEffects) {
+      const partDlg = partitionExperienceEffects(branchEffects);
+      xpFromNarrative = partDlg.xpFromNarrative;
+      for (const effect of partDlg.sheetFx) {
         nextSheet = applySceneEffectDraft(nextSheet, nextFlags, effect);
       }
     }
+
+    const chronicleXpThisChoice = xpFromNarrative + rollXpEarned;
 
     setLastRollLine(rollLine);
 
     if (nextSheet !== sheet) {
       saveSheet(nextSheet);
       syncActiveBundleFromGlobals(profileId);
+      onSheetSynced?.(nextSheet);
     }
+    if (chronicleXpThisChoice > 0) appendXpLog(`Crónica +${chronicleXpThisChoice} PX`);
+    if (chronicleXpThisChoice > 0 || nextSheet !== sheet) syncActiveBundleFromGlobals(profileId);
     const nextScene = getSoloScene(progress.chapterId, targetSceneId);
     const sceneId = nextScene?.id ?? progress.sceneId;
     const reputationGain = sumReputationDeltas(branchEffects);
@@ -319,6 +404,7 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
       playerName: sheet.name?.trim() || progress.playerName,
       clan: sheet.clan,
       humanity: nextSheet.humanity,
+      chronicleExperience: Math.max(0, (progress.chronicleExperience ?? 0) + chronicleXpThisChoice),
       reputation: progress.reputation + reputationGain,
       sceneId,
       flags: nextFlags,
@@ -398,9 +484,18 @@ function SoloCampaignScreen({ profileId, sheet, onExit }: Props) {
             <p className="font-mono">Humanidad · {sheet.humanity}</p>
             <p className="flex items-center gap-2">
               <NexusLibrary.Sangre className="h-4 w-4 shrink-0" pulse={sheet.hunger > 2} />
-              <span>Hambre · {sheet.hunger}</span>
+              <span>Hambre (Vitae Nexo) · {sheet.hunger}/5</span>
+            </p>
+            <p>
+              Integridad física · {CHRONICLE_HEALTH_TRACK_UI - Math.min(sheet.healthDamage, CHRONICLE_HEALTH_TRACK_UI)}/
+              {CHRONICLE_HEALTH_TRACK_UI} cajones · WP {sheet.willpowerCur}/{sheet.willpowerMax}
             </p>
             <p>Reputación · {progress.reputation}</p>
+            <p>PX Crónica · {progress.chronicleExperience ?? 0}</p>
+            <p className="text-[10px] leading-snug text-neutral-600">
+              Los efectos narrativos (incluida la tirada si triunfas) modifican CODEX/Nexo · +{CHRONICLE_XP_ROLL_SUCCESS_DEFAULT} PX por éxito
+              (+{CHRONICLE_XP_CRITICAL_EXTRA} en crítico).
+            </p>
             <p>Capítulo · {chapter.title}</p>
             <p>Decisiones · {progress.decisionHistory.length}</p>
           </div>

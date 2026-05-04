@@ -15,6 +15,12 @@ export type SoloSceneEffect =
   | { type: "hungerDelta"; delta: number }
   | { type: "humanityDelta"; delta: number }
   | { type: "reputationDelta"; delta: number }
+  /** Daño a integridad física (positivo = más herido; negativo = recupera cajones). Tope alineado con HUD Nexo (7). */
+  | { type: "healthDamageDelta"; delta: number }
+  /** Fuerza de voluntad actual (no supera máximo de ficha). */
+  | { type: "willpowerDelta"; delta: number }
+  /** Experiencia de crónica (PX narrativos, acumulados en `SoloProgress.chronicleExperience`). */
+  | { type: "experienceDelta"; delta: number }
   | { type: "log"; text: string };
 
 export type SoloOption = {
@@ -35,6 +41,11 @@ export type SoloOption = {
   effects?: SoloSceneEffect[];
   effectsOnFail?: SoloSceneEffect[];
   effectsOnCritical?: SoloSceneEffect[];
+  /**
+   * PX de crónica si la tirada asociada a esta opción tiene éxito.
+   * Omitir para usar `CHRONICLE_XP_ROLL_SUCCESS_DEFAULT` en mecánica global.
+   */
+  experienceOnSuccessfulRoll?: number;
 };
 
 export type SoloScene = {
@@ -61,6 +72,8 @@ export type SoloProgress = {
   clan: ClanId;
   humanity: number;
   reputation: number;
+  /** Experiencia ganada en campaña solitaria (tiradas, hitos); independiente del pool de compra del Codex. */
+  chronicleExperience: number;
   chapterId: string;
   sceneId: string;
   /**

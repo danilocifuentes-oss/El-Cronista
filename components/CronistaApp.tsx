@@ -984,7 +984,18 @@ function CronistaAppInner() {
       navigateToPhase("profileHub", { replace: true });
       return null;
     }
-    return <SoloCampaignApp key={activeId} profileId={activeId} sheet={sheet} onExit={() => navigateToPhase("nexus")} />;
+    return (
+      <SoloCampaignApp
+        key={activeId}
+        profileId={activeId}
+        sheet={sheet}
+        onExit={() => navigateToPhase("nexus")}
+        onSheetSynced={(next) => {
+          setSheet(mergeStoredSheet(next));
+          persistActiveProfile();
+        }}
+      />
+    );
   }
 
   if (phase === "chargen") {

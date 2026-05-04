@@ -290,9 +290,9 @@ No hubo dolor para el depredador, al menos en el momento. Lo que siguió fue un 
 
           effects: [
             { type: "hungerDelta", delta: -3 },
-
             { type: "humanityDelta", delta: 1 },
-
+            { type: "healthDamageDelta", delta: -5 },
+            { type: "willpowerDelta", delta: 1 },
             { type: "setFlag", flag: "novel_ch1_feed_spare" },
           ],
         },
@@ -310,9 +310,9 @@ No hubo dolor para el depredador, al menos en el momento. Lo que siguió fue un 
 
           effects: [
             { type: "hungerDelta", delta: -4 },
-
             { type: "humanityDelta", delta: -2 },
-
+            { type: "healthDamageDelta", delta: -6 },
+            { type: "willpowerDelta", delta: 1 },
             { type: "setFlag", flag: "novel_ch1_feed_brutal" },
           ],
         },
