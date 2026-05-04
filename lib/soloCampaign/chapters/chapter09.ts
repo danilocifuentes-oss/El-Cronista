@@ -1,5 +1,6 @@
 import type { SoloChapter } from "@/lib/soloCampaign/types";
 
+/** Narración en segunda persona. */
 export const chapter09: SoloChapter = {
   id: "chapter09",
   title: "Santiago en Cenizas · Capítulo 9 · El Vínculo que Quema",
@@ -37,7 +38,7 @@ export const chapter09: SoloChapter = {
       id: "n9_2",
       chapterId: "chapter09",
       title: "9.2 · Alimentarse sin perderse",
-      text: `Gato señaló a un hombre dormido. «Es voluntario —dijo—. No lo mates».\n\nEl cuerpo exigía alimento; en aquel barro la decencia se medía en sorbos casi quirúrgicos.`,
+      text: `Gato señaló a un hombre dormido. «Es voluntario —dijo—. No lo mates».\n\nTu cuerpo exigía alimento; en aquel barro la decencia se medía en sorbos casi quirúrgicos.`,
       options: [
         {
           id: "n9_2_feed_gentle",
@@ -61,7 +62,7 @@ export const chapter09: SoloChapter = {
       id: "n9_end",
       chapterId: "chapter09",
       title: "9.E · La decisión",
-      text: `El Vínculo seguía allí —presión basal en hueso temporal ordenando antes de cualquier deliberación racional.\n\nEntendió, y Gato lo leyó en postura sin palabras, que al día siguiente cruzaría de nuevo Mapocho; no como mensajero del Príncipe.`,
+      text: `El Vínculo seguía allí —presión basal en hueso temporal ordenando antes de cualquier deliberación racional.\n\nEntiendes, y Gato lo lee en tu postura sin palabras, que al día siguiente cruzarás de nuevo el Mapocho; no como mensajero del Príncipe.`,
       options: [
         {
           id: "n9_end_continue",

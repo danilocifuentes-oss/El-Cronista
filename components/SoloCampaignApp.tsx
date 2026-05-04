@@ -11,6 +11,7 @@ import { loadSheet, normalizeCharacterSheet, saveSheet } from "@/lib/character";
 import { loadSoloProgress, saveSoloProgress } from "@/lib/soloCampaign/progressStore";
 import type { SoloOption, SoloProgress, SoloSceneEffect } from "@/lib/soloCampaign/types";
 import { soloDisciplineGlyph } from "@/lib/soloCampaign/disciplineGlyphs";
+import { getChronicleClanPresentation } from "@/lib/soloCampaign/clanPresentationCopy";
 import {
   CHRONICLE_PRELUDE_COMMON,
   CHRONICLE_PRELUDE_CONTENT_VERSION,
@@ -290,18 +291,7 @@ function SoloCampaignScreen({
     CHRONICLE_PRELUDE_MASK_STINGER[sheet.clan] ??
     "Tu máscara es la cara que decide financiar hasta que algún testigo cobre en otra moneda.";
 
-  const clanIntro = {
-    brujah: "La ciudad te conoce por la rabia que camina contigo. Esta noche esa rabia puede salvarte o condenarte.",
-    ventrue: "El poder no se negocia; se administra. Esta noche tu linaje te abre puertas y te gana enemigos.",
-    malkavian: "Las grietas del mundo te hablan. Lo que para otros es ruido, para ti es mapa.",
-    toreador: "Cada escena tiene un precio estético y moral. Tu mirada elige qué belleza sobrevive.",
-    nosferatu: "Ves la red bajo la red. Nadie domina la noche sin pasar por sus túneles.",
-    tremere: "Cada decisión es un ritual sin círculo: sangre, control y consecuencias calculadas.",
-    gangrel: "Tu instinto lee la noche antes que los datos. La bestia es brújula si no la sueltas.",
-    thin_blood: "Tu sangre cuestiona el orden no escrito. Aprendes rápido o quedas fuera.",
-    caitiff: "Sin apellido inmortal, cada paso debes ganarlo desde cero.",
-    other: "Tu linaje irregular no te protege: te obliga a improvisar mejor que nadie.",
-  }[sheet.clan];
+  const clanPresentationText = getChronicleClanPresentation(sheet.clan);
 
   const preludeGateDoneUi = isChroniclePreludeDismissed(progress);
   const openingVitalsApplied = Boolean(progress.flags[SOLO_FLAG_OPENING_VITALS]);
@@ -321,9 +311,9 @@ function SoloCampaignScreen({
     if (progress.chapterId !== "chapter01" || progress.flags.clan_intro_seen) return;
     const key = `${profileId}:clan_intro_echo`;
     if (clanChannelKeyRef.current === key) return;
-    emitParalelaNarration(clanIntro);
+    emitParalelaNarration(clanPresentationText);
     clanChannelKeyRef.current = key;
-  }, [emitParalelaNarration, preludeGateDoneUi, progress.chapterId, progress.flags.clan_intro_seen, profileId, clanIntro]);
+  }, [emitParalelaNarration, preludeGateDoneUi, progress.chapterId, progress.flags.clan_intro_seen, profileId, clanPresentationText]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -593,7 +583,7 @@ function SoloCampaignScreen({
         {isChroniclePreludeDismissed(progress) && progress.chapterId === "chapter01" && !progress.flags.clan_intro_seen ? (
           <section className="space-y-4 border border-neutral-900 bg-black/45 p-5 sharp-border-inner">
             {!emitParalelaNarration ? (
-              <p className={`text-sm leading-relaxed ${CLAN_TONE[sheet.clan] ?? "text-neutral-200"}`}>{clanIntro}</p>
+              <p className={`text-sm leading-relaxed ${CLAN_TONE[sheet.clan] ?? "text-neutral-200"}`}>{clanPresentationText}</p>
             ) : null}
             <button
               type="button"

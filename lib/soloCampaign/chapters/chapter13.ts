@@ -1,5 +1,6 @@
 import type { SoloChapter } from "@/lib/soloCampaign/types";
 
+/** Narración en segunda persona. */
 export const chapter13: SoloChapter = {
   id: "chapter13",
   title: "Santiago en Cenizas · Capítulo 13 · El Trono de Humo",
@@ -65,11 +66,11 @@ Te convertimos en un filtro.`,
       id: "n13_end",
       chapterId: "chapter13",
       title: "13.E · Caída",
-      text: `Se dejó caer: no hacia muerte —esa ya había timbrado entrada— sino hacia sombra operativa.
+      text: `Te dejas caer: no hacia la muerte —esa ya había timbrado entrada— sino hacia sombra operativa.
 
-Ya no era filtro, embajador ni activo contable.
+Ya no eres filtro, embajador ni activo contable.
 
-Persistía como rumor en engranaje santiaguino que nadie quiere auditar.`,
+Persistes como rumor en engranaje santiaguino que nadie quiere auditar.`,
       options: [
         {
           id: "n13_end_continue",

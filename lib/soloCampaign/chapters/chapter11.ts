@@ -1,5 +1,6 @@
 import type { SoloChapter } from "@/lib/soloCampaign/types";
 
+/** Narración en segunda persona. */
 export const chapter11: SoloChapter = {
   id: "chapter11",
   title: "Santiago en Cenizas · Capítulo 11 · Descenso al Alcantarillado",
@@ -11,7 +12,7 @@ export const chapter11: SoloChapter = {
       id: "n11_1",
       chapterId: "chapter11",
       title: "11.1 · Bajo Santiago",
-      text: `El frío que emanaba de la cripta no era sólo temperatura: pesaba como plomo encima del esternón.\n\nHuyeron empujados por tubería pluvial apenas ancha; bajo las suelas de Santiago existe otra urbe hecha de fugas y ecos.`,
+      text: `El frío que emanaba de la cripta no era sólo temperatura: pesaba como plomo encima del esternón.\n\nHuyes empujado por tubería pluvial apenas ancha; bajo las suelas de Santiago existe otra urbe hecha de fugas y ecos.`,
       options: [
         {
           id: "n11_1_follow_marks",

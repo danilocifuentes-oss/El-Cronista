@@ -1,5 +1,6 @@
 import type { SoloChapter } from "@/lib/soloCampaign/types";
 
+/** Narración en segunda persona. */
 export const chapter04: SoloChapter = {
   id: "chapter04",
   title: "Santiago en Cenizas · Capítulo 4 · Archivos Desenterrados",
@@ -13,7 +14,7 @@ export const chapter04: SoloChapter = {
       title: "4.1 · La Biblioteca Nacional",
       text: `La Biblioteca Nacional guarda más que libros: el rastro de la hiel no termina en sangre fresca sino en tinta vieja.
 
-En la Sala de Investigadores, tras un escritorio de roble, un hombre de dedos amarillentos por el tabaco aguardaba con carpeta cerrada.`,
+En la Sala de Investigadores, tras un escritorio de roble, un hombre de dedos amarillentos por el tabaco te aguardaba con carpeta cerrada.`,
       options: [
         {
           id: "n4_1_ask",

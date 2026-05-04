@@ -1,5 +1,6 @@
 import type { SoloChapter } from "@/lib/soloCampaign/types";
 
+/** Narración en segunda persona. */
 export const chapter12: SoloChapter = {
   id: "chapter12",
   title: "Santiago en Cenizas · Capítulo 12 · La última noche del sol",
@@ -11,7 +12,7 @@ export const chapter12: SoloChapter = {
       id: "n12_1",
       chapterId: "chapter12",
       title: "12.1 · Plaza de Armas · La Catedral",
-      text: `Salir de alcantarillas a la Plaza de Armas supuso el shock de quien entierra humedad y reaparece bajo campanario iluminado como faro falso.\n\nLa Catedral Metropolitana se alzaba frente al neonato: bastión que prometía resguardo al mortal y, según la leyenda urbana no escrita, también al cielo contra lo que Ciudad y Sangre se hubieran vuelto.`,
+      text: `Al salir de las alcantarillas a la Plaza de Armas te golpea el shock de quien entierra humedad y reaparece bajo campanario iluminado como faro falso.\n\nLa Catedral Metropolitana se alza ante ti, neonato recién incorporado a la noche: bastión que prometía resguardo al mortal y, según la leyenda urbana no escrita, también al cielo contra lo que Ciudad y Sangre se hubieran vuelto.`,
       options: [
         {
           id: "n12_1_enter",
@@ -36,7 +37,7 @@ export const chapter12: SoloChapter = {
       id: "n12_2",
       chapterId: "chapter12",
       title: "12.2 · La cripta",
-      text: `El descenso hacia cripta menor fue mecánico: la llave de bronce giró, los goznes del piso cedieron como boca seca.\n\nNo había osario de huesos alineados sino sarcófago híbrido cristal-plomo.\n\nAdentro reposaba relicario de plata donde la sustancia roja no olía a humano sino a mandato.`,
+      text: `El descenso hacia la cripta menor fue mecánico: la llave de bronce giró, los goznes del piso cedieron como boca seca.\n\nNo había osario de huesos alineados sino sarcófago híbrido cristal-plomo.\n\nAdentro reposaba un relicario de plata donde la sustancia roja no olía a humano sino a mandato.`,
       options: [
         {
           id: "n12_2_break",
@@ -60,7 +61,7 @@ export const chapter12: SoloChapter = {
       id: "n12_end",
       chapterId: "chapter12",
       title: "12.E · Ceniza",
-      text: `El muchacho del Mapocho apareció al fondo del ritual: la primera víctima pública de aquel despertar brutal.\n\nRomper el vínculo obligó a cerrar círculo con la misma mano que lo abrió.\n\nCuando terminó el último jadeo sólo quedó polvo donde hubo piel.\n\nQuedó el vampiro en una soledad herrumbrada; sólo la piedra fungía de testigo.`,
+      text: `El muchacho del Mapocho apareció al fondo del ritual: la primera víctima pública de aquel despertar brutal.\n\nRomper el vínculo te obligó a cerrar el círculo con la misma mano que lo abriste.\n\nCuando terminó el último jadeo solo quedó polvo donde hubo piel.\n\nQuedaste en una soledad herrumbrada; solo la piedra fungía de testigo.`,
       options: [
         {
           id: "n12_end_continue",

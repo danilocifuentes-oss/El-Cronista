@@ -1,5 +1,6 @@
 import type { SoloChapter } from "@/lib/soloCampaign/types";
 
+/** Narración en segunda persona. */
 export const chapter07: SoloChapter = {
   id: "chapter07",
   title: "Santiago en Cenizas · Capítulo 7 · Ecos de la Tierra de Nod",
@@ -11,7 +12,7 @@ export const chapter07: SoloChapter = {
       id: "n7_1",
       chapterId: "chapter07",
       title: "7.1 · Quinta Normal · Entrada al olvido",
-      text: `La sangre negra bebida en la Viña seguía pulsando en él como metrónomo invertido. Gato aguardaba sin prisa con consigna clara: abandonar el consuelo vertical de los edificios fundidos con luz LED y bajar al tramo que ni siquiera registra mapas de consumo eléctrico.`,
+      text: `La sangre negra bebida en la Viña seguía pulsando en ti como metrónomo invertido. Gato aguardaba sin prisa con consigna clara: abandonar el consuelo vertical de los edificios fundidos con luz LED y bajar al tramo que ni siquiera registra mapas de consumo eléctrico.`,
       options: [
         {
           id: "n7_1_down",
@@ -66,7 +67,7 @@ Se presentó como “El Archivista”.`,
       title: "7.E · Advertencia",
       text: `Las señales estaban allí. El tiempo viejo de Nod volvía a contar en el aire viciado.
 
-Salió con los ejes internos descalibrados: por primera vez esa hambre no pedía sangre de cuello sino certeza suficiente como escudo frente a tormenta nocturna anunciada.`,
+Sales con los ejes internos descalibrados: por primera vez esa hambre no te pide sangre de cuello sino certeza suficiente como escudo frente a la tormenta nocturna anunciada.`,
       options: [
         {
           id: "n7_end_continue",

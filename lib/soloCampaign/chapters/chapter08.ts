@@ -1,5 +1,6 @@
 import type { SoloChapter } from "@/lib/soloCampaign/types";
 
+/** Narración en segunda persona. */
 export const chapter08: SoloChapter = {
   id: "chapter08",
   title: "Santiago en Cenizas · Capítulo 8 · El Santuario Profanado",
@@ -11,9 +12,9 @@ export const chapter08: SoloChapter = {
       id: "n8_1",
       chapterId: "chapter08",
       title: "8.1 · Teatinos · Umbral cruzado",
-      text: `Regresó al refugio de la imprenta buscando ese consuelo mínimo que aún queda: el suelo que no pregunta nombre. El aire cambió media cuadra antes —demasiado metal dulce, demasiada humedad reciente.
+      text: `Regresas al refugio de la imprenta buscando ese consuelo mínimo que aún queda: el suelo que no pregunta nombre. El aire cambió media cuadra antes —demasiado metal dulce, demasiada humedad reciente.
 
-Sangre ajena; no la suya.`,
+Sangre ajena; no la tuya.`,
       options: [
         {
           id: "n8_1_enter",
@@ -67,7 +68,7 @@ La silueta cayó con gracia de gato. Piel pálida. Tatuajes vivos. Sonrisa de si
       id: "n8_end",
       chapterId: "chapter08",
       title: "8.E · Cenizas",
-      text: `Salió de la imprenta momentos antes del colapso completo: llamas devorando papel, tinta, cualquier rastro de rutina humana que aún colgara ahí.
+      text: `Sales de la imprenta momentos antes del colapso completo: llamas devorando papel, tinta, cualquier rastro de rutina humana que aún colgara ahí.
 
 —Marcaron tu refugio —dijo Gato—. Ya no puedes esconderte en los libros.`,
       options: [

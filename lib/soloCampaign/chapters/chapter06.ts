@@ -1,5 +1,6 @@
 import type { SoloChapter } from "@/lib/soloCampaign/types";
 
+/** Narración en segunda persona. */
 export const chapter06: SoloChapter = {
   id: "chapter06",
   title: "Santiago en Cenizas · Capítulo 6 · La Máscara del Diplomático",
@@ -11,7 +12,7 @@ export const chapter06: SoloChapter = {
       id: "n6_1",
       chapterId: "chapter06",
       title: "6.1 · La invitación",
-      text: `El cobro llegó como invitación sobre papel grueso, color crema, con letra impresa que no pedía permiso: “Vístete para una cena. El Príncipe requiere presencia en la Viña del Silencio”.`,
+      text: `El cobro te llegó como invitación sobre papel grueso, color crema, con letra impresa que no pedía permiso: “Vístete para una cena. El Príncipe requiere presencia en la Viña del Silencio”.`,
       options: [
         {
           id: "n6_1_go",
@@ -91,7 +92,7 @@ export const chapter06: SoloChapter = {
       id: "n6_end",
       chapterId: "chapter06",
       title: "6.E · Marca en las venas",
-      text: `Abandonó la Viña del Silencio con esa gravedad nueva en el torso —alma o estómago, mismo contrapeso. Santiago seguía alumbrada arriba y abajo, sólo que ahora él llevaba marca doble bajo piel: sello de amo y sombra de segundo dueño.`,
+      text: `Abandonas la Viña del Silencio con esa gravedad nueva en el torso —alma o estómago, mismo contrapeso. Santiago seguía alumbrada arriba y abajo, sólo que ahora llevas marca doble bajo la piel: sello de amo y sombra de segundo dueño.`,
       options: [
         {
           id: "n6_end_continue",

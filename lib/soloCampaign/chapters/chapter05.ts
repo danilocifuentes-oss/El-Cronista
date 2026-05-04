@@ -1,5 +1,6 @@
 import type { SoloChapter } from "@/lib/soloCampaign/types";
 
+/** Narración en segunda persona. */
 export const chapter05: SoloChapter = {
   id: "chapter05",
   title: "Santiago en Cenizas · Capítulo 5 · Entre el Neón y la Barricada",
@@ -13,7 +14,7 @@ export const chapter05: SoloChapter = {
       title: "5.1 · Plaza Italia",
       text: `Ese tramo entre la Alameda y Vicuña Mackenna rezumaba adrenalina corrida como corriente. La Plaza Italia hervía de furia humana.
 
-Meterse entre miles de cuerpos excitados equivalía a orillar un depósito de pólvora con fuego cercano.`,
+Meterte entre miles de cuerpos excitados equivalía a orillar un depósito de pólvora con fuego cercano.`,
       options: [
         {
           id: "n5_1_keep_mask",
@@ -69,7 +70,7 @@ Contra grafitis en capas, otro volumen observaba desde la sombra —capucha negr
       title: "5.3 · La decisión en el humo",
       text: `Entre jirones de humo, una joven yacía en tierra empapada en gas; uno de los pálidos se alzaba encima ya sin intenciones delicadas —planeaba hacer un espectáculo sangriento entre tantos smartphones apuntando al cielo.
 
-Las balas quedaban muy lejos: la escena esperaba sólo decisión.`,
+Las balas quedaban muy lejos: la escena esperaba solo tu decisión.`,
       options: [
         {
           id: "n5_3_intervene",
@@ -93,9 +94,9 @@ Las balas quedaban muy lejos: la escena esperaba sólo decisión.`,
       id: "n5_end",
       chapterId: "chapter05",
       title: "5.E · Neón y ceniza",
-      text: `Bajo luces neón rasgadas y fuego contenido contra el pavimento comprendió: ser lo que la noche obligaba no equivalía proverbio gótico.
+      text: `Bajo luces neón rasgadas y fuego contenido contra el pavimento comprendes: ser lo que la noche obliga no equivale a proverbio gótico.
 
-Era guerrilla interminable en defensa residual de esa decencia diminuta que sobrevive en torso ya helado.`,
+Es guerrilla interminable en defensa residual de esa decencia diminuta que sobrevive en tu torso ya helado.`,
       options: [
         {
           id: "n5_end_continue",
