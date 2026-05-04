@@ -1,25 +1,74 @@
 "use client";
 
-import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { createProfileEntity } from "@/lib/profileStore";
 import type { ProfileSummary } from "@/lib/profileStore";
 import type { ChronicleConfig } from "@/lib/chronicleConfig";
 import { loadChronicle, saveChronicle, setPendingSynapticDisruption } from "@/lib/chronicleConfig";
+import {
+  compileGenesisManuscript,
+  GENESIS_MANUSCRIPT_EXAMPLE,
+  GENESIS_MANUSCRIPT_REFERENCE,
+} from "@/lib/genesisManuscript";
 import { wipeLocalNexoTranscript, wipeLocalRollingState } from "@/lib/narrativeMemory";
-import { wipeClientNexoWorld } from "@/lib/nexusWorldState";
+import { loadNexusWorldState, saveNexusWorldState, wipeClientNexoWorld } from "@/lib/nexusWorldState";
 import { readLocalClientResetEpoch } from "@/lib/nexoSessionSync";
 import { parseFetchJson } from "@/lib/parseFetchJson";
 import { MasterSheetEditor } from "./MasterSheetEditor";
 import { ROOT_OPERATOR_CIPHER } from "@/lib/sessionMeta";
 
-const ROOT = "#b91c1c";
-
 function motorSnapshot(ext: boolean, paused: boolean, seed: string) {
   return JSON.stringify({ ext, paused, seed });
 }
 
-type Tab = "sheets" | "genesis" | "synaptic" | "motor" | "orquestacion";
+type DashboardTab = "overview" | "world" | "cast" | "priority" | "engine" | "server";
+
+const NAV: { id: DashboardTab; label: string; hint: string }[] = [
+  { id: "overview", label: "Resumen", hint: "Estado, accesos y pendientes" },
+  { id: "world", label: "Mundo y trama", hint: "Contexto fijo para el narrador" },
+  { id: "cast", label: "Reparto", hint: "Personajes y fichas maestras" },
+  { id: "priority", label: "Escena prioritaria", hint: "Se aplica al próximo mensaje del jugador" },
+  { id: "engine", label: "Motor narrativo", hint: "IA remota, pausa y contexto global" },
+  { id: "server", label: "Servidor y datos", hint: "Orquestación, JSON y mantenimiento" },
+];
+
+function Card({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm">
+      <h2 className="text-base font-semibold tracking-tight text-slate-900">{title}</h2>
+      {subtitle ? <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{subtitle}</p> : null}
+      <div className="mt-5 space-y-4">{children}</div>
+    </section>
+  );
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <span className="text-sm font-medium text-slate-800">{children}</span>;
+}
+
+function AiHint({ children }: { children: React.ReactNode }) {
+  return <p className="text-xs italic leading-relaxed text-slate-500">{children}</p>;
+}
+
+const inputClass =
+  "mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20";
+
+const btnSecondary =
+  "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-40";
+
+const btnPrimary =
+  "inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-40";
+
+const btnDanger =
+  "inline-flex items-center justify-center rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-800 hover:bg-red-100 disabled:opacity-40";
 
 type Props = {
   profiles: ProfileSummary[];
@@ -27,7 +76,6 @@ type Props = {
   onGoHub: () => void;
   onGoNexus: () => void;
   onRefreshGlobals: () => void;
-  /** Borra personajes locales, conversación, mundo cliente; conserva Génesis + motor servidor. */
   onFactoryReset: () => void;
 };
 
@@ -39,11 +87,14 @@ export function NarratorCommandCenter({
   onRefreshGlobals,
   onFactoryReset,
 }: Props) {
-  const [tab, setTab] = useState<Tab>("sheets");
+  const [tab, setTab] = useState<DashboardTab>("overview");
   const [entityNpc, setEntityNpc] = useState(false);
   const [chronicle, setChronicle] = useState<ChronicleConfig>(() => loadChronicle());
   const [synInput, setSynInput] = useState("");
   const [synStatus, setSynStatus] = useState<string | null>(null);
+  const [manuscriptRaw, setManuscriptRaw] = useState("");
+  const [manuscriptLog, setManuscriptLog] = useState<string[] | null>(null);
+  const [manuscriptWarn, setManuscriptWarn] = useState<string[] | null>(null);
 
   const [motorExtLlm, setMotorExtLlm] = useState(true);
   const [motorPaused, setMotorPaused] = useState(false);
@@ -82,9 +133,9 @@ export function NarratorCommandCenter({
   }, []);
 
   useEffect(() => {
-    if (tab !== "orquestacion") return;
+    if (tab !== "server") return;
     void refreshOrchestration();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al entrar en la pestaña
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
   async function refreshOrchestration() {
@@ -98,11 +149,11 @@ export function NarratorCommandCenter({
       });
       const data = await parseFetchJson<{ ok?: boolean; world?: unknown; error?: string }>(probe);
       if (!probe.ok) {
-        setOrchStatusLine(data.error ?? `HTTP ${probe.status}`);
+        setOrchStatusLine(data.error ?? `Error ${probe.status}`);
         return;
       }
       setOrchDisplay(JSON.stringify(data.world ?? {}, null, 2));
-      setOrchStatusLine("Estado de orquestación sincronizado.");
+      setOrchStatusLine("Estado del servidor actualizado.");
       window.setTimeout(() => setOrchStatusLine(null), 2600);
     } catch (e) {
       setOrchStatusLine(e instanceof Error ? e.message : String(e));
@@ -122,11 +173,11 @@ export function NarratorCommandCenter({
       });
       const data = await parseFetchJson<{ ok?: boolean; world?: unknown; error?: string }>(probe);
       if (!probe.ok) {
-        setOrchStatusLine(data.error ?? `HTTP ${probe.status}`);
+        setOrchStatusLine(data.error ?? `Error ${probe.status}`);
         return;
       }
       setOrchDisplay(JSON.stringify(data.world ?? {}, null, 2));
-      setOrchStatusLine(`OK · ${action}`);
+      setOrchStatusLine(`Acción completada: ${action}`);
       window.setTimeout(() => setOrchStatusLine(null), 3200);
     } catch (e) {
       setOrchStatusLine(e instanceof Error ? e.message : String(e));
@@ -153,7 +204,7 @@ export function NarratorCommandCenter({
         error?: string;
       }>(res);
       if (!res.ok) {
-        setMotorStatus(data.error || `HTTP ${res.status}`);
+        setMotorStatus(data.error || `Error ${res.status}`);
         return;
       }
       const ext = data.externalLlmEnabled ?? true;
@@ -164,7 +215,7 @@ export function NarratorCommandCenter({
       setMotorSeed(seed);
       setMotorClientEpoch(typeof data.clientResetEpoch === "number" ? data.clientResetEpoch : 0);
       setMotorLastSynced(motorSnapshot(ext, paused, seed));
-      setMotorStatus("Estado del Motor Nexo sincronizado.");
+      setMotorStatus("Opciones del motor cargadas desde el servidor.");
       window.setTimeout(() => setMotorStatus(null), 3200);
     } catch (e) {
       setMotorStatus(e instanceof Error ? e.message : String(e));
@@ -198,12 +249,12 @@ export function NarratorCommandCenter({
         error?: string;
       }>(res);
       if (!res.ok) {
-        setMotorStatus(data.error || `HTTP ${res.status}`);
+        setMotorStatus(data.error || `Error ${res.status}`);
         return;
       }
       if (typeof data.clientResetEpoch === "number") setMotorClientEpoch(data.clientResetEpoch);
       setMotorLastSynced(motorSnapshot(motorExtLlm, motorPaused, motorSeed));
-      setMotorStatus("Motor Nexo guardado en el servidor.");
+      setMotorStatus("Cambios guardados en el servidor.");
       window.setTimeout(() => setMotorStatus(null), 3800);
     } catch (e) {
       setMotorStatus(e instanceof Error ? e.message : String(e));
@@ -212,14 +263,13 @@ export function NarratorCommandCenter({
     }
   }
 
-  /** Un clic: mismo payload que Guardar pero fija solo `externalLlmEnabled` (mando IA). */
   async function pushGlobalClientReset() {
     setMotorLoading(true);
     setMotorStatus(null);
     try {
       if (
         !window.confirm(
-          "Nueva crónica GLOBAL: se incrementa la versión en el servidor. Todos los navegadores borrarán personajes, conversación, mundo Nexo y Génesis (vacío) al detectar el cambio (o al recargar). ¿Continuar?",
+          "Se incrementará la versión global en el servidor. Los navegadores borrarán datos locales (personajes, chat, mundo, génesis en blanco) al sincronizar. ¿Continuar?",
         )
       ) {
         return;
@@ -236,13 +286,11 @@ export function NarratorCommandCenter({
         error?: string;
       }>(res);
       if (!res.ok) {
-        setMotorStatus(data.error || `HTTP ${res.status}`);
+        setMotorStatus(data.error || `Error ${res.status}`);
         return;
       }
       setMotorClientEpoch(typeof data.clientResetEpoch === "number" ? data.clientResetEpoch : motorClientEpoch + 1);
-      setMotorStatus(
-        "Versión global incrementada · orquestación servidor reiniciada · los clientes limpiarán en segundos.",
-      );
+      setMotorStatus("Versión global actualizada. Los clientes limpiarán al detectar el cambio.");
       window.setTimeout(() => setMotorStatus(null), 5200);
     } catch (e) {
       setMotorStatus(e instanceof Error ? e.message : String(e));
@@ -268,15 +316,15 @@ export function NarratorCommandCenter({
       });
       const data = await parseFetchJson<{ ok?: boolean; error?: string }>(res);
       if (!res.ok) {
-        setMotorStatus(data.error || `HTTP ${res.status}`);
+        setMotorStatus(data.error || `Error ${res.status}`);
         return;
       }
       setMotorExtLlm(remoto);
       setMotorLastSynced(motorSnapshot(remoto, motorPaused, motorSeed));
       setMotorStatus(
         remoto
-          ? "Canal remoto al núcleo narrativo activado (si hay enlace disponible)."
-          : "Canal remoto desactivado · sólo motor de sala.",
+          ? "Modelos remotos activados (si el servidor tiene credenciales configuradas)."
+          : "Sólo motor local: sin llamadas a modelos remotos.",
       );
       window.setTimeout(() => setMotorStatus(null), 4200);
     } catch (e) {
@@ -289,16 +337,38 @@ export function NarratorCommandCenter({
   function persistGenesis() {
     saveChronicle(chronicle);
     setGenesisLastSaved(JSON.stringify(chronicle));
-    setSynStatus("Génesis guardada en almacenamiento local (persistente en este equipo).");
+    setSynStatus("Mundo y trama guardados en este navegador.");
     window.setTimeout(() => setSynStatus(null), 3200);
+  }
+
+  function applyGenesisManuscript() {
+    const trimmed = manuscriptRaw.trim();
+    if (!trimmed) {
+      setSynStatus("Pegá texto en el importador o usá «Cargar ejemplo».");
+      window.setTimeout(() => setSynStatus(null), 4200);
+      return;
+    }
+    const world = loadNexusWorldState();
+    const res = compileGenesisManuscript(trimmed, chronicle, world);
+    setChronicle(res.chronicle);
+    saveNexusWorldState(res.world);
+    saveChronicle(res.chronicle);
+    setGenesisLastSaved(JSON.stringify(res.chronicle));
+    setManuscriptLog(res.log);
+    setManuscriptWarn(res.warnings);
+    onRefreshGlobals();
+    setSynStatus(
+      `Importación lista: ${res.log.length} asignaciones · ${res.warnings.length} aviso(s). También se actualizó el mundo de campaña (local).`,
+    );
+    window.setTimeout(() => setSynStatus(null), 5200);
   }
 
   function armSynaptic() {
     setPendingSynapticDisruption(synInput);
     setSynStatus(
       synInput.trim()
-        ? "Disrupción armada: se consumirá en el próximo envío al canal (jugador)."
-        : "Cola de disrupción vaciada.",
+        ? "Listo: este texto se inyectará en el próximo envío del jugador al narrador."
+        : "Cola vaciada: no se inyectará nada extra.",
     );
     window.setTimeout(() => setSynStatus(null), 4200);
   }
@@ -307,593 +377,631 @@ export function NarratorCommandCenter({
     createProfileEntity(entityNpc);
     onProfilesChange();
     onRefreshGlobals();
-    setSynStatus(`Entidad creada (${entityNpc ? "NPC" : "jugador"}).`);
+    setSynStatus(`Nueva ficha (${entityNpc ? "NPC" : "jugador"}) creada.`);
     window.setTimeout(() => setSynStatus(null), 2800);
   }
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: "sheets", label: "CODEX · Maestro" },
-    { id: "genesis", label: "Génesis" },
-    { id: "synaptic", label: "Disrupción" },
-    { id: "motor", label: "Motor Nexo" },
-    { id: "orquestacion", label: "Orquestación" },
-  ];
+  const statusPill = (ok: boolean, label: string) => (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+        ok ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"
+      }`}
+    >
+      {label}
+    </span>
+  );
 
   return (
-    <div
-      className="relative min-h-screen overflow-auto bg-[#070707] px-4 py-8 font-mono text-neutral-200"
-      style={{ ["--root-cobalt"]: ROOT } as CSSProperties}
-    >
-      <div
-        className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center overflow-hidden text-[min(18vw,140px)] font-bold uppercase tracking-tighter text-[#b91c1c]/[0.06]"
-        aria-hidden
-      >
-        [ACCESO_NIVEL_ALPHA]
-      </div>
-
-      <div
-        className="relative z-10 mx-auto max-w-5xl border-4 bg-black/55 px-5 py-6 shadow-[inset_0_0_0_1px_#b91c1c44]"
-        style={{ borderColor: ROOT }}
-      >
-        <header className="mb-6 flex flex-col gap-4 border-b border-double pb-5 md:flex-row md:items-end md:justify-between" style={{ borderColor: ROOT }}>
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.35em]" style={{ color: ROOT }}>
-              OPERADOR_RAÍZ
-            </p>
-            <h1 className="mt-1 text-lg font-normal tracking-[0.18em] text-neutral-100">CENTRO_DE_MANDO</h1>
-            <p className="mt-2 max-w-xl text-[10px] leading-relaxed text-neutral-500">
-              Gestión de fichas, Génesis, disrupción, Motor Nexo y orquestación global (Redis Upstash opcional igual que
-              la cola multijugador; sin Redis el estado narrativo del servidor puede perderse en cold start salvo disco
-              en self-hosted).
+    <div className="min-h-screen bg-slate-100 text-slate-900 antialiased">
+      <div className="mx-auto flex min-h-screen max-w-[1600px]">
+        <aside className="hidden w-56 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex">
+          <div className="border-b border-slate-200 px-4 py-5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Director de campaña</p>
+            <h1 className="mt-1 text-lg font-bold tracking-tight text-slate-900">Panel de configuración</h1>
+            <p className="mt-2 text-xs leading-relaxed text-slate-500">
+              Mismo motor que el juego: aquí definís el contexto estable y supervisás el servidor.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={onGoHub}
-              className="border px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-300"
-              style={{ borderColor: ROOT }}
-            >
-              REGISTRO_CV
+          <nav className="flex flex-1 flex-col gap-0.5 p-2">
+            {NAV.map((n) => (
+              <button
+                key={n.id}
+                type="button"
+                onClick={() => setTab(n.id)}
+                className={`rounded-xl px-3 py-2.5 text-left transition ${
+                  tab === n.id
+                    ? "bg-indigo-50 font-semibold text-indigo-950 ring-1 ring-indigo-200"
+                    : "text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <span className="block text-sm">{n.label}</span>
+                <span className="mt-0.5 block text-xs font-normal text-slate-500">{n.hint}</span>
+              </button>
+            ))}
+          </nav>
+          <div className="space-y-2 border-t border-slate-200 p-3">
+            <button type="button" className={`${btnSecondary} w-full text-xs`} onClick={onGoHub}>
+              Volver al registro de perfiles
             </button>
-            <button
-              type="button"
-              onClick={onGoNexus}
-              className="border px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-300"
-              style={{ borderColor: ROOT }}
-            >
-              NEXO (perfil activo)
+            <button type="button" className={`${btnPrimary} w-full text-xs`} onClick={onGoNexus}>
+              Abrir partida (Nexo)
             </button>
           </div>
-        </header>
+        </aside>
 
-        <nav className="mb-6 flex flex-wrap gap-2">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={`border px-4 py-2 text-[9px] uppercase tracking-[0.2em] ${
-                tab === t.id ? "text-neutral-100" : "text-neutral-500"
-              }`}
-              style={{ borderColor: tab === t.id ? ROOT : "#333" }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex gap-1 overflow-x-auto border-b border-slate-200 bg-white px-2 py-2 lg:hidden">
+            {NAV.map((n) => (
+              <button
+                key={n.id}
+                type="button"
+                onClick={() => setTab(n.id)}
+                className={`shrink-0 rounded-lg px-3 py-2 text-xs font-medium whitespace-nowrap ${
+                  tab === n.id ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700"
+                }`}
+              >
+                {n.label}
+              </button>
+            ))}
+          </div>
 
-        {(genesisDirty || motorDirty) ? (
-          <aside
-            className="mb-4 flex flex-col gap-3 border px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
-            style={{ borderColor: ROOT, backgroundColor: `${ROOT}12` }}
-            role="status"
-          >
-            <div className="text-[10px] leading-relaxed text-neutral-400">
-              <p className="text-[9px] uppercase tracking-[0.28em]" style={{ color: ROOT }}>
-                Borradores sin fijar
-              </p>
-              <ul className="mt-2 list-disc pl-4 marker:text-neutral-600">
-                {genesisDirty ? (
-                  <li>
-                    <strong className="font-normal text-neutral-200">Génesis:</strong> los cambios viven solo en esta
-                    pantalla hasta que pulses «Guardar Génesis» (memoria local).
-                  </li>
-                ) : null}
-                {motorDirty ? (
-                  <li>
-                    <strong className="font-normal text-neutral-200">Motor Nexo:</strong> la IA · pausa · contexto global
-                    no quedan en la instancia hasta pulsar «Guardar en servidor» (los botones «Activar / Desactivar IA»
-                    también sincronizan estado).
-                  </li>
-                ) : null}
-              </ul>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {genesisDirty ? (
-                <button
-                  type="button"
-                  onClick={persistGenesis}
-                  className="border px-4 py-2 text-[9px] uppercase tracking-wider text-neutral-200"
-                  style={{ borderColor: ROOT }}
-                >
-                  Fijar Génesis ahora
-                </button>
-              ) : null}
-              {motorDirty ? (
-                <button
-                  type="button"
-                  disabled={motorLoading}
-                  onClick={() => void pushMotorSettings()}
-                  className="border px-4 py-2 text-[9px] uppercase tracking-wider disabled:opacity-40"
-                  style={{ borderColor: ROOT, color: ROOT }}
-                >
-                  Subir Motor al servidor
-                </button>
-              ) : null}
-            </div>
-          </aside>
-        ) : null}
-
-        {synStatus ? (
-          <p className="mb-4 border px-3 py-2 text-[10px] text-neutral-400" style={{ borderColor: ROOT }}>
-            {synStatus}
-          </p>
-        ) : null}
-
-        {tab === "sheets" ? (
-          <div className="space-y-6">
-            <section className="border p-4" style={{ borderColor: ROOT }}>
-              <p className="mb-3 text-[9px] uppercase tracking-[0.28em] text-neutral-500">Generador de entidades</p>
-              <div className="flex flex-wrap items-center gap-4">
-                <label className="flex items-center gap-2 text-[10px]">
-                  <input type="checkbox" checked={entityNpc} onChange={(e) => setEntityNpc(e.target.checked)} />
-                  NPC (metadato `isNPC`)
-                </label>
-                <button
-                  type="button"
-                  onClick={spawnEntity}
-                  className="border px-4 py-2 text-[9px] uppercase tracking-widest"
-                  style={{ borderColor: ROOT, color: ROOT }}
-                >
-                  CREAR_ENTIDAD
-                </button>
+          <header className="border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-medium text-slate-500">
+                  Sección: <span className="text-slate-800">{NAV.find((x) => x.id === tab)?.label}</span>
+                </p>
+                <p className="mt-1 text-sm text-slate-600">{NAV.find((x) => x.id === tab)?.hint}</p>
               </div>
-            </section>
-            <MasterSheetEditor
-              summaries={profiles}
-              onSaved={() => {
-                onProfilesChange();
-                onRefreshGlobals();
-              }}
-            />
-          </div>
-        ) : null}
-
-        {tab === "genesis" ? (
-          <div className="space-y-4">
-            <label className="flex flex-col gap-2">
-              <span className="text-[9px] uppercase tracking-widest text-neutral-500">Cimientos del mundo</span>
-              <textarea
-                value={chronicle.foundations}
-                onChange={(e) => setChronicle((c) => ({ ...c, foundations: e.target.value }))}
-                rows={10}
-                className="w-full border bg-black/80 px-3 py-2 text-[11px] leading-relaxed text-neutral-200"
-                style={{ borderColor: ROOT }}
-                placeholder="Facciiones, barrios tabú, aliados recurrentes, líneas rojas de la crónica…"
-              />
-            </label>
-            <label className="flex flex-col gap-2">
-              <span className="text-[9px] uppercase tracking-widest text-neutral-500">
-                Vínculo entre hilos (principal · paralela · en vivo)
-              </span>
-              <textarea
-                value={chronicle.VINCULO_HILOS}
-                onChange={(e) => setChronicle((c) => ({ ...c, VINCULO_HILOS: e.target.value }))}
-                rows={4}
-                className="w-full border bg-black/80 px-3 py-2 text-[11px] leading-relaxed text-neutral-200"
-                style={{ borderColor: ROOT }}
-                placeholder="Ej.: La mesa IRL es el viernes; lo jugado en vivo actualiza el rumor que el PJ investiga el domingo en el hilo principal…"
-              />
-            </label>
-            <div className="grid gap-4 md:grid-cols-3">
-              <label className="flex flex-col gap-1">
-                <span className="text-[9px] uppercase text-neutral-500">AMBIENTE</span>
-                <textarea
-                  value={chronicle.AMBIENTE}
-                  onChange={(e) => setChronicle((c) => ({ ...c, AMBIENTE: e.target.value }))}
-                  rows={4}
-                  className="border bg-black/80 px-2 py-1.5 text-[10px]"
-                  style={{ borderColor: ROOT }}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[9px] uppercase text-neutral-500">TENSIÓN</span>
-                <textarea
-                  value={chronicle.TENSION}
-                  onChange={(e) => setChronicle((c) => ({ ...c, TENSION: e.target.value }))}
-                  rows={4}
-                  className="border bg-black/80 px-2 py-1.5 text-[10px]"
-                  style={{ borderColor: ROOT }}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[9px] uppercase text-neutral-500">ESTADO_GLOBAL</span>
-                <textarea
-                  value={chronicle.ESTADO_GLOBAL}
-                  onChange={(e) => setChronicle((c) => ({ ...c, ESTADO_GLOBAL: e.target.value }))}
-                  rows={4}
-                  className="border bg-black/80 px-2 py-1.5 text-[10px]"
-                  style={{ borderColor: ROOT }}
-                />
-              </label>
-            </div>
-            <button
-              type="button"
-              onClick={persistGenesis}
-              className="border px-5 py-2.5 text-[9px] uppercase tracking-[0.25em]"
-              style={{ borderColor: ROOT, backgroundColor: `${ROOT}18` }}
-            >
-              Guardar Génesis
-            </button>
-          </div>
-        ) : null}
-
-        {tab === "synaptic" ? (
-          <div className="space-y-3">
-            <p className="text-[10px] leading-relaxed text-neutral-500">
-              Inyección prioritaria para el motor narrador. Se integra en el próximo mensaje del jugador al canal (y el
-              contexto Génesis acompaña todas las llamadas).
-            </p>
-            <textarea
-              value={synInput}
-              onChange={(e) => setSynInput(e.target.value)}
-              rows={6}
-              className="w-full border bg-black/80 px-3 py-2 text-[11px] text-neutral-200"
-              style={{ borderColor: ROOT }}
-              placeholder="Ej.: Un helicóptero de vigilancia térmica surca la ribera; nadie avisó al Príncipe."
-            />
-            <button
-              type="button"
-              onClick={armSynaptic}
-              className="border px-5 py-2.5 text-[9px] uppercase tracking-[0.28em]"
-              style={{ borderColor: ROOT, color: ROOT }}
-            >
-              ARMAR_DISRUPCIÓN
-            </button>
-          </div>
-        ) : null}
-
-        {tab === "orquestacion" ? (
-          <div className="space-y-4">
-            <p className="text-[10px] leading-relaxed text-neutral-500">
-              Estado servidor de facciones, crisis, arco y memoria agregada (inyectado en prompts del narrador / Cronista).
-              Requiere clave operador ya validada por esta sesión. Con{" "}
-              <code className="text-neutral-400">UPSTASH_REDIS_*</code> el estado sobrevive entre despliegues y réplicas.
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                disabled={orchBusy}
-                onClick={() => void refreshOrchestration()}
-                className="border px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-300 disabled:opacity-40"
-                style={{ borderColor: ROOT }}
-              >
-                Refrescar
-              </button>
-              <button
-                type="button"
-                disabled={orchBusy}
-                onClick={() => void runOrchestrationAction("raid", { intensity: raidIntensity })}
-                className="border px-3 py-2 text-[9px] uppercase tracking-widest disabled:opacity-40"
-                style={{ borderColor: ROOT, color: ROOT }}
-              >
-                Raid Inquisición
-              </button>
-              <label className="flex items-center gap-1 text-[10px] text-neutral-500">
-                i
-                <input
-                  type="number"
-                  min={1}
-                  max={5}
-                  value={raidIntensity}
-                  onChange={(e) => setRaidIntensity(Math.min(5, Math.max(1, Number(e.target.value) || 4)))}
-                  className="w-12 border bg-black/80 px-1 py-0.5 text-neutral-200"
-                  style={{ borderColor: ROOT }}
-                />
-              </label>
-              <button
-                type="button"
-                disabled={orchBusy}
-                onClick={() => void runOrchestrationAction("bump_threat", { delta: threatDelta })}
-                className="border px-3 py-2 text-[9px] uppercase tracking-widest disabled:opacity-40"
-                style={{ borderColor: ROOT }}
-              >
-                Subir amenaza
-              </button>
-              <label className="flex items-center gap-1 text-[10px] text-neutral-500">
-                Δ
-                <input
-                  type="number"
-                  step={0.25}
-                  min={-2}
-                  max={2}
-                  value={threatDelta}
-                  onChange={(e) => setThreatDelta(Number(e.target.value) || 1)}
-                  className="w-14 border bg-black/80 px-1 py-0.5 text-neutral-200"
-                  style={{ borderColor: ROOT }}
-                />
-              </label>
-              <button
-                type="button"
-                disabled={orchBusy}
-                onClick={() => void runOrchestrationAction("advance_night")}
-                className="border px-3 py-2 text-[9px] uppercase tracking-widest disabled:opacity-40"
-                style={{ borderColor: ROOT }}
-              >
-                +Noche
-              </button>
-              <button
-                type="button"
-                disabled={orchBusy}
-                onClick={() => void runOrchestrationAction("purge_events")}
-                className="border px-3 py-2 text-[9px] uppercase tracking-widest disabled:opacity-40"
-                style={{ borderColor: ROOT }}
-              >
-                Purgar eventos
-              </button>
-              <button
-                type="button"
-                disabled={orchBusy}
-                onClick={() => {
-                  if (!window.confirm("¿Resetear orquestación a valores iniciales?")) return;
-                  void runOrchestrationAction("reset");
-                }}
-                className="border px-3 py-2 text-[9px] uppercase tracking-widest text-red-400/90 disabled:opacity-40"
-                style={{ borderColor: "#7f1d1d" }}
-              >
-                Reset
-              </button>
-            </div>
-            {orchStatusLine ? (
-              <p className="border px-3 py-2 text-[10px] text-neutral-400" style={{ borderColor: ROOT }}>
-                {orchStatusLine}
-              </p>
-            ) : null}
-            <pre
-              className="max-h-[min(420px,55vh)] overflow-auto border bg-black/80 p-3 text-[10px] leading-relaxed text-neutral-300"
-              style={{ borderColor: ROOT }}
-            >
-              {orchDisplay.trim() ? orchDisplay : orchBusy ? "…" : "(pulsa Refrescar)"}
-            </pre>
-
-            <section className="mt-4 space-y-2 border-t pt-4" style={{ borderColor: "#333" }}>
-              <p className="text-[9px] uppercase tracking-[0.28em] text-neutral-500">Mesa nueva desde cero · solo este equipo</p>
-              <p className="text-[10px] leading-relaxed text-neutral-500">
-                Borra perfiles CV, bitácoras Nexo locales, resúmenes, misiones marcadas en el cliente y hoja activa. Conserva la{" "}
-                <strong className="text-neutral-400">Génesis</strong> (pestaña homónima) para que cada reinicio parte del mismo ancla
-                mundano hasta que vos la edites. La configuración del motor en servidor no se toca desde este reinicio.
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  if (
-                    !window.confirm(
-                      "¿Reinicio de mesa local? Conserva la Génesis guardada. Se borran fichas Nexo locales, conversación Nexo local, mundo local y bitácora cliente.",
-                    )
-                  )
-                    return;
-                  if (!window.confirm("Confirmación final: pérdida de datos jugables en esta máquina. ¿Seguir?")) return;
-                  try {
-                    onFactoryReset();
-                    setOrchStatusLine("Cliente Nexo reinicializado preservando Génesis.");
-                    window.setTimeout(() => setOrchStatusLine(null), 5200);
-                  } catch (e) {
-                    setOrchStatusLine(e instanceof Error ? e.message : String(e));
-                  }
-                }}
-                className="border px-3 py-2 text-[9px] uppercase tracking-widest text-amber-200/95"
-                style={{ borderColor: "#b45309" }}
-              >
-                Reinicio primer arranque (local · conserva génesis)
-              </button>
-            </section>
-
-            <section className="mt-4 space-y-2 border-t pt-4" style={{ borderColor: "#333" }}>
-              <p className="text-[9px] uppercase tracking-[0.28em] text-neutral-500">Coordinar arranque · solo este dispositivo</p>
-              <p className="text-[10px] leading-relaxed text-neutral-500">
-                Para alinear el “momento actual” entre jugadores: usa esto cuando quieras cortar el lienzo del canal en este
-                navegador antes de abrir el Nexo en mesa. No limpia Redis de campaña ni claves API; los jugadores deben
-                coordinar el mismo corte o confiar en sala remota si comparten cola.
-              </p>
               <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!window.confirm("¿Borrar el registro del canal Nexo (localStorage) en este equipo?")) return;
-                    wipeLocalNexoTranscript();
-                    onRefreshGlobals();
-                    setOrchStatusLine("Transcript Nexo local vaciado.");
-                    window.setTimeout(() => setOrchStatusLine(null), 4200);
-                  }}
-                  className="border px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-300"
-                  style={{ borderColor: ROOT }}
-                >
-                  Vaciar transcript
+                <button type="button" className={btnSecondary} onClick={onGoHub}>
+                  Registro CV
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (
-                      !window.confirm(
-                        "¿Borrar transcript más resúmenes por hilo y legacy? El motor interno podrá reabrir escena al volver al Nexo principal.",
-                      )
-                    )
-                      return;
-                    wipeLocalNexoTranscript();
-                    wipeLocalRollingState();
-                    onRefreshGlobals();
-                    setOrchStatusLine("Transcript + rolling local reiniciados.");
-                    window.setTimeout(() => setOrchStatusLine(null), 4200);
-                  }}
-                  className="border px-3 py-2 text-[9px] uppercase tracking-widest text-neutral-300"
-                  style={{ borderColor: ROOT }}
-                >
-                  Transcript + resúmenes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (
-                      !window.confirm(
-                        "Reinicio cliente completo: transcript, resúmenes y estado mundo Nexo local (misiones/eco). ¿Seguro?",
-                      )
-                    )
-                      return;
-                    if (!window.confirm("Segunda confirmación: se pierden arcos y flags del mundo en este navegador."))
-                      return;
-                    wipeLocalNexoTranscript();
-                    wipeLocalRollingState();
-                    wipeClientNexoWorld();
-                    onRefreshGlobals();
-                    setOrchStatusLine("Cliente Nexo reiniciado en bruto (local).");
-                    window.setTimeout(() => setOrchStatusLine(null), 4800);
-                  }}
-                  className="border px-3 py-2 text-[9px] uppercase tracking-widest text-red-300/90"
-                  style={{ borderColor: "#7f1d1d" }}
-                >
-                  Reinicio duro cliente
+                <button type="button" className={btnPrimary} onClick={onGoNexus}>
+                  Ir a la partida
                 </button>
               </div>
-            </section>
-          </div>
-        ) : null}
-
-        {tab === "motor" ? (
-          <div className="space-y-5">
-            <p className="text-[10px] leading-relaxed text-neutral-500">
-              El motor se autentica con la misma sesión que abrió el Centro: al entrar se carga el último estado guardado;
-              pulsa «Guardar en servidor» para fijar cambios.
-            </p>
-
-            <section
-              className="rounded border px-4 py-3 shadow-[inset_0_0_0_1px_rgba(185,28,28,0.15)]"
-              style={{ borderColor: ROOT }}
-            >
-              <p className="text-[9px] uppercase tracking-[0.32em]" style={{ color: ROOT }}>
-                Mando · IA remota
-              </p>
-              <p className="mt-1.5 text-[10px] text-neutral-500">
-                IA remota opcional: si está desactivada el pipeline sigue con reglas internas y plantillas.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  disabled={motorLoading}
-                  onClick={() => void aplicarMandoIa(true)}
-                  className="border px-4 py-2.5 text-[9px] uppercase tracking-[0.2em] transition disabled:opacity-40"
-                  style={{
-                    borderColor: ROOT,
-                    ...(motorExtLlm ? { backgroundColor: `${ROOT}26`, color: ROOT } : { color: "rgb(212 212 212)" }),
-                  }}
-                >
-                  Activar IA remota
-                </button>
-                <button
-                  type="button"
-                  disabled={motorLoading}
-                  onClick={() => void aplicarMandoIa(false)}
-                  className="border px-4 py-2.5 text-[9px] uppercase tracking-[0.2em] transition disabled:opacity-40"
-                  style={{
-                    borderColor: ROOT,
-                    ...(!motorExtLlm ? { backgroundColor: "rgba(38 38 38 / 0.9)", color: "rgb(250 250 250)" } : {}),
-                  }}
-                >
-                  Desactivar IA · solo interno
-                </button>
-              </div>
-              <p className="mt-3 text-[9px] text-neutral-600">
-                Estado:{" "}
-                {motorExtLlm
-                  ? "Permitidas APIs externas si el deploy tiene claves."
-                  : "Bloqueadas · motor interno y plantillas locales."}
-              </p>
-            </section>
-
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                disabled={motorLoading}
-                onClick={() => void pullMotorSettings()}
-                className="border px-4 py-2 text-[9px] uppercase tracking-widest text-neutral-300 disabled:opacity-40"
-                style={{ borderColor: ROOT }}
-              >
-                Cargar estado
-              </button>
-              <button
-                type="button"
-                disabled={motorLoading}
-                onClick={() => void pushMotorSettings()}
-                className="border px-4 py-2 text-[9px] uppercase tracking-widest disabled:opacity-40"
-                style={{ borderColor: ROOT, color: ROOT }}
-              >
-                Guardar en servidor
-              </button>
             </div>
+          </header>
 
-            <label className="flex items-center gap-2 text-[10px] text-neutral-400">
-              <input
-                type="checkbox"
-                checked={motorPaused}
-                onChange={(e) => setMotorPaused(e.target.checked)}
-                disabled={motorLoading}
-              />
-              Pausar canal del jugador (bloquea narrador + MANIFESTAR; no afecta esta consola).
-            </label>
-
-            <section
-              className="rounded border border-amber-900/40 bg-amber-950/15 px-4 py-3"
-              aria-label="Reset vista global"
-            >
-              <p className="text-[9px] uppercase tracking-[0.28em] text-amber-200/90">Crónica · todos los equipos</p>
-              <p className="mt-1.5 text-[10px] leading-relaxed text-neutral-400">
-                Versión servidor: <span className="font-mono text-neutral-200">{motorClientEpoch}</span> · Este
-                navegador reconoce:{" "}
-                <span className="font-mono text-neutral-200">{readLocalClientResetEpoch()}</span>. Cuando el servidor
-                supere al local, se borra todo (incluida Génesis en blanco) y se recarga la página.
-              </p>
-              <button
-                type="button"
-                disabled={motorLoading}
-                onClick={() => void pushGlobalClientReset()}
-                className="mt-3 border border-amber-700/60 bg-black/50 px-4 py-2.5 text-[9px] uppercase tracking-[0.22em] text-amber-100 transition hover:border-amber-500/80 disabled:opacity-40"
+          <main className="flex-1 space-y-6 overflow-y-auto px-4 py-6 sm:px-8">
+            {synStatus ? (
+              <div
+                className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-950"
+                role="status"
               >
-                Forzar nueva crónica (global)
-              </button>
-            </section>
-
-            <label className="flex flex-col gap-2">
-              <span className="text-[9px] uppercase tracking-widest text-neutral-500">
-                Contexto global de campaña (impulso para empezar o continuar)
-              </span>
-              <textarea
-                value={motorSeed}
-                onChange={(e) => setMotorSeed(e.target.value)}
-                rows={10}
-                disabled={motorLoading}
-                className="w-full border bg-black/80 px-3 py-2 text-[11px] leading-relaxed text-neutral-200"
-                style={{ borderColor: ROOT }}
-                placeholder="Ej.: Año 2026 · El Sheriff exige tributo simbólico antes del solsticio. Rumor: infiltracamarilla en Providencia. Nadie menciona el incidente del Metro aún."
-              />
-            </label>
-
-            {motorStatus ? (
-              <p className="border px-3 py-2 text-[10px] text-neutral-400" style={{ borderColor: ROOT }}>
-                {motorStatus}
-              </p>
+                {synStatus}
+              </div>
             ) : null}
-          </div>
-        ) : null}
+
+            {genesisDirty || motorDirty ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950">
+                <p className="font-semibold">Hay cambios sin guardar</p>
+                <ul className="mt-2 list-inside list-disc space-y-1 text-amber-900/90">
+                  {genesisDirty ? (
+                    <li>
+                      <strong className="font-medium">Mundo y trama:</strong> pulsá «Guardar en este equipo» en la
+                      sección Mundo y trama (o usá el atajo del resumen).
+                    </li>
+                  ) : null}
+                  {motorDirty ? (
+                    <li>
+                      <strong className="font-medium">Motor:</strong> pulsá «Guardar en servidor» en Motor narrativo
+                      (los interruptores de IA también guardan al aplicarse).
+                    </li>
+                  ) : null}
+                </ul>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {genesisDirty ? (
+                    <button type="button" className={btnPrimary} onClick={persistGenesis}>
+                      Guardar mundo y trama (local)
+                    </button>
+                  ) : null}
+                  {motorDirty ? (
+                    <button type="button" className={btnPrimary} disabled={motorLoading} onClick={() => void pushMotorSettings()}>
+                      Guardar motor (servidor)
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
+            {tab === "overview" ? (
+              <div className="space-y-6">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <Card title="Mundo y trama" subtitle="Texto que recibe el narrador en cada llamada.">
+                    <div className="flex items-center gap-2">
+                      {statusPill(!genesisDirty, !genesisDirty ? "Guardado" : "Borrador")}
+                    </div>
+                    <button type="button" className={btnSecondary} onClick={() => setTab("world")}>
+                      Editar contexto
+                    </button>
+                  </Card>
+                  <Card title="Motor en servidor" subtitle="IA remota, pausa y resumen global.">
+                    <div className="flex items-center gap-2">
+                      {statusPill(!motorDirty, !motorDirty ? "Sincronizado" : "Pendiente de subir")}
+                    </div>
+                    <button type="button" className={btnSecondary} onClick={() => setTab("engine")}>
+                      Abrir motor
+                    </button>
+                  </Card>
+                  <Card title="Fichas en este navegador" subtitle="Personajes disponibles para editar.">
+                    <p className="text-2xl font-semibold text-slate-900">{profiles.length}</p>
+                    <button type="button" className={btnSecondary} onClick={() => setTab("cast")}>
+                      Gestionar reparto
+                    </button>
+                  </Card>
+                  <Card title="Versión global de clientes" subtitle="Para forzar reset en todos los equipos.">
+                    <p className="font-mono text-lg text-slate-800">{motorClientEpoch}</p>
+                    <p className="text-xs text-slate-500">
+                      Este navegador: <span className="font-mono">{readLocalClientResetEpoch()}</span>
+                    </p>
+                  </Card>
+                </div>
+
+                <Card
+                  title="Checklist para una partida jugable"
+                  subtitle="Orden sugerido; podés generar borradores con una IA externa y pegarlos aquí."
+                >
+                  <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-700">
+                    <li>
+                      Completá <button type="button" className="font-medium text-indigo-700 underline" onClick={() => setTab("world")}>Mundo y trama</button>{" "}
+                      (lore, ambiente, tensión política, estado del mundo, cómo se relacionan los canales de juego).
+                    </li>
+                    <li>
+                      Revisá <button type="button" className="font-medium text-indigo-700 underline" onClick={() => setTab("cast")}>Reparto</button> y las fichas
+                      maestras.
+                    </li>
+                    <li>
+                      En <button type="button" className="font-medium text-indigo-700 underline" onClick={() => setTab("engine")}>Motor narrativo</button>, cargá
+                      desde servidor, ajustá contexto global y guardá.
+                    </li>
+                    <li>
+                      Opcional: <button type="button" className="font-medium text-indigo-700 underline" onClick={() => setTab("priority")}>Escena prioritaria</button>{" "}
+                      si querés forzar un giro en el próximo mensaje del jugador.
+                    </li>
+                  </ol>
+                </Card>
+              </div>
+            ) : null}
+
+            {tab === "world" ? (
+              <div className="mx-auto max-w-4xl space-y-6">
+                <Card
+                  title="1 · Lore que no cambia en cada mensaje"
+                  subtitle="Facciones, barrios, tabúes, calendario interno. Cuanto más concreto, menos contradicciones del narrador."
+                >
+                  <FieldLabel>Antecedentes y reglas del mundo</FieldLabel>
+                  <AiHint>
+                    Tip: pedile a un asistente de IA «expandí estas viñetas en 8 viñetas de una ciudad X con tono Y» y
+                    pegá el resultado aquí; luego refiná vos las líneas rojas.
+                  </AiHint>
+                  <textarea
+                    value={chronicle.foundations}
+                    onChange={(e) => setChronicle((c) => ({ ...c, foundations: e.target.value }))}
+                    rows={10}
+                    className={inputClass}
+                    placeholder="Ej.: Camarilla reconoce al Sheriff hasta marzo. El barrio norte está en obras; los cazadores no actúan de día. …"
+                  />
+                </Card>
+
+                <Card
+                  title="2 · Escenario sensorial"
+                  subtitle="Qué ve, huele y siente el grupo la mayoría de las noches (no la trama, el envoltorio)."
+                >
+                  <FieldLabel>Ambiente físico y social</FieldLabel>
+                  <AiHint>Tip: una IA puede convertir «lista de 5 adjetivos» en un párrafo; vos recortá lo que sobre.</AiHint>
+                  <textarea
+                    value={chronicle.AMBIENTE}
+                    onChange={(e) => setChronicle((c) => ({ ...c, AMBIENTE: e.target.value }))}
+                    rows={5}
+                    className={inputClass}
+                    placeholder="Luz, clima, densidad de gente, ruido, olores, infraestructura…"
+                  />
+                </Card>
+
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <Card
+                    title="3 · Conflicto político"
+                    subtitle="Quién presiona a quién: príncipe, barones, mortalidad, segunda inquisición, etc."
+                  >
+                    <FieldLabel>Tensión principal</FieldLabel>
+                    <textarea
+                      value={chronicle.TENSION}
+                      onChange={(e) => setChronicle((c) => ({ ...c, TENSION: e.target.value }))}
+                      rows={6}
+                      className={inputClass}
+                      placeholder="Quién gana si nadie actúa; qué se pierde si los personajes fallan."
+                    />
+                  </Card>
+                  <Card title="4 · Estado del mundo hoy" subtitle="Hechos recientes que deben pesar en la próxima sesión.">
+                    <FieldLabel>Situación actual</FieldLabel>
+                    <textarea
+                      value={chronicle.ESTADO_GLOBAL}
+                      onChange={(e) => setChronicle((c) => ({ ...c, ESTADO_GLOBAL: e.target.value }))}
+                      rows={6}
+                      className={inputClass}
+                      placeholder="Rumores instalados, consecuencias de la última sesión, plazos que vencen…"
+                    />
+                  </Card>
+                </div>
+
+                <Card
+                  title="5 · Canales de juego"
+                  subtitle="Si usás hilo principal, paralelo o mesa en vivo: explicá cómo se conectan para no romper continuidad."
+                >
+                  <FieldLabel>Relación entre canales</FieldLabel>
+                  <textarea
+                    value={chronicle.VINCULO_HILOS}
+                    onChange={(e) => setChronicle((c) => ({ ...c, VINCULO_HILOS: e.target.value }))}
+                    rows={4}
+                    className={inputClass}
+                    placeholder="Ej.: El viernes en vivo alimenta el rumor que el domingo investiga el hilo principal…"
+                  />
+                </Card>
+
+                <Card
+                  title="Importación por texto (avanzado)"
+                  subtitle="Pegá bloques con formato CLAVE: valor para rellenar arcos, antagonistas y marcas. Se fusiona con lo que ya escribiste arriba."
+                >
+                  <details className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
+                    <summary className="cursor-pointer text-sm font-medium text-slate-800">Ver lista de claves admitidas</summary>
+                    <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs text-slate-600">{GENESIS_MANUSCRIPT_REFERENCE}</pre>
+                  </details>
+                  <textarea
+                    value={manuscriptRaw}
+                    onChange={(e) => setManuscriptRaw(e.target.value)}
+                    rows={8}
+                    className={inputClass}
+                    placeholder="Opcional: GENESIS_START … CIUDAD: … ANTAGONISTA: … GENESIS_END"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" className={btnSecondary} onClick={() => setManuscriptRaw(GENESIS_MANUSCRIPT_EXAMPLE)}>
+                      Cargar ejemplo
+                    </button>
+                    <button type="button" className={btnPrimary} onClick={applyGenesisManuscript}>
+                      Compilar importación
+                    </button>
+                    <label className={`${btnSecondary} cursor-pointer`}>
+                      <input
+                        type="file"
+                        accept=".txt,text/plain"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          void f.text().then((t) => {
+                            setManuscriptRaw(t);
+                            setSynStatus(`Archivo «${f.name}» cargado.`);
+                            window.setTimeout(() => setSynStatus(null), 2800);
+                          });
+                          e.target.value = "";
+                        }}
+                      />
+                      Subir .txt
+                    </label>
+                  </div>
+                  {manuscriptLog?.length ? (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+                      <p className="font-medium text-slate-800">Última compilación</p>
+                      <ul className="mt-2 list-inside list-disc">
+                        {manuscriptLog.map((x, i) => (
+                          <li key={`${i}-${x}`}>{x}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {manuscriptWarn?.length ? (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+                      <p className="font-medium">Avisos</p>
+                      <ul className="mt-2 list-inside list-disc">
+                        {manuscriptWarn.map((w, i) => (
+                          <li key={`${i}-${w}`}>{w}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </Card>
+
+                <div className="flex flex-wrap gap-3">
+                  <button type="button" className={btnPrimary} onClick={persistGenesis}>
+                    Guardar en este equipo
+                  </button>
+                  <p className="text-xs text-slate-500 self-center">Se guarda en el almacenamiento local del navegador (como el juego).</p>
+                </div>
+              </div>
+            ) : null}
+
+            {tab === "cast" ? (
+              <div className="mx-auto max-w-4xl space-y-6">
+                <Card
+                  title="Nueva ficha rápida"
+                  subtitle="Creá un personaje vacío para completarlo después en el editor maestro."
+                >
+                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                    <input type="checkbox" checked={entityNpc} onChange={(e) => setEntityNpc(e.target.checked)} />
+                    Marcar como NPC (solo metadato en la ficha)
+                  </label>
+                  <button type="button" className={btnPrimary} onClick={spawnEntity}>
+                    Crear ficha vacía
+                  </button>
+                </Card>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <h2 className="text-base font-semibold text-slate-900">Editor maestro de fichas</h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Mismos datos que usa la partida: nombre, clan, atributos, disciplinas, etc.
+                  </p>
+                  <div className="mt-4">
+                    <MasterSheetEditor
+                      summaries={profiles}
+                      onSaved={() => {
+                        onProfilesChange();
+                        onRefreshGlobals();
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {tab === "priority" ? (
+              <div className="mx-auto max-w-2xl">
+                <Card
+                  title="Inyección en el próximo envío"
+                  subtitle="Este texto se añade con prioridad al contexto cuando un jugador escribe en el canal. Úsalo para un giro, un rumor o una presencia que debe aparecer ya."
+                >
+                  <AiHint>
+                    Tip: escribí en imperativo qué debe ser cierto en la escena («Hay un dron encendido sobre el techo»)
+                    en lugar de instrucciones al modelo («no hagas X»).
+                  </AiHint>
+                  <textarea
+                    value={synInput}
+                    onChange={(e) => setSynInput(e.target.value)}
+                    rows={8}
+                    className={inputClass}
+                    placeholder="Ej.: Un helicóptero térmico recorre la ribera; nadie avisó al Príncipe."
+                  />
+                  <button type="button" className={btnPrimary} onClick={armSynaptic}>
+                    Activar para el próximo mensaje
+                  </button>
+                </Card>
+              </div>
+            ) : null}
+
+            {tab === "engine" ? (
+              <div className="mx-auto max-w-3xl space-y-6">
+                <Card title="Modelos remotos" subtitle="Si el despliegue tiene API keys, el narrador puede usar modelos externos; si no, el motor local responde igual.">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={motorLoading}
+                      onClick={() => void aplicarMandoIa(true)}
+                      className={`${btnPrimary} ${motorExtLlm ? "ring-2 ring-indigo-300" : ""}`}
+                    >
+                      Permitir modelos remotos
+                    </button>
+                    <button
+                      type="button"
+                      disabled={motorLoading}
+                      onClick={() => void aplicarMandoIa(false)}
+                      className={btnSecondary}
+                    >
+                      Sólo motor local
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    Estado actual:{" "}
+                    <strong>{motorExtLlm ? "remotos permitidos (si hay credenciales)" : "bloqueado · local únicamente"}</strong>
+                  </p>
+                </Card>
+
+                <Card title="Sincronización" subtitle="Leé el estado del servidor antes de editar; guardá cuando termines.">
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" disabled={motorLoading} className={btnSecondary} onClick={() => void pullMotorSettings()}>
+                      Cargar desde servidor
+                    </button>
+                    <button type="button" disabled={motorLoading} className={btnPrimary} onClick={() => void pushMotorSettings()}>
+                      Guardar en servidor
+                    </button>
+                  </div>
+                </Card>
+
+                <Card title="Pausa del canal de jugador" subtitle="Bloquea narrador y tiradas del jugador en la app; esta consola sigue funcionando.">
+                  <label className="flex items-center gap-2 text-sm text-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={motorPaused}
+                      onChange={(e) => setMotorPaused(e.target.checked)}
+                      disabled={motorLoading}
+                    />
+                    Canal de jugador pausado
+                  </label>
+                </Card>
+
+                <Card
+                  title="Contexto global de campaña"
+                  subtitle="Resumen que el servidor envía al narrador además de la Génesis: fechas internas, plazos, tono, líneas rojas."
+                >
+                  <AiHint>
+                    Tip: una IA puede armar un «brief de showrunner» de 15 líneas a partir de tus notas; pegalo y ajustá
+                    nombres propios.
+                  </AiHint>
+                  <textarea
+                    value={motorSeed}
+                    onChange={(e) => setMotorSeed(e.target.value)}
+                    rows={12}
+                    disabled={motorLoading}
+                    className={inputClass}
+                    placeholder="Ej.: Año interno 2026. El Sheriff cobra tributo antes del solsticio. Rumor: infiltrados en Providencia…"
+                  />
+                </Card>
+
+                <Card
+                  title="Nueva crónica en todos los clientes"
+                  subtitle="Incrementa la versión global: cada navegador borrará datos locales al detectarlo. Muy destructivo."
+                >
+                  <button type="button" disabled={motorLoading} className={btnDanger} onClick={() => void pushGlobalClientReset()}>
+                    Forzar reset global de clientes
+                  </button>
+                </Card>
+
+                {motorStatus ? (
+                  <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">{motorStatus}</p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {tab === "server" ? (
+              <div className="mx-auto max-w-4xl space-y-6">
+                <Card
+                  title="Orquestación en servidor"
+                  subtitle="Estado compartido (facciones, crisis, memoria agregada) si el despliegue tiene base de datos configurada. Si no, verás errores al refrescar: es esperable en local sin Redis."
+                >
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" disabled={orchBusy} className={btnSecondary} onClick={() => void refreshOrchestration()}>
+                      Refrescar JSON
+                    </button>
+                    <button
+                      type="button"
+                      disabled={orchBusy}
+                      className={btnSecondary}
+                      onClick={() => void runOrchestrationAction("raid", { intensity: raidIntensity })}
+                    >
+                      Evento tipo redada
+                    </button>
+                    <label className="flex items-center gap-2 text-sm text-slate-600">
+                      Intensidad
+                      <input
+                        type="number"
+                        min={1}
+                        max={5}
+                        value={raidIntensity}
+                        onChange={(e) => setRaidIntensity(Math.min(5, Math.max(1, Number(e.target.value) || 4)))}
+                        className="w-14 rounded border border-slate-300 px-2 py-1 text-sm"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      disabled={orchBusy}
+                      className={btnSecondary}
+                      onClick={() => void runOrchestrationAction("bump_threat", { delta: threatDelta })}
+                    >
+                      Ajustar amenaza
+                    </button>
+                    <label className="flex items-center gap-2 text-sm text-slate-600">
+                      Delta
+                      <input
+                        type="number"
+                        step={0.25}
+                        min={-2}
+                        max={2}
+                        value={threatDelta}
+                        onChange={(e) => setThreatDelta(Number(e.target.value) || 1)}
+                        className="w-16 rounded border border-slate-300 px-2 py-1 text-sm"
+                      />
+                    </label>
+                    <button type="button" disabled={orchBusy} className={btnSecondary} onClick={() => void runOrchestrationAction("advance_night")}>
+                      Avanzar noche
+                    </button>
+                    <button type="button" disabled={orchBusy} className={btnSecondary} onClick={() => void runOrchestrationAction("purge_events")}>
+                      Purgar eventos
+                    </button>
+                    <button
+                      type="button"
+                      disabled={orchBusy}
+                      className={btnDanger}
+                      onClick={() => {
+                        if (!window.confirm("¿Resetear orquestación del servidor a valores iniciales?")) return;
+                        void runOrchestrationAction("reset");
+                      }}
+                    >
+                      Reset orquestación
+                    </button>
+                  </div>
+                  {orchStatusLine ? <p className="text-sm text-slate-700">{orchStatusLine}</p> : null}
+                  <pre className="max-h-[min(420px,55vh)] overflow-auto rounded-lg border border-slate-800 bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">
+                    {orchDisplay.trim() ? orchDisplay : orchBusy ? "…" : "Pulsa «Refrescar JSON»."}
+                  </pre>
+                </Card>
+
+                <Card
+                  title="Reinicio solo en este navegador"
+                  subtitle="No toca el servidor. Útil para ensayar sin borrar la campaña remota."
+                >
+                  <p className="text-sm text-slate-600">
+                    Borra perfiles locales, conversación, mundo de campaña en este equipo. La Génesis guardada en local
+                    se conserva salvo que elijas un reinicio más agresivo abajo.
+                  </p>
+                  <button
+                    type="button"
+                    className={btnDanger}
+                    onClick={() => {
+                      if (!window.confirm("¿Reinicio local? Se borran fichas y chat en este equipo.")) return;
+                      if (!window.confirm("Confirmación final.")) return;
+                      try {
+                        onFactoryReset();
+                        setOrchStatusLine("Reinicio local hecho.");
+                        window.setTimeout(() => setOrchStatusLine(null), 5200);
+                      } catch (e) {
+                        setOrchStatusLine(e instanceof Error ? e.message : String(e));
+                      }
+                    }}
+                  >
+                    Reinicio local (conserva Génesis guardada)
+                  </button>
+                </Card>
+
+                <Card title="Limpieza fina del cliente" subtitle="Transcript y resúmenes; último bloque borra también el mundo Nexo local.">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className={btnSecondary}
+                      onClick={() => {
+                        if (!window.confirm("¿Vaciar transcript del canal en este equipo?")) return;
+                        wipeLocalNexoTranscript();
+                        onRefreshGlobals();
+                        setOrchStatusLine("Transcript vaciado.");
+                        window.setTimeout(() => setOrchStatusLine(null), 4200);
+                      }}
+                    >
+                      Vaciar transcript
+                    </button>
+                    <button
+                      type="button"
+                      className={btnSecondary}
+                      onClick={() => {
+                        if (!window.confirm("¿Borrar transcript y resúmenes por hilo?")) return;
+                        wipeLocalNexoTranscript();
+                        wipeLocalRollingState();
+                        onRefreshGlobals();
+                        setOrchStatusLine("Transcript y resúmenes reiniciados.");
+                        window.setTimeout(() => setOrchStatusLine(null), 4200);
+                      }}
+                    >
+                      Transcript + resúmenes
+                    </button>
+                    <button
+                      type="button"
+                      className={btnDanger}
+                      onClick={() => {
+                        if (!window.confirm("¿Borrar transcript, resúmenes y mundo Nexo local (misiones, marcas)?")) return;
+                        if (!window.confirm("Segunda confirmación.")) return;
+                        wipeLocalNexoTranscript();
+                        wipeLocalRollingState();
+                        wipeClientNexoWorld();
+                        onRefreshGlobals();
+                        setOrchStatusLine("Cliente reiniciado (duro).");
+                        window.setTimeout(() => setOrchStatusLine(null), 4800);
+                      }}
+                    >
+                      Reinicio duro (incluye mundo local)
+                    </button>
+                  </div>
+                </Card>
+              </div>
+            ) : null}
+          </main>
+        </div>
       </div>
     </div>
   );
