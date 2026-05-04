@@ -84,6 +84,8 @@ import {
 } from "@/lib/profileStore";
 import { ProfileHub } from "./ProfileHub";
 import { NarratorCommandCenter } from "./NarratorCommandCenter";
+import { NexoComingSoon } from "./NexoComingSoon";
+import { SoloCampaignApp } from "./SoloCampaignApp";
 import type { Phase } from "@/lib/schreckPhase";
 import {
   clearSchreckAuth,
@@ -459,7 +461,7 @@ function CronistaAppInner() {
       }
     }
     if (target === "commandCenter" && !narrator) target = "profileHub";
-    if (target === "nexus" && !narrator && !getActiveProfileId()) target = "profileHub";
+    if ((target === "nexus" || target === "soloCampaign") && !narrator && !getActiveProfileId()) target = "profileHub";
 
     const hrefWant = phaseToHref(target);
     if (`${window.location.pathname}${window.location.search}` !== hrefWant) {
@@ -496,7 +498,7 @@ function CronistaAppInner() {
       if (target === "commandCenter" && (!narrator || !isOperatorSessionUnlocked())) {
         window.history.replaceState({ phase: "profileHub" }, "", phaseToHref("profileHub"));
         target = "profileHub";
-      } else if (target === "nexus" && !narrator && !getActiveProfileId()) {
+      } else if ((target === "nexus" || target === "soloCampaign") && !narrator && !getActiveProfileId()) {
         window.history.replaceState({ phase: "profileHub" }, "", phaseToHref("profileHub"));
         target = "profileHub";
       }
@@ -585,10 +587,10 @@ function CronistaAppInner() {
       firstSeal ? `[CODEX_COMMIT]: ${finalized.name || "NULL"}` : `[CODEX_RELAY]: MJ · ${finalized.name || "NULL"}`,
     );
     setSheetLocked(true);
-    navigateToPhase("nexus");
+    navigateToPhase("soloCampaign");
     pushLog({
       role: "sistema",
-      text: "Tu CODEX quedó cerrado para el Nexo.",
+      text: "Tu CODEX quedó cerrado para Campaña Solitaria.",
     });
     const aid = getActiveProfileId();
     if (aid) syncActiveBundleFromGlobals(aid);
@@ -919,6 +921,13 @@ function CronistaAppInner() {
     appendXpLog(`Sesión cargada · ${loadSheet()?.name?.trim() || id}`);
   };
 
+  const enterSoloProfile = (id: string) => {
+    if (!selectProfile(id)) return;
+    applyGlobalsToUi(setSheet, setSheetLocked, setLogs, commitStrand);
+    navigateToPhase("soloCampaign");
+    appendXpLog(`Campaña solitaria · ${loadSheet()?.name?.trim() || id}`);
+  };
+
   const startBlankSheet = () => {
     createBlankProfile();
     applyGlobalsToUi(setSheet, setSheetLocked, setLogs, commitStrand);
@@ -943,7 +952,7 @@ function CronistaAppInner() {
           navigateToPhase("profileHub");
         }}
         onGoHub={() => navigateToPhase("profileHub")}
-        onGoNexus={() => {
+      onGoNexus={() => {
           const id = getActiveProfileId();
           if (!id) {
             window.alert("No hay perfil activo. Abre REGISTRO_CV y selecciona un CV.");
@@ -951,7 +960,7 @@ function CronistaAppInner() {
           }
           if (!selectProfile(id)) return;
           applyGlobalsToUi(setSheet, setSheetLocked, setLogs, commitStrand);
-          navigateToPhase("nexus");
+          navigateToPhase("soloCampaign");
         }}
         onRefreshGlobals={() =>
           applyGlobalsToUi(setSheet, setSheetLocked, setLogs, commitStrand)
@@ -965,6 +974,7 @@ function CronistaAppInner() {
       <ProfileHub
         profiles={hubProfiles}
         onPlayProfile={(id) => enterProfile(id)}
+        onPlaySoloProfile={(id) => enterSoloProfile(id)}
         onNewSheetBlank={startBlankSheet}
         onLogout={goToLogin}
         onClearLocalProfiles={() => {
@@ -974,6 +984,15 @@ function CronistaAppInner() {
         }}
       />
     );
+  }
+
+  if (phase === "soloCampaign") {
+    const activeId = getActiveProfileId();
+    if (!activeId) {
+      navigateToPhase("profileHub", { replace: true });
+      return null;
+    }
+    return <SoloCampaignApp profileId={activeId} sheet={sheet} onExit={goToProfileHub} />;
   }
 
   if (phase === "chargen") {
@@ -993,7 +1012,7 @@ function CronistaAppInner() {
       saveSheet(next);
       setSheet(next);
       persistActiveProfile();
-      navigateToPhase("nexus");
+      navigateToPhase("soloCampaign");
       appendXpLog(`Identidad marcada · ${next.name?.trim() || "—"}`);
     }
 
@@ -1003,10 +1022,10 @@ function CronistaAppInner() {
           <span className="tracking-[0.28em] text-neutral-400">Codex V</span>
           <button
             type="button"
-            onClick={() => navigateToPhase("nexus", { replace: true })}
+            onClick={() => navigateToPhase("soloCampaign", { replace: true })}
             className="rounded border border-white/10 px-3 py-2 text-[9px] uppercase tracking-[0.16em] text-neutral-400 transition hover:border-neutral-600 hover:text-neutral-200"
           >
-            Volver al Nexo
+            Volver a Campaña
           </button>
         </header>
         <CharacterCreation
@@ -1024,8 +1043,11 @@ function CronistaAppInner() {
     );
   }
 
-  const healthHudFilled =
-    HEALTH_MAX_UI - Math.min(sheet.healthDamage, HEALTH_MAX_UI);
+  if (phase === "nexus") {
+    return <NexoComingSoon onGoSolo={() => navigateToPhase("soloCampaign")} onGoHub={goToProfileHub} />;
+  }
+
+  const healthHudFilled = HEALTH_MAX_UI - Math.min(sheet.healthDamage, HEALTH_MAX_UI);
 
   return (
     <div

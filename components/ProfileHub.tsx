@@ -7,6 +7,7 @@ import type { ProfileSummary } from "@/lib/profileStore";
 type Props = {
   profiles: ProfileSummary[];
   onPlayProfile: (id: string) => void;
+  onPlaySoloProfile: (id: string) => void;
   onNewSheetBlank: () => void;
   onLogout: () => void;
   /** Vacía el registro de personajes en este navegador (no remoto; conserva Génesis y conversación Nexo). */
@@ -18,16 +19,23 @@ function playerProfiles(list: ProfileSummary[]) {
   return list.filter((p) => p.isNPC !== true);
 }
 
-export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout, onClearLocalProfiles }: Props) {
+export function ProfileHub({
+  profiles,
+  onPlayProfile,
+  onPlaySoloProfile,
+  onNewSheetBlank,
+  onLogout,
+  onClearLocalProfiles,
+}: Props) {
   const visible = playerProfiles(profiles);
   return (
     <div className="relative flex min-h-screen flex-col bg-[#050505] px-4 py-10 font-mono text-neutral-300 crt-wrap techno-grid">
       <div className="mx-auto w-full max-w-lg space-y-8">
         <header className="space-y-4 border-b border-[#161616] pb-6">
           <p className="text-[10px] uppercase tracking-[0.35em] text-[var(--terminal)]/90">SCHRECK_NET</p>
-          <h1 className="font-sans text-lg font-semibold tracking-tight text-neutral-100">¿Quién cruza el Nexo?</h1>
+          <h1 className="font-sans text-lg font-semibold tracking-tight text-neutral-100">Campaña Solitaria</h1>
           <p className="text-[11px] leading-relaxed text-neutral-500">
-            Elige un personaje para la sesión o crea uno nuevo en el CODEX y entra cuando estés listo para jugar.
+            Elige un personaje para jugar en solitario. El Nexo cooperativo queda en pausa y volverá próximamente.
           </p>
           <div className="relative overflow-hidden border border-[#1c1c1c] bg-gradient-to-r from-black/80 via-[#0a0a0a] to-black/80 px-3 py-2.5 sharp-border-inner">
             <div
@@ -42,7 +50,7 @@ export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout,
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--terminal)]/40" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--terminal)]/90" />
               </span>
-              <p className="text-[9px] uppercase tracking-[0.28em] text-neutral-500">CV · canal local · no remoto</p>
+              <p className="text-[9px] uppercase tracking-[0.28em] text-neutral-500">CV · campaña local · por perfil</p>
             </div>
           </div>
         </header>
@@ -84,7 +92,7 @@ export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout,
         </div>
 
         <section className="space-y-3">
-          <p className="text-[9px] uppercase tracking-[0.32em] text-neutral-600">Últimos Vástagos Registrados</p>
+          <p className="text-[9px] uppercase tracking-[0.32em] text-neutral-600">Personajes disponibles</p>
           {visible.length === 0 ? (
             <p className="border border-[#161616] bg-black/40 px-4 py-8 text-center text-[11px] leading-relaxed text-neutral-500">
               Aquí aparecerán tus personajes. Pulsa{" "}
@@ -98,12 +106,7 @@ export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout,
                 const clanLabel = CLAN_OPTIONS.find((c) => c.id === p.clan)?.label ?? p.clan;
                 return (
                   <li key={p.id}>
-                    <motion.button
-                      type="button"
-                      whileHover={{ x: 2 }}
-                      onClick={() => onPlayProfile(p.id)}
-                      className="flex w-full items-center justify-between gap-3 border border-[#1a1a1a] bg-black/50 px-4 py-3 text-left sharp-border-inner transition-colors hover:border-[#2a2a2a]"
-                    >
+                    <div className="flex w-full items-center justify-between gap-3 border border-[#1a1a1a] bg-black/50 px-4 py-3 text-left sharp-border-inner transition-colors hover:border-[#2a2a2a]">
                       <span className="min-w-0">
                         <span className="block truncate font-sans text-xs text-neutral-200">
                           {p.isNPC ? (
@@ -117,8 +120,25 @@ export function ProfileHub({ profiles, onPlayProfile, onNewSheetBlank, onLogout,
                           {clanLabel}
                         </span>
                       </span>
-                      <span className="shrink-0 text-[8px] uppercase tracking-widest text-neutral-500">Jugar →</span>
-                    </motion.button>
+                      <div className="flex shrink-0 gap-2">
+                        <motion.button
+                          type="button"
+                          whileHover={{ x: 2 }}
+                          onClick={() => onPlaySoloProfile(p.id)}
+                          className="border border-[var(--terminal)]/40 px-2 py-1 text-[8px] uppercase tracking-widest text-[var(--terminal)] hover:bg-[var(--terminal)]/10"
+                        >
+                          Solitario
+                        </motion.button>
+                        <motion.button
+                          type="button"
+                          whileHover={{ x: 2 }}
+                          onClick={() => onPlayProfile(p.id)}
+                          className="border border-neutral-700 px-2 py-1 text-[8px] uppercase tracking-widest text-neutral-400 hover:border-neutral-500"
+                        >
+                          Nexo
+                        </motion.button>
+                      </div>
+                    </div>
                   </li>
                 );
               })}

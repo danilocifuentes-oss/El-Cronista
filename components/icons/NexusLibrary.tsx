@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Glifos originales para la UI (SchreckNet / mesa). Inspirationes de tono pueden mirar material de referencia
+ * de terceros sólo como enciclopedia visual; no reproducir símbolos oficiales marca/marca registrada.
+ */
+
 import type { CSSProperties } from "react";
 
 const transition = "transition-[stroke,opacity,transform] duration-500 ease-in-out";
@@ -53,7 +58,15 @@ export const NexusLibrary = {
       >
         <NetLayer stroke={stroke} opacity={hot ? 0.28 : 0.2} />
         <circle cx="12" cy="12" r="9.5" stroke={stroke} strokeWidth="1.35" fill="rgba(0,0,0,0.15)" />
-        <path d="M12 8.2v3.6M12 16.2h.01" stroke={stroke} strokeWidth="2" strokeLinecap="round" />
+        {/* Marcos de observación — evita forma de "!"; la escala Σ queda abajo */}
+        <path
+          d="M5 5 7.8 5M5 5 5 7.8M19 19 16.2 19M19 19 19 16.2M19 5 16.2 5M19 5 19 7.8M5 19 7.8 19M5 19 5 16.2"
+          stroke={stroke}
+          strokeWidth="1"
+          strokeLinecap="square"
+          fill="none"
+          opacity={0.95}
+        />
         {Array.from({ length: s }).map((_, i) => (
           <rect
             key={i}
@@ -110,7 +123,14 @@ export const NexusLibrary = {
         strokeWidth="1.2"
         fill="rgba(159,18,57,0.12)"
       />
-      <path d="M12 8.2v5.2" stroke="var(--blood)" strokeWidth="1" strokeLinecap="round" opacity={0.85} />
+      <path
+        d="M8 14 Q12 17.8 16 14"
+        stroke="var(--blood)"
+        strokeWidth="0.75"
+        strokeLinecap="round"
+        fill="none"
+        opacity={0.65}
+      />
     </svg>
   ),
 
